@@ -814,42 +814,6 @@ async def set_predecessor(activity_id: int, predecessor_id: int) -> dict:
 # Phase 5: Add user context management
 
 
-def initialize_mcp():
-    """
-    Initialize and return the FastMCP instance.
-    
-    Called by mcp_server management command.
-    Registers all 20 tools with FastMCP.
-    
-    :returns: FastMCP instance ready to run
-    """
-    logger.info('MCP: Initializing FastMCP server with 20 tools')
-    
-    # Register playbook tools
-    mcp.tool()(create_playbook)
-    mcp.tool()(list_playbooks)
-    mcp.tool()(get_playbook)
-    mcp.tool()(update_playbook)
-    mcp.tool()(delete_playbook)
-    
-    # Register workflow tools
-    mcp.tool()(create_workflow)
-    mcp.tool()(list_workflows)
-    mcp.tool()(get_workflow)
-    mcp.tool()(update_workflow)
-    mcp.tool()(delete_workflow)
-    
-    # Register activity tools
-    mcp.tool()(create_activity)
-    mcp.tool()(list_activities)
-    mcp.tool()(get_activity)
-    mcp.tool()(update_activity)
-    mcp.tool()(delete_activity)
-    mcp.tool()(set_predecessor)
-    
-    logger.info('MCP: All 20 tools registered')
-    return mcp
-
 # ============================================================================
 # WORKFLOW EXPORT/IMPORT MCP TOOLS
 # ============================================================================
@@ -959,3 +923,46 @@ async def create_pip_from_protocol(protocol_file: str, pip_title: str) -> dict:
     
     logger.info(f'MCP Tool: Created PIP {result["pip_id"]}')
     return result
+
+def initialize_mcp():
+    """
+    Initialize and return the FastMCP instance.
+    
+    Called by mcp_server management command.
+    Registers all 20 tools with FastMCP.
+    
+    :returns: FastMCP instance ready to run
+    """
+    logger.info('MCP: Initializing FastMCP server with 20 tools')
+    
+    # Register playbook tools
+    mcp.tool()(create_playbook)
+    mcp.tool()(list_playbooks)
+    mcp.tool()(get_playbook)
+    mcp.tool()(update_playbook)
+    mcp.tool()(delete_playbook)
+    
+    # Register workflow tools
+    mcp.tool()(create_workflow)
+    mcp.tool()(list_workflows)
+    mcp.tool()(get_workflow)
+    mcp.tool()(update_workflow)
+    mcp.tool()(delete_workflow)
+    
+    # Register activity tools
+    mcp.tool()(create_activity)
+    mcp.tool()(list_activities)
+    mcp.tool()(get_activity)
+    mcp.tool()(update_activity)
+    mcp.tool()(delete_activity)
+    mcp.tool()(set_predecessor)
+    
+    # Register workflow export/import tools
+    mcp.tool()(export_workflow_to_local)
+    mcp.tool()(import_workflow_from_local)
+    mcp.tool()(apply_upload_protocol)
+    mcp.tool()(create_pip_from_protocol)
+    
+    logger.info('MCP: All 20 tools registered')
+    return mcp
+
