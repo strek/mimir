@@ -819,11 +819,11 @@ def initialize_mcp():
     Initialize and return the FastMCP instance.
     
     Called by mcp_server management command.
-    Registers all 16 tools with FastMCP.
+    Registers all 20 tools with FastMCP.
     
     :returns: FastMCP instance ready to run
     """
-    logger.info('MCP: Initializing FastMCP server with 16 tools')
+    logger.info('MCP: Initializing FastMCP server with 20 tools')
     
     # Register playbook tools
     mcp.tool()(create_playbook)
@@ -847,5 +847,115 @@ def initialize_mcp():
     mcp.tool()(delete_activity)
     mcp.tool()(set_predecessor)
     
-    logger.info('MCP: All 16 tools registered')
+    logger.info('MCP: All 20 tools registered')
     return mcp
+
+# ============================================================================
+# WORKFLOW EXPORT/IMPORT MCP TOOLS
+# ============================================================================
+
+async def export_workflow_to_local(
+    workflow_id: int,
+    target_directory: str = ".windsurf/workflows",
+    folder_name: str = None
+) -> dict:
+    """
+    Export workflow to local AI workspace as markdown files.
+    
+    :param workflow_id: Workflow ID. Example: 42
+    :param target_directory: Target directory. Example: ".windsurf/workflows"
+    :param folder_name: Folder name. Example: "FFE" (defaults to workflow slug)
+    :return: Export result with file paths and counts
+    """
+    logger.info(f'MCP Tool: export_workflow_to_local called - workflow_id={workflow_id}')
+    
+    user = await sync_to_async(get_current_user)()
+    
+    from methodology.services.workflow_export_service import WorkflowExportService
+    result = await sync_to_async(WorkflowExportService.export_workflow_to_markdown)(
+        workflow_id=workflow_id,
+        target_directory=target_directory,
+        folder_name=folder_name
+    )
+    
+    logger.info(f'MCP Tool: Exported workflow {workflow_id} to {result["export_path"]}')
+    return result
+
+
+async def import_workflow_from_local(
+    workflow_id: int,
+    source_directory: str,
+    auto_apply: bool = False
+) -> dict:
+    """
+    Import workflow from local markdown files with change detection.
+    
+    :param workflow_id: Workflow ID. Example: 42
+    :param source_directory: Source directory. Example: ".windsurf/workflows/FFE"
+    :param auto_apply: Auto-apply for draft playbooks. Example: False
+    :return: Change detection result with protocol path
+    """
+    logger.info(f'MCP Tool: import_workflow_from_local called - workflow_id={workflow_id}')
+    
+    user = await sync_to_async(get_current_user)()
+    
+    from methodology.services.workflow_import_service import WorkflowImportService
+    result = await sync_to_async(WorkflowImportService.import_workflow_from_markdown)(
+        workflow_id=workflow_id,
+        source_directory=source_directory
+    )
+    
+    if auto_apply and result['playbook_status'] == 'draft':
+        from methodology.services.workflow_protocol_service import WorkflowProtocolService
+        import os
+        protocol_file = os.path.join(source_directory, '_Upload_Protocol.md')
+        apply_result = await sync_to_async(WorkflowProtocolService.apply_upload_protocol)(
+            protocol_file=protocol_file
+        )
+        result['auto_applied'] = True
+        result['apply_result'] = apply_result
+    
+    logger.info(f'MCP Tool: Imported workflow {workflow_id}, changes detected: {result["changes_count"]}')
+    return result
+
+
+async def apply_upload_protocol(protocol_file: str) -> dict:
+    """
+    Apply upload protocol to draft playbook.
+    
+    :param protocol_file: Path to _Upload_Protocol.md
+    :return: Application result with change counts
+    """
+    logger.info(f'MCP Tool: apply_upload_protocol called - protocol_file={protocol_file}')
+    
+    user = await sync_to_async(get_current_user)()
+    
+    from methodology.services.workflow_protocol_service import WorkflowProtocolService
+    result = await sync_to_async(WorkflowProtocolService.apply_upload_protocol)(
+        protocol_file=protocol_file
+    )
+    
+    logger.info(f'MCP Tool: Applied protocol, changes: {result["changes_applied"]}')
+    return result
+
+
+async def create_pip_from_protocol(protocol_file: str, pip_title: str) -> dict:
+    """
+    Create PIP from upload protocol for released playbook.
+    
+    :param protocol_file: Path to _Upload_Protocol.md
+    :param pip_title: PIP title. Example: "Improve workflow"
+    :return: Created PIP dict with ID and status
+    """
+    logger.info(f'MCP Tool: create_pip_from_protocol called - pip_title={pip_title}')
+    
+    user = await sync_to_async(get_current_user)()
+    
+    from methodology.services.workflow_protocol_service import WorkflowProtocolService
+    result = await sync_to_async(WorkflowProtocolService.create_pip_from_protocol)(
+        protocol_file=protocol_file,
+        pip_title=pip_title
+    )
+    
+    logger.info(f'MCP Tool: Created PIP {result["pip_id"]}')
+    return result
