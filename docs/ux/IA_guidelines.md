@@ -869,7 +869,7 @@ From dashboard screenshot:
 - **Activities** - Icon: `fa-list-check` - Tooltip: "Coming soon: Browse all activities"
 - **Artifacts** - Icon: `fa-gift` - Tooltip: "Coming soon: Manage artifacts and deliverables"
 - **Roles** - Icon: `fa-brain` - Tooltip: "Coming soon: Define and assign roles"
-- **Howtos** - Icon: `fa-hand-holding-magic` - Tooltip: "Coming soon: Browse how-to guides"
+- **Skills** - Icon: `fa-hand-holding-magic` - Tooltip: "Coming soon: Browse skill guides"
 - **PIPs** - Icon: `fa-lightbulb` - Tooltip: "Coming soon: Global PIPs list (currently accessed via Playbook tabs)"
 
 **Feature Wiring Pattern:**
@@ -936,7 +936,7 @@ Scenario: [FEATURE]-NAVBAR-02 Navigate to [Feature] from any page
 - Activities: `fa-list-check` (task checklists)
 - Artifacts: `fa-gift` (deliverables/outputs)
 - Roles: `fa-brain` (knowledge/thinking/expertise)
-- Howtos: `fa-hand-holding-magic` (guidance/teaching)
+- Skills: `fa-hand-holding-magic` (guidance/teaching)
 - PIPs: `fa-lightbulb` (ideas/improvements)
 
 **Icon Rationale:**
@@ -944,7 +944,7 @@ Scenario: [FEATURE]-NAVBAR-02 Navigate to [Feature] from any page
 - **Phases** (`fa-bars-progress`): Shows multiple bars for distinct sequential stages
 - **Artifacts** (`fa-gift`): Deliverables are "gifts" produced by the process
 - **Roles** (`fa-brain`): Emphasizes expertise and cognitive work
-- **Howtos** (`fa-hand-holding-magic`): Conveys assistance and enabling knowledge transfer
+- **Skills** (`fa-hand-holding-magic`): Conveys assistance and enabling knowledge transfer
 
 ---
 

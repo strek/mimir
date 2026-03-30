@@ -44,7 +44,7 @@ Feature: FOB-PLAYBOOKS-VIEW_PLAYBOOK-1 View Playbook Details
       | Activities |                 24 |
       | Artifacts  |                 12 |
       | Roles      |                  5 |
-      | Howtos     |                 24 |
+      | Skills     |                 24 |
       | Goals      | Coming soon (v2.1) |
 
   Scenario: FOB-PLAYBOOKS-VIEW_PLAYBOOK-04 View metadata in Overview

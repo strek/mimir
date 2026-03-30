@@ -23,8 +23,8 @@ Mimir is a two-part system for managing and evolving software development method
 │   HOMEBASE (Methodology Repository)     │
 │                                         │
 │   ├─ Neo4J (graph database)            │
-│   ├─ FastAPI + OpenAPI                 │
-│   ├─ React + Vite + Tailwind UI        │
+│   ├─ Django + HTMX (web UI)           │
+│   ├─ Eventing → Neo4j                 │
 │   ├─ Access control (Family + Level)   │
 │   └─ Methodology distribution           │
 │       (e.g., SE/Basic → LITE version)   │
@@ -58,7 +58,7 @@ Mimir is a two-part system for managing and evolving software development method
 ### 1. Two-Part Architecture
 
 **HOMEBASE (Methodology Repository)**
-Tried-and-true approaches accumulating most recent howtos and experiences from the boots on the ground.
+Tried-and-true approaches accumulating most recent skills and experiences from the boots on the ground.
 
 - Centralized repository of methodologies
 - Access control based on:
@@ -66,10 +66,10 @@ Tried-and-true approaches accumulating most recent howtos and experiences from t
   - **Access Level**: Determines version tier (Basic → LITE, Standard → FULL, Premium → EXTENDED)
 - Distribution point for methodology downloads
 - Aggregates Process Improvement Proposals (PIPs) from FOBs
-- Technology: Neo4j + FastAPI + React
+- Technology: Django + HTMX, eventing → Neo4j
 
 **FOB (Forward Operating Base)**
-This is where howtos are consumed, judged practical/impractical, refined, and expanded.
+This is where skills are consumed, judged practical/impractical, refined, and expanded.
 
 - Single-user desktop application
 - Downloads methodologies from HOMEBASE
@@ -89,7 +89,7 @@ This is where howtos are consumed, judged practical/impractical, refined, and ex
 AI/Engineer via MCP
     ↓ building new methodology
 Creates/Updates DRAFT Playbook (v0.x)
-    ↓ adds workflows, activities, howtos
+    ↓ adds workflows, activities, skills
 Iterates freely until methodology is ready
     ↓ when complete and validated
 Engineer reviews in Web UI and releases (v0.x → v1.0)
@@ -333,7 +333,7 @@ def query_methodology(
     :param question: natural language question as str. Example: "How do I build a TSX component per FDD?"
     :param methodology: methodology name as str. Example: "FDD"
     :param context: current work context as str or None. Example: "Working on user profile feature"
-    :return: Guidance dict with answer and resources. Example: {"answer": "To build a TSX component...", "relevant_activities": ["SE1"], "relevant_howtos": ["howto-tsx"]}
+    :return: Guidance dict with answer and resources. Example: {"answer": "To build a TSX component...", "relevant_activities": ["SE1"], "relevant_skills": ["skill-tsx"]}
     """
     service = MethodologyService(get_repository())
     return service.query_guidance(question, methodology, context)
@@ -1068,7 +1068,7 @@ def test_workflow_graph_generation(self):
 
 #### Pattern 3: Detail Views with HTMX
 
-**Use Case**: Activity detail, showing all links (predecessors, successors, howtos)
+**Use Case**: Activity detail, showing all links (predecessors, successors, skills)
 
 ```python
 def activity_detail(request, activity_id):
@@ -1086,7 +1086,7 @@ def activity_detail(request, activity_id):
         'activity': activity,
         'predecessors': activity.get_predecessors(),
         'successors': activity.get_successors(),
-        'howtos': activity.howtos.all(),
+        'skills': activity.skills.all(),
         'artifacts_produced': activity.artifacts_produced.all(),
         'artifacts_consumed': activity.artifacts_consumed.all(),
         'role': activity.role
@@ -1118,7 +1118,7 @@ document.body.addEventListener('htmx:afterSettle', function(evt) {
 
 #### Pattern 4: Forms with HTMX
 
-**Use Case**: Add/edit/delete activities, workflows, howtos
+**Use Case**: Add/edit/delete activities, workflows, skills
 
 ```python
 def activity_edit(request, activity_id):
@@ -1216,7 +1216,7 @@ def test_activity_edit(self):
 │  - Goal tree        │  [SVG Graph]   │Links:  │
 │    • Goal 1         │                │- Preds │
 │      • Goal 1.1     │                │- Succs │
-│    • Goal 2         │                │- Howtos│
+│    • Goal 2         │                │- Skills│
 │                     │                │        │
 │                     │                │[Edit]  │
 └─────────────────────────────────────────────┘
@@ -1317,7 +1317,7 @@ docs/features/
 ├── act-5-activities/        # Activities CRUDLF (5 files)
 ├── act-6-artifacts/         # Artifacts CRUDLF (5 files)
 ├── act-7-roles/             # Roles CRUDLF (5 files)
-├── act-8-howtos/            # Howtos CRUDLF (5 files)
+├── act-8-skills/            # Skills CRUDLF (5 files)
 ├── act-9-pips/              # PIPs Create & Manage (2 files)
 ├── act-10-import-export/    # Import/Export (1 file)
 ├── act-11-family/           # Family Management (1 file)
@@ -1407,7 +1407,7 @@ class Node(models.Model):
     id = models.UUIDField(primary_key=True)
     type = models.CharField(max_length=50)
     # 7 Core Entities: 'playbook', 'workflow', 'phase', 'activity', 
-    # 'artifact', 'role', 'howto'
+    # 'artifact', 'role', 'skill'
     # Note: 'phase' is OPTIONAL for grouping activities within workflows
     version = models.ForeignKey('Version', on_delete=models.CASCADE)
     attributes = models.JSONField()
@@ -1424,7 +1424,7 @@ class Edge(models.Model):
     to_node = models.ForeignKey(Node, related_name='incoming')
     relationship_type = models.CharField(max_length=50)
     # 'has_predecessor', 'has_successor', 'produces_artifact', 
-    # 'requires_artifact', 'performed_by_role', 'guided_by_howto', 
+    # 'requires_artifact', 'performed_by_role', 'guided_by_skill', 
     # 'belongs_to_phase', 'part_of_workflow'
     version = models.ForeignKey('Version', on_delete=models.CASCADE)
     attributes = models.JSONField(default=dict)
@@ -1521,7 +1521,7 @@ class PIP(models.Model):
 **Use Cases**:
 - "How do I build a TSX component per FDD methodology?"
 - "What are the acceptance criteria for a screen mockup?"
-- "What howtos are available for unit testing React components?"
+- "What skills are available for unit testing React components?"
 
 **Implementation**:
 ```python
@@ -1543,7 +1543,7 @@ def query_methodology(
     :param question: natural language question as str. Example: "How do I build a TSX component per FDD?"
     :param methodology: methodology name as str. Example: "FDD"
     :param context: current work context as str or None. Example: "Working on user profile feature"
-    :return: Guidance dict with answer and resources. Example: {"answer": "To build a TSX component...", "relevant_activities": ["SE1: Create Component Structure"], "relevant_howtos": ["howto-tsx-component-setup"], "related_artifacts": ["Component Specification", "Unit Tests"]}
+    :return: Guidance dict with answer and resources. Example: {"answer": "To build a TSX component...", "relevant_activities": ["SE1: Create Component Structure"], "relevant_skills": ["skill-tsx-component-setup"], "related_artifacts": ["Component Specification", "Unit Tests"]}
     """
     service = MethodologyService(DjangoORMRepository())
     return service.query_guidance(question, methodology, context)
@@ -1554,7 +1554,7 @@ def query_methodology(
 {
   "answer": "To build a TSX component per FDD...",
   "relevant_activities": ["SE1: Create Component Structure"],
-  "relevant_howtos": ["howto-tsx-component-setup"],
+  "relevant_skills": ["skill-tsx-component-setup"],
   "related_artifacts": ["Component Specification", "Unit Tests"]
 }
 ```
@@ -1677,19 +1677,19 @@ class MethodologyService:
         :param question: natural language question as str. Example: "How do I test a Django view?"
         :param methodology: methodology name as str. Example: "FDD"
         :param context: optional work context as str or None. Example: "Building user authentication"
-        :return: Guidance dict with answer and related resources. Example: {"answer": "To test a Django view...", "relevant_activities": ["Write Unit Tests"], "relevant_howtos": ["django-test-setup"], "related_artifacts": ["Test Suite"]}
+        :return: Guidance dict with answer and related resources. Example: {"answer": "To test a Django view...", "relevant_activities": ["Write Unit Tests"], "relevant_skills": ["django-test-setup"], "related_artifacts": ["Test Suite"]}
         """
         # Load methodology
         method = self.repo.get_methodology(methodology)
         
-        # Semantic search across activities, howtos
+        # Semantic search across activities, skills
         relevant_items = self._search_methodology(method, question, context)
         
         # Generate answer
         return {
             "answer": self._generate_answer(relevant_items, question),
             "relevant_activities": [a.name for a in relevant_items['activities']],
-            "relevant_howtos": [h.name for h in relevant_items['howtos']],
+            "relevant_skills": [h.name for h in relevant_items['skills']],
             "related_artifacts": [d.name for d in relevant_items['artifacts']]
         }
 
@@ -1718,9 +1718,9 @@ def query_view(request):
 - Properties: name, description, goals, required skills
 - Produces: Artifacts
 - Consumes: Artifacts (from predecessors)
-- Guided by: Howtos
+- Guided by: Skills
 
-**Howto**: The *how* - specific implementation instructions
+**Skill**: The *how* - specific implementation instructions
 - Example: "Creating mockups with Figma and Shadcn UI Kit"
 - Properties: name, tool_specific, steps, examples
 - Can be attached to multiple activities
@@ -1774,7 +1774,7 @@ When corrections occur, Saga AI analyzes:
 1. **Activity definition**: Is the activity poorly defined? Ambiguous?
 2. **Upstream gaps**: Are predecessor activities missing key outputs?
 3. **Downstream needs**: Do successor activities need different inputs?
-4. **Howto effectiveness**: Are the implementation instructions adequate?
+4. **Skill effectiveness**: Are the implementation instructions adequate?
 5. **Environmental factors**: Are there external blockers?
 
 ### PIP Creation
@@ -1815,7 +1815,7 @@ Improved PIP proposals next time
 - FastMCP tools module with `@mcp.tool()` decorators
 - MCP server management command: `mcp.run()`
 - Implement `query_methodology` tool
-- Simple web UI for viewing Playbooks, Workflows, Activities, Howtos, Artifacts, Roles
+- Simple web UI for viewing Playbooks, Workflows, Activities, Skills, Artifacts, Roles
 
 ### Phase 2: Evolution Workflow
 - PIP creation interface (manual)
@@ -1833,11 +1833,11 @@ Improved PIP proposals next time
 
 ### Phase 4: HOMEBASE
 - Neo4j repository implementation
-- FastAPI endpoints for methodology CRUD
+- Django + HTMX web UI
+- Eventing → Neo4j for methodology storage
 - Access control system (Family + Level)
 - Methodology distribution endpoints
 - PIP aggregation from FOBs
-- React UI for HOMEBASE management
 
 ### Phase 5: AI Evolution (Saga AI)
 - Work order tracking integration
@@ -1860,8 +1860,8 @@ Improved PIP proposals next time
 
 ### HOMEBASE (Methodology Repository)
 - **Database**: Neo4j 5.x
-- **API**: FastAPI 0.104+
-- **Web UI**: React 18 + Vite + Zustand + Tailwind + shadcn/ui
+- **Web UI**: Django + HTMX (same stack as FOB)
+- **Storage**: Eventing → Neo4j
 - **Python Version**: 3.11+
 
 ### AI Components

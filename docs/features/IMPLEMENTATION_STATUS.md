@@ -140,11 +140,11 @@ This document tracks what has been implemented vs. what is documented in the use
 - "What does this activity produce?" section in forms
 - Artifact list in activity detail view
 
-#### **Howto Guides** (Act 8 dependency)
-- 1:1 relationship: `Activity.howto`
-- Howto model not yet created
-- "Create Howto" checkbox in activity create form
-- Howto tab in activity detail view
+#### **Skill Guides** (Act 8 dependency)
+- 1:1 relationship: `Activity.skill`
+- Skill model not yet created
+- "Create Skill" checkbox in activity create form
+- Skill tab in activity detail view
 
 #### **Estimated Effort Field**
 - Field for hours or story points
@@ -190,7 +190,7 @@ This document tracks what has been implemented vs. what is documented in the use
 
 1. **Fix Remaining Integration Tests** (High Priority)
    - Update assertions to match current implementation
-   - Remove tests for unimplemented features (roles, artifacts, howtos)
+   - Remove tests for unimplemented features (roles, artifacts, skills)
    - Achieve 100% test pass rate
 
 2. **Dependency Enhancement** (Medium Priority)
@@ -218,9 +218,9 @@ This document tracks what has been implemented vs. what is documented in the use
    - Implement Artifact CRUDLF
    - Update activity forms
 
-6. **Howto Model** (Low Priority)
-   - Create `Howto` model with 1:1 to Activity (Act 8)
-   - Implement Howto CRUDLF
+6. **Skill Model** (Low Priority)
+   - Create `Skill` model with 1:1 to Activity (Act 8)
+   - Implement Skill CRUDLF
    - Add tab in activity detail view
 
 ---

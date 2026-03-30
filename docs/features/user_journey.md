@@ -33,7 +33,7 @@ Runs an independent UX consulting practice. Needs to organize her personal workf
 - **Note**: Mimir MCP provides playbook context; external MCPs handle work item creation/tracking
 
 **Domain Model Notes**:
-- **7 Core Entities**: Playbook, Workflow, Phase, Activity, Artifact, Role, Howto
+- **7 Core Entities**: Playbook, Workflow, Phase, Activity, Artifact, Role, Skill
 - **Phase is OPTIONAL**: Workflows MAY contain Phases for grouping Activities, but Phase is not required. A Workflow can organize Activities with or without Phase grouping.
 - **Artifact**: Formerly called "Deliverable" in some contexts. Use "Artifact" consistently for outputs produced by Activities.
   - **Producer/Consumer Model**: Each artifact is produced by exactly one activity (output) and can be consumed by multiple downstream activities (inputs)
@@ -566,7 +566,7 @@ Maria clicks [View] on "React Frontend Development" from the list. The detail vi
      - Activities: 24
      - Artifacts: 12
      - Roles: 5
-     - Howtos: 24
+     - Skills: 24
      - Goals: 6 (note: Goal deferred to v2.1, shows "Coming soon")
    - **Metadata**:
      - Category: Development
@@ -691,7 +691,7 @@ Maria clicks [Delete] on an old "Test Playbook 123" she no longer needs. A confi
 - ✗ 8 Activities
 - ✗ 5 Artifacts
 - ✗ 3 Roles
-- ✗ 8 Howtos
+- ✗ 8 Skills
 - ✗ All version history
 
 **Warnings**:
@@ -952,7 +952,7 @@ Maria clicks [Delete] on an obsolete workflow. Confirmation modal appears:
   - ✗ 8 Activities
   - ✗ 2 Phases (if applicable)
   - ✗ 12 Artifacts (produced by activities)
-  - ✗ 8 Howtos (activity guides)
+  - ✗ 8 Skills (activity guides)
   - ✗ All activity dependencies
 
 **Warnings**:
@@ -978,14 +978,333 @@ Maria confirms and the workflow is removed from the playbook.
 
 ---
 
+---
+
+### Act 3.5: MCP Workflow Synchronization (Export/Edit/Import)
+
+**Context**: Maria wants to leverage her AI assistant (Windsurf/Cursor) to collaboratively edit workflow activities. The MCP server provides tools to export workflows as markdown files, edit them locally with AI assistance, and import changes back with automatic change tracking.
+
+**Use Case**: Maria has a "Frontend Development" workflow with 15 activities. She wants to refine the activity descriptions, reorder steps, and add new activities using her AI assistant's help. Instead of clicking through the GUI, she exports the workflow to `.windsurf/workflows/FFE/`, edits the markdown files with AI assistance, and imports the changes back.
+
+**Important**: This feature respects the playbook versioning system:
+- **Draft playbooks**: Changes imported directly, version auto-increments
+- **Released playbooks**: Changes create PIPs automatically (see Act 9)
+
+---
+
+#### MCP Tool: `export_workflow_to_local`
+
+**Purpose**: Export a workflow and its activities as markdown files to `.windsurf/workflows/` or `.cursor/workflows/` for local editing.
+
+**MCP Call**:
+```python
+# AI assistant calls this via MCP
+mcp.export_workflow_to_local(
+    workflow_id=42,
+    target_directory=".windsurf/workflows",  # or ".cursor/workflows"
+    folder_name="FFE"  # Optional, defaults to workflow slug
+)
+```
+
+**What It Does**:
+1. Creates folder: `.windsurf/workflows/FFE/`
+2. Generates `_workflow.md` with workflow metadata:
+   ```markdown
+   # Frontend Development Workflow
+   
+   **Playbook**: React Frontend Development v0.5 (Draft)
+   **Workflow ID**: 42
+   **Description**: Complete frontend development process from setup to deployment
+   **Phase Organization**: Uses phases (Foundation, Implementation, Testing)
+   **Total Activities**: 15
+   **Export Date**: 2026-02-05 11:45 UTC
+   
+   ## Activities
+   See individual activity files: FFE-01-*.md through FFE-15-*.md
+   ```
+
+3. Creates one `.md` file per activity:
+   - Filename pattern: `FFE-{order:02d}-{slug}.md`
+   - Example: `FFE-01-Setup_Project.md`, `FFE-02-Configure_Build.md`
+   
+4. Activity file format:
+   ```markdown
+   # Activity: Setup Project
+   
+   **Activity ID**: 123
+   **Order**: 1
+   **Phase**: Foundation (optional)
+   **Dependencies**: None (or list of upstream activity IDs)
+   
+   ## Description
+   Initialize the React project with proper tooling and configuration.
+   
+   ## Guidance
+   1. Run `npx create-react-app my-app --template typescript`
+   2. Configure ESLint and Prettier
+   3. Set up folder structure: src/components, src/utils, src/hooks
+   4. Install core dependencies: react-router-dom, axios
+   
+   ## Artifacts Produced
+   - Project Structure (artifact_id: 456)
+   - Configuration Files (artifact_id: 457)
+   
+   ## Artifacts Consumed
+   None
+   
+   ## Notes
+   Use TypeScript template for better type safety.
+   ```
+
+**Success Response**:
+```json
+{
+  "status": "exported",
+  "workflow_id": 42,
+  "workflow_name": "Frontend Development",
+  "export_path": "/Users/maria/project/.windsurf/workflows/FFE",
+  "files_created": [
+    "_workflow.md",
+    "FFE-01-Setup_Project.md",
+    "FFE-02-Configure_Build.md",
+    "... (15 total activity files)"
+  ],
+  "message": "Workflow exported successfully. Edit files locally and use import_workflow_from_local to apply changes."
+}
+```
+
+**GUI Integration**:
+- Available from FOB-WORKFLOWS-VIEW_WORKFLOW-1
+- New button: [Export to AI Workspace] with icon `fa-file-export`
+- Tooltip: "Export workflow activities as markdown files for AI-assisted editing"
+- Opens modal to select target directory and folder name
+- Shows success message with file count and path
+
+---
+
+#### Local Editing Phase
+
+**Context**: Maria and her AI assistant now have markdown files to work with.
+
+**Typical Workflow**:
+1. Maria asks AI: "Review the FFE workflow activities and suggest improvements"
+2. AI reads all `FFE-*.md` files
+3. AI suggests: "Activity 3 should come before Activity 2 for better dependency flow"
+4. Maria: "Make that change and also add a new activity for API integration testing"
+5. AI edits the files:
+   - Renames `FFE-02-*.md` → `FFE-03-*.md`
+   - Renames `FFE-03-*.md` → `FFE-02-*.md`
+   - Creates `FFE-16-API_Integration_Testing.md`
+   - Updates `_workflow.md` to reflect 16 activities
+6. Maria reviews the changes in her IDE's diff view
+7. Maria: "Looks good, import these changes back to FOB"
+
+**File Editing Rules**:
+- **Add activity**: Create new `FFE-XX-Name.md` file
+- **Remove activity**: Delete the `.md` file
+- **Reorder**: Rename files to change order numbers
+- **Edit content**: Modify description, guidance, dependencies in markdown
+- **Change phase**: Update the `Phase:` field in frontmatter
+
+---
+
+#### MCP Tool: `import_workflow_from_local`
+
+**Purpose**: Import edited workflow files back into FOB, with automatic change detection and protocol generation.
+
+**MCP Call**:
+```python
+# AI assistant calls this via MCP
+mcp.import_workflow_from_local(
+    workflow_id=42,
+    source_directory=".windsurf/workflows/FFE",
+    auto_apply=False  # If True, applies immediately for draft playbooks
+)
+```
+
+**What It Does**:
+
+**Step 1: Change Detection**
+- Compares local `.md` files with current FOB workflow state
+- Identifies:
+  - **New activities**: Files that don't match existing activity IDs
+  - **Modified activities**: Files with changed content (description, guidance, dependencies)
+  - **Deleted activities**: FOB activities missing from local files
+  - **Reordered activities**: Changed order numbers
+  - **Phase changes**: Activities moved between phases
+
+**Step 2: Generate Upload Protocol**
+- Creates `_Upload_Protocol.md` in the same directory:
+
+```markdown
+# Upload Protocol: Frontend Development Workflow
+
+**Generated**: 2026-02-05 12:15 UTC
+**Workflow**: Frontend Development (ID: 42)
+**Playbook**: React Frontend Development v0.5 (Draft)
+**Source**: .windsurf/workflows/FFE/
+
+## Change Summary
+
+**Total Changes**: 4
+- New Activities: 1
+- Modified Activities: 2
+- Deleted Activities: 0
+- Reordered Activities: 2
+
+## Detailed Changes
+
+### 1. NEW ACTIVITY: API Integration Testing
+**File**: FFE-16-API_Integration_Testing.md
+**Order**: 16
+**Phase**: Testing
+**Rationale**: [AI/User should fill this in]
+
+**Description**:
+Test API integration points with backend services.
+
+**Action**: CREATE
+
+---
+
+### 2. MODIFIED: Setup Project
+**File**: FFE-01-Setup_Project.md
+**Activity ID**: 123
+**Changes**:
+- Description updated (added TypeScript configuration details)
+- Guidance section expanded with 2 new steps
+
+**Rationale**: [AI/User should fill this in]
+
+**Action**: UPDATE
+
+---
+
+### 3. REORDERED: Configure Build → Order 3 (was 2)
+**File**: FFE-03-Configure_Build.md (renamed from FFE-02)
+**Activity ID**: 124
+**Rationale**: [AI/User should fill this in]
+
+**Action**: REORDER
+
+---
+
+### 4. REORDERED: Install Dependencies → Order 2 (was 3)
+**File**: FFE-02-Install_Dependencies.md (renamed from FFE-03)
+**Activity ID**: 125
+**Rationale**: [AI/User should fill this in]
+
+**Action**: REORDER
+
+---
+
+## Approval Options
+
+### Option A: Apply Immediately (Draft Playbooks Only)
+If this playbook is in Draft status, changes can be applied directly.
+- Workflow will be updated
+- Playbook version will auto-increment (v0.5 → v0.6)
+- No PIP required
+
+**Command**: `mcp.apply_upload_protocol(protocol_file="_Upload_Protocol.md")`
+
+### Option B: Submit as PIP (Released Playbooks)
+If this playbook is Released, changes must go through PIP workflow.
+- PIP will be created with these changes
+- Requires review and approval
+- Upon approval, playbook version increments (v1.0 → v2.0)
+
+**Command**: `mcp.create_pip_from_protocol(protocol_file="_Upload_Protocol.md")`
+
+### Option C: Cancel
+Discard these changes and keep FOB workflow unchanged.
+
+---
+
+## Edit This Protocol
+
+**IMPORTANT**: Review and edit the **Rationale** fields above before applying.
+
+Explain WHY each change improves the workflow. Good rationales help reviewers understand the value of changes, especially for PIPs.
+
+**Example Good Rationale**:
+"Reordered to ensure dependencies are installed before build configuration, preventing build errors during setup."
+
+**Example Poor Rationale**:
+"Changed order" ← Too vague, doesn't explain benefit
+```
+
+**Step 3: User Review & Edit**
+- User (Maria) reviews `_Upload_Protocol.md`
+- Fills in rationale fields
+- Can modify the protocol:
+  - Remove changes she doesn't want
+  - Add more context to rationales
+  - Adjust change descriptions
+
+**Step 4: Application**
+
+**For Draft Playbooks** (auto_apply=True or manual approval):
+```python
+mcp.apply_upload_protocol(
+    protocol_file=".windsurf/workflows/FFE/_Upload_Protocol.md"
+)
+```
+
+**Response**:
+```json
+{
+  "status": "applied",
+  "workflow_id": 42,
+  "playbook_version": "v0.6",  # Auto-incremented
+  "changes_applied": {
+    "new_activities": 1,
+    "modified_activities": 2,
+    "reordered_activities": 2,
+    "deleted_activities": 0
+  },
+  "message": "Changes applied successfully. Playbook version incremented to v0.6."
+}
+```
+
+**For Released Playbooks**:
+```python
+mcp.create_pip_from_protocol(
+    protocol_file=".windsurf/workflows/FFE/_Upload_Protocol.md",
+    pip_title="Improve Frontend Development workflow activity flow"
+)
+```
+
+**Response**:
+```json
+{
+  "status": "pip_created",
+  "pip_id": 789,
+  "pip_title": "Improve Frontend Development workflow activity flow",
+  "workflow_id": 42,
+  "playbook_id": 15,
+  "changes_count": 4,
+  "next_steps": "PIP submitted for review. Track status at FOB-PIPS-VIEW_PIP-789",
+  "message": "PIP created successfully. Changes will be applied upon approval."
+}
+```
+
+---
+
 **Act 3 Summary**: Maria can now manage workflows:
 - ✅ **LIST+FIND**: Browse workflows within a playbook
 - ✅ **CREATE**: Create new workflows with optional phase organization
 - ✅ **VIEW**: Explore workflow structure, activities, and dependencies
 - ✅ **EDIT**: Update workflow details, reorder, manage activities
 - ✅ **DELETE**: Remove workflows with impact warnings
+- ✅ **EXPORT**: Export workflows to AI workspace as markdown files
+- ✅ **IMPORT**: Import edited workflows with change tracking and protocol generation
+- ✅ **SYNC**: Bidirectional sync between FOB structured data and AI workspace files
 
-**Key Point**: Workflows MAY use Phases for grouping, but Phases are optional (see Act 4).
+**Key Points**: 
+- Workflows MAY use Phases for grouping, but Phases are optional (see Act 4)
+- MCP workflow sync respects versioning: Draft = direct apply, Released = PIP workflow
+- Upload Protocol provides change tracking and rationale documentation
 
 **Next**: Maria can optionally organize workflow activities into Phases (ACT 4).
 
@@ -1120,7 +1439,7 @@ Confirmation modal:
 
 ### Act 5: ACTIVITIES - Complete CRUDLF
 
-**Context**: Activities are the core work units in a methodology. Each activity represents a specific task or action to be performed. Activities have dependencies, produce artifacts, are performed by roles, and have detailed howto guides.
+**Context**: Activities are the core work units in a methodology. Each activity represents a specific task or action to be performed. Activities have dependencies, produce artifacts, are performed by roles, and have detailed skill guides.
 
 **Pattern**: Standard CRUDLF. Activities are the heart of the workflow execution.
 
@@ -1140,7 +1459,7 @@ From FOB-WORKFLOWS-VIEW_WORKFLOW-1, Maria clicks [View Activities]:
 - **Filters**:
   - By Phase (if workflow uses phases)
   - By assigned Role
-  - By status (Has Howto, Has Artifacts, etc.)
+  - By status (Has Skill, Has Artifacts, etc.)
   - By dependencies (Blocked, Ready, Completed)
 - **Activities Table**:
   - Name | Description | Phase | Role | Artifacts | Upstream | Downstream | Actions
@@ -1148,7 +1467,7 @@ From FOB-WORKFLOWS-VIEW_WORKFLOW-1, Maria clicks [View Activities]:
   - [View] → FOB-ACTIVITIES-VIEW_ACTIVITY
   - [Edit] → FOB-ACTIVITIES-EDIT_ACTIVITY
   - [Delete] → FOB-ACTIVITIES-DELETE_ACTIVITY
-  - [Add Howto] → ACT 8
+  - [Add Skill] → ACT 8
   - [Link Artifacts] → ACT 6
 - **Dependency Visualization**:
   - DAG showing activity flow
@@ -1194,7 +1513,7 @@ Maria clicks [Create New Activity]:
   - Can specify multiple artifacts
 - **Estimated Effort**: Optional
   - Hours or story points
-- **Create Howto**: Checkbox
+- **Create Skill**: Checkbox
   - "Create detailed guide for this activity?"
   - If checked: Redirects to ACT 8 after creation
 
@@ -1203,7 +1522,7 @@ Maria clicks [Create New Activity]:
 **Success Flow**:
 - Activity created in workflow
 - Success: "Activity 'Design Token Integration' created"
-- If "Create Howto" checked: Redirects to FOB-HOWTOS-CREATE_HOWTO
+- If "Create Skill" checked: Redirects to FOB-SKILLS-CREATE_SKILL
 - Otherwise: Redirects to FOB-ACTIVITIES-VIEW_ACTIVITY-1
 
 ---
@@ -1230,7 +1549,7 @@ Maria views activity details:
    - Order number in workflow
    - **Has Dependencies**: Info badge (documentation only)
    - Created/Updated timestamps
-   - **Note**: View Artifacts, Roles, Howtos in separate tabs
+   - **Note**: View Artifacts, Roles, Skills in separate tabs
 
 2. **Dependencies Tab**: (Future Enhancement)
    - **Current State**: Only shows "Has Dependencies" flag
@@ -1246,11 +1565,11 @@ Maria views activity details:
    - [View Artifact] links → ACT 6
    - [Add New Artifact] [Link Existing] buttons
 
-4. **Howto Tab**:
+4. **Skill Tab**:
    - Detailed guide for performing this activity
-   - If no howto: "No detailed guide yet" with [Create Howto] button
-   - If exists: Full howto content (see ACT 8)
-   - [Edit Howto] button → ACT 8
+   - If no skill: "No detailed guide yet" with [Create Skill] button
+   - If exists: Full skill content (see ACT 8)
+   - [Edit Skill] button → ACT 8
 
 5. **Work Items Tab**:
    - GitHub issues, Jira tickets linked via external MCP
@@ -1291,7 +1610,7 @@ Confirmation modal:
 **Impact Statement**:
 - "This will permanently delete the activity"
 - Shows affected items:
-  - ✗ 1 Howto guide
+  - ✗ 1 Skill guide
   - ⚠️ 2 Downstream activities will lose upstream dependency
   - ⚠️ 3 Artifacts may become orphaned
   - ⚠️ 5 GitHub issues will lose activity context
@@ -1315,7 +1634,7 @@ Confirmation modal:
 **Act 5 Summary**: Maria manages activities:
 - ✅ **LIST+FIND**: Browse and filter activities with dependency visualization
 - ✅ **CREATE**: Create activities with dependencies, roles, and artifacts
-- ✅ **VIEW**: Explore activity details, dependencies, artifacts, and howtos
+- ✅ **VIEW**: Explore activity details, dependencies, artifacts, and skills
 - ✅ **EDIT**: Update activity details and reorganize dependencies
 - ✅ **DELETE**: Remove activities with full dependency impact warnings
 
@@ -1546,49 +1865,49 @@ Confirmation:
 - ✅ **EDIT**: Update role information
 - ✅ **DELETE**: Remove roles with reassignment options
 
-**Next**: Maria creates detailed Howto guides for activities (ACT 8).
+**Next**: Maria creates detailed Skill guides for activities (ACT 8).
 
 ---
 
-### Act 8: HOWTOS - Complete CRUDLF
+### Act 8: SKILLS - Complete CRUDLF
 
-**Context**: Howtos are detailed guides for performing activities. Each activity can have one howto providing step-by-step instructions, best practices, and examples. This is 1:1 relationship with activities.
+**Context**: Skills are detailed guides for performing activities. Each activity can have one skill providing step-by-step instructions, best practices, and examples. This is 1:1 relationship with activities.
 
-**Pattern**: Standard CRUDLF. Howtos are tightly coupled to activities (1:1).
+**Pattern**: Standard CRUDLF. Skills are tightly coupled to activities (1:1).
 
-#### Screen: FOB-HOWTOS-LIST+FIND-1
+#### Screen: FOB-SKILLS-LIST+FIND-1
 
-Maria navigates to Howtos:
+Maria navigates to Skills:
 
 **Layout**:
-- **Header**: "Howtos" (Activity Guides)
+- **Header**: "Skills" (Activity Guides)
 - **Scope**: Current workflow or all workflows
 - **Filters**:
-  - Activities with howtos / Activities without howtos
+  - Activities with skills / Activities without skills
   - By workflow, by role
-- **Howtos Table**:
-  - Activity Name | Howto Title | Last Updated | Completeness | Actions
+- **Skills Table**:
+  - Activity Name | Skill Title | Last Updated | Completeness | Actions
   - Completeness: Has steps, best practices, examples (badges)
 - **Row Actions**: [View] [Edit] [Delete]
 - **Special View**:
-  - "Activities Without Howtos" section
+  - "Activities Without Skills" section
   - Shows activities that need guides
-  - [Create Howto] button per activity
+  - [Create Skill] button per activity
 
 **Example Data**:
-- Activity: "Setup Component Structure" | Howto: "Component Setup Guide" | Complete ✓
-- Activity: "Implement State Management" | Howto: "Redux Integration Guide" | Missing examples ⚠️
+- Activity: "Setup Component Structure" | Skill: "Component Setup Guide" | Complete ✓
+- Activity: "Implement State Management" | Skill: "Redux Integration Guide" | Missing examples ⚠️
 
 ---
 
-#### Screen: FOB-HOWTOS-CREATE_HOWTO-1
+#### Screen: FOB-SKILLS-CREATE_SKILL-1
 
-Maria clicks [Create Howto] for an activity:
+Maria clicks [Create Skill] for an activity:
 
 **Form**:
 - **Parent Activity**: Read-only (already selected)
-  - Shows: "Creating howto for: Setup Component Structure"
-- **Howto Title**: Text input
+  - Shows: "Creating skill for: Setup Component Structure"
+- **Skill Title**: Text input
   - Default: "[Activity Name] - Guide"
   - Example: "Component Structure Setup - Complete Guide"
 - **Steps**: Rich text editor with numbered list
@@ -1609,18 +1928,18 @@ Maria clicks [Create Howto] for an activity:
 - **References**: URLs
   - Links to documentation, articles, videos
 
-**Actions**: [Cancel] [Create Howto]
+**Actions**: [Cancel] [Create Skill]
 
-**Success**: Howto created and linked to activity (1:1)
+**Success**: Skill created and linked to activity (1:1)
 
 ---
 
-#### Screen: FOB-HOWTOS-VIEW_HOWTO-1
+#### Screen: FOB-SKILLS-VIEW_SKILL-1
 
-View howto guide (also accessible from Activity view):
+View skill guide (also accessible from Activity view):
 
 **Layout**:
-- **Header**: Howto title
+- **Header**: Skill title
 - **Parent Activity**: Link to FOB-ACTIVITIES-VIEW_ACTIVITY
 - **Content Sections**:
   1. **Steps**: Numbered, detailed instructions
@@ -1630,48 +1949,48 @@ View howto guide (also accessible from Activity view):
   5. **Tools**: Required software/access
   6. **References**: External links
 - **Actions**:
-  - [Edit Howto]
+  - [Edit Skill]
   - [Print/Export PDF]
   - [Copy to Clipboard]
   - [Share Link]
-- **Breadcrumb**: Playbooks > [Playbook] > Workflows > [Workflow] > Activities > [Activity] > Howto
+- **Breadcrumb**: Playbooks > [Playbook] > Workflows > [Workflow] > Activities > [Activity] > Skill
 
 ---
 
-#### Screen: FOB-HOWTOS-EDIT_HOWTO-1
+#### Screen: FOB-SKILLS-EDIT_SKILL-1
 
-Edit howto: Full rich text editing of all sections
+Edit skill: Full rich text editing of all sections
 
 **Auto-save**: Drafts saved automatically every 30 seconds
 
-**Version History**: Track changes to howto over time
+**Version History**: Track changes to skill over time
 
 ---
 
-#### Screen: FOB-HOWTOS-DELETE_HOWTO-1
+#### Screen: FOB-SKILLS-DELETE_SKILL-1
 
 Confirmation:
 
 **Impact**: "Activity 'Setup Component Structure' will no longer have a detailed guide"
 
-**Note**: "Activity will remain, only the howto guide is deleted"
+**Note**: "Activity will remain, only the skill guide is deleted"
 
-**Confirmation**: Type howto title
+**Confirmation**: Type skill title
 
 ---
 
-**Act 8 Summary**: Maria manages howtos:
+**Act 8 Summary**: Maria manages skills:
 - ✅ **LIST+FIND**: Browse activity guides, identify gaps
 - ✅ **CREATE**: Write detailed step-by-step guides
 - ✅ **VIEW**: Read complete activity instructions
 - ✅ **EDIT**: Update and improve guides
 - ✅ **DELETE**: Remove guides (activities remain)
 
-**Key Point**: 1:1 relationship with activities - each activity has at most one howto.
+**Key Point**: 1:1 relationship with activities - each activity has at most one skill.
 
 ---
 
-**🎉 Acts 2-8 Complete!** All 7 core entities (Playbooks, Workflows, Phases, Activities, Artifacts, Roles, Howtos) now have full CRUDLF coverage with narrative explanations.
+**🎉 Acts 2-8 Complete!** All 7 core entities (Playbooks, Workflows, Phases, Activities, Artifacts, Roles, Skills) now have full CRUDLF coverage with narrative explanations.
 
 **Demo Playbook Available**: A Feature-Driven Development (FDD) demo playbook with 10 activities showcasing rich Markdown guidance is available via `python manage.py create_demo_fdd`. This demonstrates:
 - Mermaid diagrams (class, sequence, flow)
@@ -1867,7 +2186,7 @@ Maria views her "UX Research Methodology" playbook and clicks **[Export]** from 
 - **Include Options** (checkboxes):
   - ☑ All workflows and activities
   - ☑ Artifacts and roles
-  - ☑ Howtos (activity guides)
+  - ☑ Skills (activity guides)
   - ☑ Version history
   - ☐ PIP history (optional)
 - **Security**:
@@ -1948,7 +2267,7 @@ Shows preview:
   - 15 Activities
   - 12 Artifacts
   - 5 Roles
-  - 8 Howtos
+  - 8 Skills
 - **Conflict Check**: "No conflicts with existing playbooks"
 - Message: "This playbook will be added to your local FOB"
 - [Cancel] [Import Playbook]
@@ -2625,7 +2944,7 @@ Maria's journey through Acts 0-15 demonstrates the complete Mimir MVP experience
 - ✅ **Activities**: Core work units with dependencies, roles, and artifacts
 - ✅ **Artifacts**: Outputs produced by activities (no more "Deliverable")
 - ✅ **Roles**: Definitions of who performs activities
-- ✅ **Howtos**: Step-by-step activity guides (1:1 with activities)
+- ✅ **Skills**: Step-by-step activity guides (1:1 with activities)
 
 **Supporting Features (Acts 9-15):**
 - ✅ **PIPs**: Collaborative improvement proposals with versioning
