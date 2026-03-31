@@ -8,7 +8,7 @@ import logging
 from decimal import Decimal
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
-from methodology.models import Playbook
+from methodology.models import Playbook, PlaybookVersion
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,17 @@ class PlaybookService:
                 visibility=visibility,
                 source=source
             )
+            
+            # Create initial version record for non-draft playbooks (active and released both
+            # start at version 1.0 and need an audit trail entry from day one).
+            if status in ['released', 'active']:
+                PlaybookVersion.objects.create(
+                    playbook=playbook,
+                    version_number=1,
+                    snapshot_data={'name': playbook.name, 'version': str(playbook.version)},
+                    change_summary='Initial version',
+                    created_by=author,
+                )
             
             logger.info(f"Created playbook '{name}' (id={playbook.id}, version={playbook.version})")
             return playbook
@@ -244,8 +255,9 @@ class PlaybookService:
         old_version = playbook.version
         old_status = playbook.status
         
-        # Call model method
+        # Call model method and persist
         playbook.release()
+        playbook.save()
         
         logger.info(f"Playbook '{playbook.name}' released: {old_status} v{old_version} → {playbook.status} v{playbook.version}")
         return playbook
