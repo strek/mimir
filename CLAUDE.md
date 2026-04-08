@@ -50,7 +50,7 @@ Playbook (status: draft/released/disabled; version: 0.x → 1.0+)
        ├─ Phase (optional; currently string field, not separate model)
        └─ Activity (name, guidance: Markdown+Mermaid, order)
             └─ Artifact (input/output, producer/consumer)
-Playbook also has: Role (Act 7, not yet built), Skill (Act 8, not yet built)
+Playbook also has: Agent (Act 7, not yet built), Skill (Act 8, not yet built)
 ```
 
 **Implementation status:**
@@ -61,7 +61,7 @@ Playbook also has: Role (Act 7, not yet built), Skill (Act 8, not yet built)
 | Activity | ✅ Full CRUDLF |
 | Phase | ⚠️ String field only |
 | Artifact | ⚠️ Model exists, partial |
-| Role | ❌ Not built (Act 7) |
+| Agent | ❌ Not built (Act 7) |
 | Skill | ❌ Not built (Act 8) |
 | PIP | ❌ Not built (Act 9) |
 
