@@ -50,97 +50,42 @@ docs/plans/ESTIMATION_STRATEGY.md     ← Estimation level, risk profile, sprint
 
 ---
 
-## Visual Workflow Diagram
-
-```mermaid
----
-title: FeatureFactory v3.8 — Workflow Flow
----
-flowchart TD
-    %% ── INCEPTION PHASE ──────────────────────────────────────────
-    subgraph INCEPTION["🔭 Inception Phase (once per project)"]
-        direction TB
-
-        ESM["**ESM**\nEnvision the System\n─────────────────\n• User journey\n• Screen flow (drawio)\n• Feature files (BDD)\n• IA guidelines\n• Mockups"]
-
-        DTA["**DTA**\nDefine Architecture\n─────────────────\n• 16 domain decisions\n• Technology stack\n• Code organisation\n• Data architecture\n• Test strategy"]
-
-        DSP["**DSP**\nDeploy Software Process\n─────────────────\n• Choose AI IDE\n• Generate CLAUDE.md\n  or copilot rules\n  or Windsurf rules"]
-
-        EST["**EST**\nEstimate the Project\n─────────────────\n• L1 SWAG sizing\n• L2 BPE-01 decomp\n• ECF / TCF factors\n• Monte Carlo P50/80/95\n• Client AFP quote"]
-
-        ESM --> DTA
-        ESM --> EST
-        DTA --> DSP
-        DTA --> EST
-    end
-
-    %% ── BASE ARTIFACTS ────────────────────────────────────────────
-    subgraph ARTIFACTS["📁 Base Artifacts"]
-        direction LR
-        A1["CLAUDE.md\n(or .windsurf/rules/)"]
-        A2["docs/architecture/SAO.md"]
-        A3["docs/architecture/screen-flow.drawio\ndocs/features/**/*.feature"]
-        A4["docs/plans/ESTIMATION_TEMPLATE.xlsx\ndocs/plans/ESTIMATION_STRATEGY.md"]
-    end
-
-    DSP --> A1
-    DTA --> A2
-    ESM --> A3
-    EST --> A4
-
-    %% ── DELIVERY LOOP ─────────────────────────────────────────────
-    subgraph DELIVERY["🔄 Delivery Loop (per sprint)"]
-        direction TB
-
-        BSP["**BSP** *(Sprint 0 only)*\nBootstrap Project\n─────────────────\n• Install prerequisites\n• Init repository\n• Scaffold structure\n• Configure tooling\n• Makefile + welcome page"]
-
-        BPE["**BPE** *(each feature)*\nBuild Feature\n─────────────────\n• BPE-01 Plan\n• BPE-02 Backend\n• BPE-03 Frontend\n• BPE-04 FAT\n• BPE-05 Journey tests\n• BPE-06 DoD\n• BPE-07 Finalise\n• BPE-08 Change requests"]
-
-        EST08["**EST-08**\nSprint Close & Rebaseline\n─────────────────\n• Record actuals\n• Rebaseline estimates\n• Calibrate $/FP"]
-
-        BSP --> BPE
-        BPE --> EST08
-        EST08 -->|"next sprint"| BPE
-    end
-
-    %% ── CONNECTIONS INCEPTION → DELIVERY ─────────────────────────
-    A1 -->|"AI IDE config"| BSP
-    A2 -->|"SAO.md"| BSP
-    A2 -->|"SAO.md"| BPE
-    A3 -->|"feature files"| BPE
-    A4 -->|"sprint plan"| BSP
-    EST08 -->|"updated estimates"| A4
-
-    %% ── EST SKILL ─────────────────────────────────────────────────
-    SKILL["⚙️ EST/skills/\ngenerate_estimation_xls.py\n─────────────────\nFill PROJECT_DATA dict\nrun → ESTIMATION_TEMPLATE.xlsx"]
-    EST --> SKILL
-    SKILL --> A4
-
-    %% ── STYLING ───────────────────────────────────────────────────
-    classDef inception fill:#1B4332,color:#fff,stroke:#48BB78
-    classDef delivery fill:#1A365D,color:#fff,stroke:#63B3ED
-    classDef artifact fill:#744210,color:#fff,stroke:#ECC94B
-    classDef skill fill:#44337A,color:#fff,stroke:#B794F4
-
-    class ESM,DTA,DSP,EST inception
-    class BSP,BPE,EST08 delivery
-    class A1,A2,A3,A4 artifact
-    class SKILL skill
-```
-
----
-
 ## Workflow Dependencies
 
-```
-ESM ──────────────────────────────────────────────────┐
-     └─ screen-flow.drawio + docs/features/**          │
-                                                       ▼
-DTA ──► SAO.md ──────────────────────────────────────► DSP ──► CLAUDE.md
-             └──────────────────────────────────────► EST ──► ESTIMATION_TEMPLATE.xlsx
-                                                              └──► BSP ──► runnable project
-                                                                        └──► BPE (loop)
+```mermaid
+flowchart LR
+    ESM[ESM]
+    DTA[DTA]
+    DSP[DSP]
+    EST[EST]
+    BSP[BSP]
+    BPE[BPE]
+    
+    SCREEN["screen-flow.drawio<br/>+ docs/features/**"]
+    SAO["SAO.md"]
+    CLAUDE["CLAUDE.md"]
+    ESTIMATION["ESTIMATION_TEMPLATE.xlsx"]
+    PROJECT["runnable project"]
+    LOOP["BPE (loop)"]
+    
+    ESM --> SCREEN
+    ESM --> DTA
+    DTA --> SAO
+    SAO --> DSP
+    SAO --> EST
+    DSP --> CLAUDE
+    EST --> ESTIMATION
+    ESTIMATION --> BSP
+    BSP --> PROJECT
+    PROJECT --> LOOP
+    
+    SCREEN -.-> EST
+    
+    classDef workflow fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef artifact fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    class ESM,DTA,DSP,EST,BSP,BPE workflow
+    class SCREEN,SAO,CLAUDE,ESTIMATION,PROJECT,LOOP artifact
 ```
 
 ---
