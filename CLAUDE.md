@@ -1,4 +1,4 @@
-# CLAUDE.md — Mimir Codebase Guide
+# CLAUDE.md — Mimir Development Guide
 
 ## What Is Mimir
 
@@ -9,6 +9,8 @@ Mimir is a **self-evolving engineering playbook platform**. It lets teams docume
 - **HOMEBASE** (separate repo) — Django + HTMX, eventing → Neo4j graph DB, aggregates PIPs from FOBs
 
 **Key innovation:** AI assistants can propose playbook improvements (PIPs) that engineers review and approve.
+
+**Current Status:** Production-ready MVP with full CRUDLF for Playbooks, Workflows, Activities, and Agents. MCP integration complete with 40+ tools.
 
 ---
 
@@ -39,7 +41,13 @@ docs/
   ux/                         # Design system, IA guidelines, user journey
 .windsurf/
   rules/                      # 38 development convention rules
-  workflows/                  # ESM (design) and BPE (build) process workflows
+  workflows/FeatureFactory/   # Complete product development playbook (6 workflows)
+    ESM/                      # Envision the System (7 activities)
+    DTA/                      # Define Architecture (18 activities)
+    DSP/                      # Deploy Software Process (6 activities)
+    EST/                      # Estimate the Project (8 activities)
+    BSP/                      # Bootstrap Project (8 activities)
+    BPE/                      # Build Feature (8 activities)
 ```
 
 ### Data Model Hierarchy
@@ -61,8 +69,8 @@ Playbook also has: Agent (Act 7, not yet built), Skill (Act 8, not yet built)
 | Activity | ✅ Full CRUDLF |
 | Phase | ⚠️ String field only |
 | Artifact | ⚠️ Model exists, partial |
-| Agent | ❌ Not built (Act 7) |
-| Skill | ❌ Not built (Act 8) |
+| Agent | ✅ Full CRUDLF (Act 7) |
+| Skill | ⚠️ Model exists, partial (Act 8) |
 | PIP | ❌ Not built (Act 9) |
 
 ### Services Pattern
@@ -90,21 +98,52 @@ Always use "playbooks" in UI text; always use `methodology` in code.
 
 ---
 
-## Development Process
+## FeatureFactory Workflows
+
+Mimir development follows the **FeatureFactory v3.8** playbook — a complete product development methodology from idea to shipped feature.
+
+### Inception Phase (run once per project)
+
+1. **ESM — Envision the System** (7 activities)
+   - User journey, screen flows, feature files (BDD), IA guidelines, mockups
+   - Output: `docs/features/**`, `docs/ux/screen-flow.drawio`
+
+2. **DTA — Define Architecture** (18 activities)
+   - Technical decisions across 16 domains → System Architecture Overview
+   - Output: `docs/architecture/SAO.md`
+
+3. **DSP — Deploy Software Process** (6 activities)
+   - AI IDE configuration for Windsurf/Cursor/Claude
+   - Output: `CLAUDE.md`, `.windsurf/rules/`, `.cursor/rules/`
+
+4. **EST — Estimate the Project** (8 activities)
+   - Two-level estimates, Monte Carlo forecast, client quote
+   - Output: `docs/plans/ESTIMATION_TEMPLATE.xlsx`
+
+### Delivery Loop (repeats every sprint)
+
+5. **BSP — Bootstrap Project** (Sprint 0 only, 8 activities)
+   - Scaffold project structure, dependencies, Makefile
+   - Output: Runnable project with welcome page
+
+6. **BPE — Build Feature** (Every sprint, 8 activities)
+   - **BPE-01**: Plan feature implementation
+   - **BPE-02**: Implement backend (models → services → views)
+   - **BPE-03**: Implement frontend (templates + HTMX)
+   - **BPE-04**: Feature Acceptance Tests (Django test client)
+   - **BPE-05**: Journey Certification Tests (Playwright E2E)
+   - **BPE-06**: Check Definition of Done
+   - **BPE-07**: Finalize feature (commit, PR)
+   - **BPE-08**: Process change requests
+
+**EST-08** runs at end of every sprint to rebaseline estimates.
 
 ### Before Implementing Any Feature
 
 1. Read the relevant feature spec in `docs/features/act-*/`
 2. Read `docs/architecture/SAO.md` for architectural context
-3. Create an implementation plan in `docs/plans/`
-
-### Implementation Order (BPE Workflow)
-
-1. **Backend**: models → services → views (thin controllers)
-2. **Frontend**: Django templates + HTMX interactions (add `data-testid` on interactive elements)
-3. **Feature Acceptance Tests**: Django test client, covers all `.feature` scenarios (fast, run on every commit)
-4. **Journey Certification Tests**: Playwright browser automation (run on PR merge)
-5. Check Definition of Done → PR
+3. Follow **BPE workflow** step-by-step (see `.windsurf/workflows/FeatureFactory/BPE/`)
+4. Create implementation plan in `docs/plans/` (BPE-01)
 
 ### Skeleton-First Pattern
 
@@ -210,7 +249,10 @@ Both processes share the same SQLite DB with a 20-second timeout for concurrent 
 | MCP tool definitions | `mcp_integration/tools.py` |
 | Design system / UI patterns | `docs/ux/IA_guidelines.md` |
 | Development rules (38) | `.windsurf/rules/*.md` |
-| Development workflows | `.windsurf/workflows/*.md` |
+| FeatureFactory playbook | `.windsurf/workflows/FeatureFactory/playbook.md` |
+| BPE workflow (primary) | `.windsurf/workflows/FeatureFactory/BPE/` |
+| Available skills (12) | `.windsurf/workflows/FeatureFactory/*/skills/` |
+| Artifact templates (13) | `.windsurf/workflows/FeatureFactory/*/artifacts/` |
 | Feature specs | `docs/features/act-*/` |
 
 ---
