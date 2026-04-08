@@ -4,8 +4,8 @@
 **Workflow ID**: TBD
 **Description**: Bootstrap a greenfield project from SAO.md and MODUS_OPERANDI.md decisions. Install prerequisites, initialize repository, scaffold structure, configure tooling, create Makefile, and verify with a welcome page. Make-centric, *nix-oriented, idempotent.
 **Phase Organization**: Uses phases (Provision → Initialize → Configure → Verify)
-**Total Activities**: 7
-**Export Date**: 2026-04-06
+**Total Activities**: 8
+**Export Date**: 2026-04-08
 
 ## Prerequisites
 
