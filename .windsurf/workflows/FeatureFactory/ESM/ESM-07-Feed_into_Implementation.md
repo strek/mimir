@@ -108,11 +108,15 @@ The "Build Feature" workflow will handle:
 
 ## Artifacts Produced
 
-None
+- Verified handoff package (no new file): all prior ESM artifacts confirmed complete, Screen ID traceability validated across all 5 artifact types
 
 ## Artifacts Consumed
 
-None
+- `docs/features/user_journey.md` (ESM-02)
+- `docs/ux/IA_guidelines.md` (ESM-03)
+- `docs/ux/2_dialogue-maps/screen-flow.drawio` (ESM-04)
+- `docs/features/act-*/` feature files (ESM-05)
+- `templates/` mockup templates + mock views (ESM-06)
 
 ## Notes
 

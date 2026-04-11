@@ -64,11 +64,15 @@ If unclear - ASK. Never guess user intent or implementation details.
 
 ## Artifacts Produced
 
-None
+- `docs/plans/{FEATURE}_CHANGE_PLAN.md` — change implementation plan presented to and approved by user
+- Updated `docs/features/act-*/` feature file(s) — scenarios revised to reflect the change
+- Updated source code and tests per change scope (models, views, templates, tests)
 
 ## Artifacts Consumed
 
-None
+- Change request description (from user)
+- `docs/architecture/SAO.md` — checked for architectural impact of the change
+- Existing feature artifacts — `.feature` files, models, views, templates being modified
 
 ## Notes
 

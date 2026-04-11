@@ -95,11 +95,14 @@ Don't add if:
 
 ## Artifacts Produced
 
-None
+- `tests/e2e/test_*.py` — Playwright journey tests validating complete user flows (HTMX, JavaScript, cross-feature navigation)
+- `tests/fixtures/journey_seed.json` — test data fixture with realistic users, entities, and relationships
 
 ## Artifacts Consumed
 
-None
+- Feature acceptance tests (from BPE-04) — confirm logic layer is green before adding UI layer
+- Running application server — Playwright requires a live server (`LiveServerTestCase`)
+- `docs/features/act-*/` feature file(s) — journey scenarios span multiple feature files
 
 ## Notes
 

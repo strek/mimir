@@ -88,11 +88,11 @@ Establish the design system foundation, layout patterns, and component standards
 
 ## Artifacts Produced
 
-None
+- `docs/ux/IA_guidelines.md` — design system specification (Bootstrap tokens, layout patterns, navigation structure, component patterns, icon system, accessibility requirements)
 
 ## Artifacts Consumed
 
-None
+- `docs/features/user_journey.md` (from ESM-02) — provides screens and entities that need design system coverage
 
 ## Notes
 

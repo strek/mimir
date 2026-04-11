@@ -81,11 +81,15 @@ Build functional prototypes with mocked data to validate UX before full implemen
 
 ## Artifacts Produced
 
-None
+- `templates/{entity}/{operation}.html` — Django HTML mockup templates (one per screen, with Screen ID comment, `data-testid` attributes, all UI states)
+- `{entity}/views.py` — mock Django view functions returning templates with hardcoded/fixture data
+- Mock data fixtures (inline or `fixtures/`) — sample data for rendering the mockup
 
 ## Artifacts Consumed
 
-None
+- `docs/features/act-X-{entity}/*.feature` (from ESM-05) — defines UI elements, states, and interactions each template must represent
+- `docs/ux/2_dialogue-maps/screen-flow.drawio` (from ESM-04) — provides navigation arrows to implement links between templates
+- `docs/ux/IA_guidelines.md` (from ESM-03) — Bootstrap components, icon system, and accessibility patterns to apply
 
 ## Notes
 

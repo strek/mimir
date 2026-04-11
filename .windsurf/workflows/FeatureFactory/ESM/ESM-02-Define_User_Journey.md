@@ -102,11 +102,11 @@ Establish the high-level user experience narrative with personas, user flows, an
 
 ## Artifacts Produced
 
-None
+- `docs/features/user_journey.md` — complete user journey narrative (personas, Acts, screen descriptions, system architecture notes)
 
 ## Artifacts Consumed
 
-None
+- None (ESM-01 Screen ID convention applied throughout)
 
 ## Notes
 

@@ -84,11 +84,16 @@ Follow Angular convention with proper type, scope, subject, body, and footer.
 
 ## Artifacts Produced
 
-None
+- Git commit(s) — Angular-convention messages summarizing the completed feature
+- Pull request (optional, if on feature branch)
+- Closed GitHub issue — updated with final status and commit reference
+- Updated `docs/ux/2_dialogue-maps/screen-flow.drawio` — completed screens marked with green borders (✅ prefix)
+- Updated `requirements.txt` — any new packages added during feature development
 
 ## Artifacts Consumed
 
-None
+- All BPE-01–06 artifacts — code, tests, DoD sign-off
+- `docs/ux/2_dialogue-maps/screen-flow.drawio` — updated to mark screens complete
 
 ## Notes
 

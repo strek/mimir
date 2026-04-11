@@ -155,7 +155,7 @@ class Playbook(models.Model):
             'activities': 0,  # TODO: Implement when Activity model exists
             'artifacts': 0,  # TODO: Implement when Artifact model exists
             'roles': 0,  # TODO: Implement when Role model exists
-            'howtos': 0,  # TODO: Implement when Howto model exists
+            'skills': 0,  # TODO: Implement when Skill model exists
             'goals': 'Coming soon (v2.1)'
         }
     

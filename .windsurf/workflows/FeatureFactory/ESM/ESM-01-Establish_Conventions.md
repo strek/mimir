@@ -121,11 +121,11 @@ Establish the foundational conventions and standards that will be used throughou
 
 ## Artifacts Produced
 
-None
+- Screen ID convention (conceptual foundation — `FOB-{ENTITY}-{OPERATION}-{VERSION}` format, CRUDLF operations, traceability chain); no file written
 
 ## Artifacts Consumed
 
-None
+- None
 
 ## Notes
 

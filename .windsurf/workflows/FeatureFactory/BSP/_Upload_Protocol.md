@@ -1,0 +1,81 @@
+# Upload Protocol for Bootstrap Project (BSP)
+
+**Generated**: 2026-04-11 14:57 UTC
+**Workflow ID**: 1
+**Playbook**: FeatureFactory v5.5 (draft)
+
+## Change Summary
+
+- **New Activities**: 8
+- **Modified Activities**: 0
+- **Deleted Activities**: 8
+- **Reordered Activities**: 0
+- **Total Changes**: 16
+
+## Detailed Changes
+
+### New Activities
+
+- **Verify & Install Prerequisites** (Order: 1, Phase: Provision)
+  - **Rationale**: [AI to fill: Why this activity is needed]
+
+- **Initialize Repository** (Order: 2, Phase: Initialize)
+  - **Rationale**: [AI to fill: Why this activity is needed]
+
+- **Scaffold Project Structure** (Order: 3, Phase: Initialize)
+  - **Rationale**: [AI to fill: Why this activity is needed]
+
+- **Initialize Runtimes & Dependencies** (Order: 4, Phase: Initialize)
+  - **Rationale**: [AI to fill: Why this activity is needed]
+
+- **Configure Dev Tooling** (Order: 5, Phase: Configure)
+  - **Rationale**: [AI to fill: Why this activity is needed]
+
+- **Create Makefile** (Order: 6, Phase: Configure)
+  - **Rationale**: [AI to fill: Why this activity is needed]
+
+- **Create Welcome Page & Verify** (Order: 7, Phase: Verify)
+  - **Rationale**: [AI to fill: Why this activity is needed]
+
+- **Configure Observability & Logging** (Order: 8, Phase: Configure)
+  - **Rationale**: [AI to fill: Why this activity is needed]
+
+### Deleted Activities
+
+- **Verify & Install Prerequisites** (ID: 1, Order: 1)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Initialize Repository** (ID: 2, Order: 2)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Scaffold Project Structure** (ID: 3, Order: 3)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Initialize Runtimes & Dependencies** (ID: 4, Order: 4)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Configure Dev Tooling** (ID: 5, Order: 5)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Create Makefile** (ID: 6, Order: 6)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Create Welcome Page & Verify** (ID: 7, Order: 7)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Configure Observability & Logging** (ID: 8, Order: 8)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+
+## Approval Options
+
+- **Apply Immediately** (Draft playbooks only): Use `apply_upload_protocol` MCP tool
+- **Submit as PIP** (Released playbooks): Use `create_pip_from_protocol` MCP tool
+- **Cancel**: Delete this protocol file
+
+## Instructions for AI
+
+1. Fill in all [AI to fill] rationale sections above
+2. Explain clearly what changed and why it improves the workflow
+3. User will review and approve/edit rationales
+4. After approval, call appropriate MCP tool to apply changes

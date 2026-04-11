@@ -110,10 +110,14 @@ All imports/dependencies must be at module level. No imports inside functions/me
 
 ## Artifacts Produced
 
-None
+- Model classes, service classes, view functions, URL patterns (source code)
+- `tests/unit/test_*.py` — unit tests for individual functions/methods
+- `tests/integration/test_*.py` — integration tests using real DB (no mocking)
 
 ## Artifacts Consumed
 
+- `docs/plans/{FEATURE}_IMPLEMENTATION_PLAN.md` (from BPE-01) — implementation steps and test list
+- `docs/architecture/SAO.md` — services pattern, data architecture, code organization
 - Skills from capability domains: `BACKEND_FRAMEWORK`, `TEST_FRAMEWORK`, `LOGGING_PATTERN`, `DOCSTRING_FORMAT`
 
 ## Notes

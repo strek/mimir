@@ -110,10 +110,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link disabled" href="#" data-testid="nav-howtos"
+                        <a class="nav-link {% if '/skills/' in request.path %}active{% endif %}" 
+                           href="{% url 'skill_list' %}" 
+                           data-testid="nav-skills"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
-                           title="Coming soon: Browse how-to guides">
-                            <i class="fas fa-hand-holding-magic"></i> Howtos
+                           title="View all skills across your playbooks"
+                           {% if '/skills/' in request.path %}aria-current="page"{% endif %}>
+                            <i class="fas fa-hand-holding-magic"></i> Skills
                         </a>
                     </li>
                     <li class="nav-item">

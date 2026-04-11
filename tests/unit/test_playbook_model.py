@@ -40,7 +40,7 @@ class TestPlaybookQuickStats:
         assert 'activities' in stats
         assert 'artifacts' in stats
         assert 'roles' in stats
-        assert 'howtos' in stats
+        assert 'skills' in stats
         assert stats['goals'] == 'Coming soon (v2.1)'
     
     def test_get_quick_stats_no_workflows(self):
@@ -60,7 +60,7 @@ class TestPlaybookQuickStats:
         assert stats['activities'] == 0
         assert stats['artifacts'] == 0
         assert stats['roles'] == 0
-        assert stats['howtos'] == 0
+        assert stats['skills'] == 0
     
     def test_get_quick_stats_structure(self):
         """Test quick stats returns proper dictionary structure."""
@@ -78,12 +78,12 @@ class TestPlaybookQuickStats:
         assert isinstance(stats, dict)
         
         # Verify all expected keys exist
-        required_keys = ['workflows', 'phases', 'activities', 'artifacts', 'roles', 'howtos', 'goals']
+        required_keys = ['workflows', 'phases', 'activities', 'artifacts', 'roles', 'skills', 'goals']
         for key in required_keys:
             assert key in stats, f"Missing key: {key}"
         
         # Verify integer types for counts
-        for key in ['workflows', 'phases', 'activities', 'artifacts', 'roles', 'howtos']:
+        for key in ['workflows', 'phases', 'activities', 'artifacts', 'roles', 'skills']:
             assert isinstance(stats[key], int), f"{key} should be integer"
         
         # Verify goals is string

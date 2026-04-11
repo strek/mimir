@@ -90,10 +90,14 @@ When a bug was discovered and fixed, ask yourself: "why did our current tests no
 
 ## Artifacts Produced
 
-None
+- `tests/integration/test_{feature}_{aspect}.py` — FAT tests covering every scenario in the feature file using the framework test client (no mocking)
+- `tests/unit/test_*.py` — unit tests for any logic not covered by integration tests
 
 ## Artifacts Consumed
 
+- Backend code (from BPE-02) — services and views being tested
+- Frontend templates (from BPE-03) — templates whose rendering is verified
+- `docs/features/act-*/` feature file(s) — one test method per BDD scenario
 - Skills from capability domains: `TEST_FRAMEWORK`, `TEST_DATA`
 
 ## Notes

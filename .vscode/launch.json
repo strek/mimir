@@ -16,7 +16,7 @@
                 "DJANGO_SETTINGS_MODULE": "mimir.settings",
                 "PYTHONUNBUFFERED": "1"
             },
-            "python": "${workspaceFolder}/venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "console": "integratedTerminal"
         },
         {
@@ -33,7 +33,7 @@
                 "DJANGO_SETTINGS_MODULE": "mimir.settings",
                 "PYTHONUNBUFFERED": "1"
             },
-            "python": "${workspaceFolder}/venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "console": "integratedTerminal"
         },
         {
@@ -50,7 +50,7 @@
                 "DJANGO_SETTINGS_MODULE": "mimir.settings",
                 "PYTHONUNBUFFERED": "1"
             },
-            "python": "${workspaceFolder}/venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "console": "integratedTerminal"
         },
         {
@@ -67,7 +67,7 @@
                 "DJANGO_SETTINGS_MODULE": "mimir.settings",
                 "PYTHONUNBUFFERED": "1"
             },
-            "python": "${workspaceFolder}/venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "console": "integratedTerminal"
         },
         {
@@ -84,7 +84,7 @@
                 "DJANGO_SETTINGS_MODULE": "mimir.settings",
                 "PYTHONUNBUFFERED": "1"
             },
-            "python": "${workspaceFolder}/venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "console": "integratedTerminal"
         },
         {
@@ -102,7 +102,7 @@
                 "DJANGO_SETTINGS_MODULE": "mimir.settings",
                 "PYTHONUNBUFFERED": "1"
             },
-            "python": "${workspaceFolder}/venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "console": "integratedTerminal"
         },
         {
@@ -120,7 +120,7 @@
                 "DJANGO_SETTINGS_MODULE": "mimir.settings",
                 "PYTHONUNBUFFERED": "1"
             },
-            "python": "${workspaceFolder}/venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "console": "integratedTerminal"
         },
         {
@@ -137,7 +137,7 @@
                 "DJANGO_SETTINGS_MODULE": "mimir.settings",
                 "PYTHONUNBUFFERED": "1"
             },
-            "python": "${workspaceFolder}/venv/bin/python",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "console": "integratedTerminal"
         }
     ]

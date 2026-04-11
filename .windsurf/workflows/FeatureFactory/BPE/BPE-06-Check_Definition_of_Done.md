@@ -121,11 +121,14 @@ All checkboxes must be completed before considering the story "Done". Any deviat
 
 ## Artifacts Produced
 
-None
+- DoD checklist sign-off (verified in-chat or as checked-off section in implementation plan)
+- GitHub Backlog issue (optional) — for any deviations deferred by user approval
 
 ## Artifacts Consumed
 
-None
+- All BPE-01–05 artifacts (implementation plan, code, tests, E2E tests)
+- `docs/features/act-*/` feature file(s) — verified against actual behavior
+- `tests.log` — test run results confirming 100% pass rate
 
 ## Notes
 
