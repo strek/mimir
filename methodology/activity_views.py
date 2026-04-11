@@ -419,22 +419,10 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
                 logger.info(f"Skill unlinked from activity {activity_pk}")
             
             # Handle artifact inputs
-            # Clear existing artifact inputs
-            ArtifactInput.objects.filter(activity_id=activity_pk).delete()
-            logger.info(f"Cleared existing artifact inputs for activity {activity_pk}")
+            artifact_ids_int = [int(aid) for aid in artifact_input_ids if aid]
+            ActivityService.set_activity_artifact_inputs(activity_pk, artifact_ids_int)
             
-            # Add new artifact inputs
-            for artifact_id_str in artifact_input_ids:
-                try:
-                    artifact_id = int(artifact_id_str)
-                    ArtifactInput.objects.create(
-                        activity_id=activity_pk,
-                        artifact_id=artifact_id,
-                        is_required=False
-                    )
-                    logger.info(f"Artifact {artifact_id} linked as input to activity {activity_pk}")
-                except (ValueError, Exception) as e:
-                    logger.warning(f"Failed to link artifact {artifact_id_str} to activity {activity_pk}: {e}")
+            logger.info(f"Activity {activity_pk} updated successfully with {len(artifact_ids_int)} artifact inputs")
             logger.info(f"Activity {activity_pk} updated successfully")
             messages.success(request, f"Activity '{name}' updated successfully!")
             return redirect('activity_detail', playbook_pk=playbook_pk, workflow_pk=workflow_pk, activity_pk=activity_pk)

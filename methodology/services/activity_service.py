@@ -489,3 +489,30 @@ class ActivityService:
             old_agent_id, activity_id, activity.name,
         )
         return activity
+    @staticmethod
+    def set_activity_artifact_inputs(activity_id: int, artifact_ids: list[int]) -> int:
+        """
+        Set artifact inputs for activity (replaces existing).
+        
+        :param activity_id: Activity ID
+        :param artifact_ids: List of artifact IDs to set as inputs
+        :return: Number of artifact inputs created
+        """
+        from methodology.models import ArtifactInput
+        
+        # Clear existing
+        ArtifactInput.objects.filter(activity_id=activity_id).delete()
+        logger.info(f"Cleared existing artifact inputs for activity {activity_id}")
+        
+        # Create new
+        count = 0
+        for artifact_id in artifact_ids:
+            ArtifactInput.objects.create(
+                activity_id=activity_id,
+                artifact_id=artifact_id,
+                is_required=False
+            )
+            count += 1
+            logger.info(f"Artifact {artifact_id} linked as input to activity {activity_id}")
+        
+        return count
