@@ -134,7 +134,7 @@
             </div>
 
             <!-- Workflow Card -->
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fa-solid fa-sitemap"></i> Workflow</h5>
                 </div>
@@ -145,6 +145,117 @@
                        class="btn btn-sm btn-outline-primary">
                         <i class="fa-solid fa-arrow-right"></i> View Workflow
                     </a>
+                </div>
+            </div>
+
+            <!-- Assigned Agent Card -->
+            <div class="card mb-4" data-testid="agent-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fa-solid fa-brain"></i> Assigned Agent</h5>
+                </div>
+                <div class="card-body">
+                    {% if activity.agent %}
+                        <h6 class="card-title">
+                            <a href="{% url 'agent_detail' pk=activity.agent.id %}" data-testid="agent-link">
+                                {{ activity.agent.name }}
+                            </a>
+                        </h6>
+                        {% if activity.agent.description %}
+                        <p class="card-text small text-muted">{{ activity.agent.description|striptags|truncatewords:15 }}</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted mb-0" data-testid="no-agent">
+                            <i class="fa-solid fa-info-circle"></i> No agent assigned
+                        </p>
+                    {% endif %}
+                    {% if can_edit %}
+                    <a href="{% url 'activity_edit' playbook_pk=playbook.pk workflow_pk=workflow.pk activity_pk=activity.pk %}" 
+                       class="btn btn-sm btn-outline-primary mt-2"
+                       data-bs-toggle="tooltip"
+                       title="Assign or change agent">
+                        <i class="fa-solid fa-pen-to-square"></i> {% if activity.agent %}Change{% else %}Assign{% endif %} Agent
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Required Skill Card -->
+            <div class="card mb-4" data-testid="skill-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fa-solid fa-hand-holding-magic"></i> Required Skill</h5>
+                </div>
+                <div class="card-body">
+                    {% if activity.skill %}
+                        <h6 class="card-title">
+                            <a href="{% url 'skill_detail' pk=activity.skill.id %}" data-testid="skill-link">
+                                {{ activity.skill.title }}
+                            </a>
+                        </h6>
+                        <div class="mb-2">
+                            {% if activity.skill.capability_domain %}
+                            <span class="badge bg-info">{{ activity.skill.capability_domain }}</span>
+                            {% endif %}
+                            {% if activity.skill.technology_stack %}
+                            <span class="badge bg-secondary">{{ activity.skill.technology_stack }}</span>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0" data-testid="no-skill">
+                            <i class="fa-solid fa-info-circle"></i> No skill required
+                        </p>
+                    {% endif %}
+                    {% if can_edit %}
+                    <a href="{% url 'activity_edit' playbook_pk=playbook.pk workflow_pk=workflow.pk activity_pk=activity.pk %}" 
+                       class="btn btn-sm btn-outline-primary mt-2"
+                       data-bs-toggle="tooltip"
+                       title="Assign or change required skill">
+                        <i class="fa-solid fa-pen-to-square"></i> {% if activity.skill %}Change{% else %}Assign{% endif %} Skill
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Input Artifacts Card -->
+            <div class="card" data-testid="artifacts-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fa-solid fa-file-lines"></i> Input Artifacts
+                        {% if artifact_inputs %}
+                        <span class="badge bg-secondary ms-2">{{ artifact_inputs|length }}</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if artifact_inputs %}
+                        <ul class="list-group list-group-flush">
+                            {% for artifact_input in artifact_inputs %}
+                            <li class="list-group-item px-0" data-testid="artifact-input-{{ artifact_input.artifact.id }}">
+                                <a href="{% url 'artifact_detail' pk=artifact_input.artifact.id %}">
+                                    <i class="fa-solid fa-file-lines text-primary me-2"></i>
+                                    <strong>{{ artifact_input.artifact.name }}</strong>
+                                </a>
+                                <span class="badge bg-secondary ms-2">{{ artifact_input.artifact.type }}</span>
+                                {% if artifact_input.is_required %}
+                                <span class="badge bg-danger ms-1">Required</span>
+                                {% endif %}
+                                <br>
+                                <small class="text-muted ms-4">Produced by: {{ artifact_input.artifact.produced_by.name }}</small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0" data-testid="no-artifacts">
+                            <i class="fa-solid fa-info-circle"></i> No input artifacts
+                        </p>
+                    {% endif %}
+                    {% if can_edit %}
+                    <a href="{% url 'activity_edit' playbook_pk=playbook.pk workflow_pk=workflow.pk activity_pk=activity.pk %}" 
+                       class="btn btn-sm btn-outline-primary mt-2"
+                       data-bs-toggle="tooltip"
+                       title="Manage input artifacts">
+                        <i class="fa-solid fa-pen-to-square"></i> Manage Artifacts
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

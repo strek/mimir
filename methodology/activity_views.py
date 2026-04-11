@@ -284,11 +284,21 @@ def activity_detail(request, playbook_pk, workflow_pk, activity_pk):
         messages.error(request, "You don't have permission to view this activity.")
         return redirect('playbook_list')
     
+    
+    # Get artifact inputs for this activity
+    from methodology.models import ArtifactInput
+    artifact_inputs = ArtifactInput.objects.filter(
+        activity=activity
+    ).select_related('artifact', 'artifact__produced_by').order_by('artifact__name')
+    logger.info(f"Activity {activity_pk} has {artifact_inputs.count()} artifact inputs")
+
     context = {
         'playbook': playbook,
         'workflow': workflow,
         'activity': activity,
         'can_edit': workflow.can_edit(request.user),
+        'artifact_inputs': artifact_inputs,
+
     }
     
     logger.info(f"Activity detail rendered for user {request.user.username}")
