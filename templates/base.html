@@ -90,16 +90,22 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link disabled" href="#" data-testid="nav-artifacts"
+                        <a class="nav-link {% if '/artifacts/' in request.path %}active{% endif %}" 
+                           href="{% url 'artifact_list_global' %}" 
+                           data-testid="nav-artifacts"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
-                           title="Coming soon: Manage artifacts and deliverables">
+                           title="View all artifacts across your playbooks"
+                           {% if '/artifacts/' in request.path %}aria-current="page"{% endif %}>
                             <i class="fas fa-gift"></i> Artifacts
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link disabled" href="#" data-testid="nav-agents"
+                        <a class="nav-link {% if '/agents/' in request.path %}active{% endif %}" 
+                           href="{% url 'agent_list' %}" 
+                           data-testid="nav-agents"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
-                           title="Coming soon: Define and assign agents">
+                           title="View all agents across your playbooks"
+                           {% if '/agents/' in request.path %}aria-current="page"{% endif %}>
                             <i class="fas fa-brain"></i> Agents
                         </a>
                     </li>

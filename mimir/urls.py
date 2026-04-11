@@ -22,6 +22,7 @@ from methodology import workflow_views
 from methodology import activity_views
 from methodology import skill_views
 from methodology import agent_views
+from methodology import artifact_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -40,4 +41,5 @@ urlpatterns = [
     path("activities/", activity_views.activity_global_list, name="activity_global_list"),  # Global activities view
     path("skills/", skill_views.skill_list_global, name="skill_list"),  # Global skills view
     path("agents/", include("methodology.agent_urls")),  # Agent views (list, create, detail)
+    path("artifacts/", artifact_views.artifact_list_global, name="artifact_list_global"),  # Global artifacts view
 ]

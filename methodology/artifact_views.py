@@ -9,11 +9,63 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 from methodology.models import Playbook, Activity, Artifact
 from methodology.services.artifact_service import ArtifactService
 
 logger = logging.getLogger(__name__)
+
+
+# ==================== GLOBAL LIST ====================
+
+
+@login_required
+def artifact_list_global(request):
+    """
+    Global artifacts list — all artifacts across all playbooks owned by the user.
+    
+    Supports search via ?q= query parameter (matches name and description).
+    
+    Template: artifacts/list_global.html
+    Template Context:
+        - artifacts: QuerySet of Artifact instances (filtered by query if provided)
+        - query: Current search string
+        - total_count: Total artifacts before filtering
+    
+    :param request: Django request object
+    :return: Rendered global list template
+    """
+    query = request.GET.get('q', '').strip()
+    
+    # Get all artifacts from user's owned playbooks
+    artifacts = Artifact.objects.filter(
+        playbook__author=request.user,
+        playbook__source='owned'
+    ).select_related(
+        'playbook', 'produced_by', 'produced_by__workflow'
+    ).order_by('playbook__name', 'name')
+    
+    total_count = artifacts.count()
+    
+    # Apply search filter if provided
+    if query:
+        artifacts = artifacts.filter(
+            Q(name__icontains=query) | Q(description__icontains=query)
+        )
+    
+    logger.info(
+        f"User {request.user.username} viewing global artifact list"
+        + (f", query={query!r}" if query else "")
+    )
+    
+    context = {
+        'artifacts': artifacts,
+        'query': query,
+        'total_count': total_count,
+    }
+    return render(request, 'artifacts/list_global.html', context)
+
 
 
 # ==================== CREATE ====================
