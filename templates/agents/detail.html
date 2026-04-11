@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load markdown_filters %}
 
 {% block title %}{{ agent.name }} - Agent{% endblock %}
 
@@ -63,7 +64,7 @@
         </div>
         <div class="card-body" data-testid="agent-description" style="max-height: 400px; overflow-y: auto;">
             {% if agent.description %}
-                <pre class="mb-0" style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.875rem;">{{ agent.description }}</pre>
+                <div class="markdown-content">{{ agent.description|markdown }}</div>
             {% else %}
                 <p class="text-muted">No description provided.</p>
             {% endif %}

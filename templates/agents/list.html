@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load markdown_filters %}
 
 {% block title %}Agents{% endblock %}
 
@@ -64,7 +65,7 @@
                             <strong>{{ agent.name }}</strong>
                         </td>
                         <td class="text-muted small">
-                            {{ agent.description|truncatewords:20 }}
+                            {{ agent.description|striptags|truncatewords:20 }}
                         </td>
                         <td class="text-muted small">{{ agent.playbook.name }}</td>
                         <td>
