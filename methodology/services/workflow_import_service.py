@@ -125,9 +125,9 @@ class WorkflowImportService:
                     activity_data['dependencies'].append(deps_text)
             elif line.startswith('## Guidance'):
                 current_section = 'guidance'
-            elif line.startswith('##'):
+            elif line.startswith('## Artifacts Produced') or line.startswith('## Artifacts Consumed') or line.startswith('## Notes'):
                 current_section = None
-            elif current_section == 'guidance' and line.strip():
+            elif current_section == 'guidance':
                 guidance_lines.append(line)
         
         activity_data['guidance'] = '\n'.join(guidance_lines).strip()
