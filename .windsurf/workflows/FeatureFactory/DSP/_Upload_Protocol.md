@@ -1,16 +1,16 @@
 # Upload Protocol for Deploy Software Process (DSP)
 
-**Generated**: 2026-04-11 15:32 UTC
+**Generated**: 2026-04-11 15:38 UTC
 **Workflow ID**: 5
-**Playbook**: FeatureFactory v9.0 (draft)
+**Playbook**: FeatureFactory v9.7 (draft)
 
 ## Change Summary
 
 - **New Activities**: 6
 - **Modified Activities**: 0
-- **Deleted Activities**: 0
+- **Deleted Activities**: 6
 - **Reordered Activities**: 0
-- **Total Changes**: 6
+- **Total Changes**: 12
 
 ## Detailed Changes
 
@@ -33,6 +33,26 @@
 
 - **Review & Commit** (Order: 6, Phase: Finalization)
   - **Rationale**: [AI to fill: Why this activity is needed]
+
+### Deleted Activities
+
+- **Verify ESM Artifacts** (ID: 23, Order: 1)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Verify DTA Artifacts** (ID: 24, Order: 2)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Verify Architecture & Code Organization** (ID: 25, Order: 3)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Choose Target AI IDE** (ID: 26, Order: 4)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Generate AI IDE Configuration** (ID: 27, Order: 5)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
+
+- **Review & Commit** (ID: 28, Order: 6)
+  - **Rationale**: [AI to fill: Why this activity is no longer needed]
 
 
 ## Approval Options

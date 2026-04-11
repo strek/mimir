@@ -36,6 +36,12 @@ class WorkflowImportService:
         if not source_path.exists():
             raise ValidationError(f"Source directory does not exist: {source_directory}")
         
+        abbreviation = source_path.name
+        if abbreviation and abbreviation != workflow.abbreviation:
+            logger.info(f"Updating workflow abbreviation from '{workflow.abbreviation}' to '{abbreviation}'")
+            workflow.abbreviation = abbreviation
+            workflow.save()
+        
         current_activities = list(workflow.activities.all().order_by('order'))
         logger.info(f"Current workflow has {len(current_activities)} activities")
         
