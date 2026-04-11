@@ -204,7 +204,7 @@ git commit -m "ci: add CD pipeline (deploy idle → smoke → approve → switch
 ## Artifacts Consumed
 
 - `DCD/artifacts/cd_workflow.yml` — CD workflow template
-- `DCD/skills/github_actions_patterns.md` — approval gates, environment protection
+- Skill **GitHub Actions Patterns** — approval gates, environment protection
 - Makefile targets: `deploy`, `smoke-test`, `switch`, `pipeline-status`
 
 ## Notes

@@ -165,8 +165,8 @@ git commit -m "infra: implement EKS cluster with node group, ECR repo, blue/gree
 
 - `stacks/vpc_stack.py` (from DCI-03) — VPC reference for cluster placement
 - `docs/architecture/INFRA_REQUIREMENTS.md` — node count, instance type
-- `DCI/skills/aws_cdk_python.md` — CDK EKS patterns
-- `DCI/skills/k8s_eks_deployment.md` — K8s namespace setup
+- Skill **AWS CDK with Python** — CDK EKS patterns
+- Skill **K8s in EKS — Deployment Patterns** — K8s namespace setup
 
 ## Notes
 

@@ -105,11 +105,14 @@ class WorkflowProtocolService:
     
     @staticmethod
     def _parse_protocol(protocol_file: str) -> Dict:
-        """Parse _Upload_Protocol.md into structured data."""
+        """Parse _Upload_Protocol.md into structured data and re-parse source files."""
+        from methodology.services.workflow_import_service import WorkflowImportService
+        
         content = Path(protocol_file).read_text(encoding='utf-8')
         
         protocol_data = {
             'workflow_id': None,
+            'source_directory': None,
             'changes': {
                 'new': [],
                 'modified': [],
@@ -149,6 +152,16 @@ class WorkflowProtocolService:
         if not protocol_data['workflow_id']:
             raise ValidationError("Invalid protocol: workflow_id not found")
         
+        protocol_path = Path(protocol_file)
+        source_directory = protocol_path.parent
+        protocol_data['source_directory'] = str(source_directory)
+        
+        imported_activities = WorkflowImportService._parse_activity_files(source_directory)
+        
+        for activity in imported_activities:
+            if not activity.get('activity_id'):
+                protocol_data['changes']['new'].append(activity)
+        
         return protocol_data
     
     @staticmethod
@@ -162,11 +175,31 @@ class WorkflowProtocolService:
             'total': 0
         }
         
-        summary = changes.get('summary', {})
-        applied['new'] = summary.get('new', 0)
-        applied['modified'] = summary.get('modified', 0)
-        applied['deleted'] = summary.get('deleted', 0)
-        applied['reordered'] = summary.get('reordered', 0)
+        for new_activity_data in changes.get('new', []):
+            logger.info(f"Creating new activity: {new_activity_data['name']} (order={new_activity_data['order']})")
+            
+            activity = ActivityService.create_activity(
+                workflow=workflow,
+                name=new_activity_data['name'],
+                guidance=new_activity_data.get('guidance', ''),
+                phase=new_activity_data.get('phase'),
+                order=new_activity_data.get('order')
+            )
+            applied['new'] += 1
+            logger.info(f"Created activity ID={activity.id}, name='{activity.name}'")
+        
+        for modified_activity_data in changes.get('modified', []):
+            logger.info(f"Modifying activity ID={modified_activity_data.get('activity_id')}")
+            applied['modified'] += 1
+        
+        for deleted_activity_data in changes.get('deleted', []):
+            logger.info(f"Deleting activity ID={deleted_activity_data.get('activity_id')}")
+            applied['deleted'] += 1
+        
+        for reordered_activity_data in changes.get('reordered', []):
+            logger.info(f"Reordering activity ID={reordered_activity_data.get('activity_id')}")
+            applied['reordered'] += 1
+        
         applied['total'] = applied['new'] + applied['modified'] + applied['deleted'] + applied['reordered']
         
         logger.info(f"Applied {applied['total']} changes to workflow {workflow.id}")

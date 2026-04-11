@@ -152,7 +152,7 @@ git commit -m "ci: add CI pipeline (test → lint → build → push)"
 ## Artifacts Consumed
 
 - `DCD/artifacts/ci_workflow.yml` — CI workflow template
-- `DCD/skills/github_actions_patterns.md` — GH Actions patterns
+- Skill **GitHub Actions Patterns** — GH Actions patterns
 - Makefile targets: `provision`, `lint`, `test`, `test-integration`, `containers`
 
 ## Notes

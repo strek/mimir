@@ -215,7 +215,7 @@ git commit -m "feat(deploy): add Helm chart with local/blue/green values"
 
 - `docs/architecture/CICD_REQUIREMENTS.md` (from DCD-01) — environments, config
 - `DCD/artifacts/helmchart_template.md` — reference chart structure
-- `DCI/skills/k8s_eks_deployment.md` — K8s manifest patterns
+- Skill **K8s in EKS — Deployment Patterns** — K8s manifest patterns
 
 ## Notes
 

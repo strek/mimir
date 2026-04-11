@@ -180,7 +180,7 @@ git commit -m "infra: implement Route53 DNS stack with blue/green traffic switch
 ## Artifacts Consumed
 
 - `docs/architecture/INFRA_REQUIREMENTS.md` — domain, blue/green strategy
-- `DCI/skills/aws_cdk_python.md` — CDK Route53 patterns
+- Skill **AWS CDK with Python** — CDK Route53 patterns
 
 ## Notes
 

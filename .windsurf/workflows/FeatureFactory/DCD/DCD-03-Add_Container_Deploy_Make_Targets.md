@@ -179,7 +179,7 @@ git commit -m "feat(deploy): add container and deployment make targets"
 
 - `BSP/artifacts/makefile_template.mk` — extension point for `##@ Deployment`
 - `deploy/helm/{project}/` (from DCD-02) — Helm chart
-- `DCI/skills/k8s_eks_deployment.md` — deploy commands
+- Skill **K8s in EKS — Deployment Patterns** — deploy commands
 
 ## Notes
 

@@ -154,7 +154,7 @@ git commit -m "ci: add GitHub Actions workflow for infra deploy and traffic swit
 ## Artifacts Consumed
 
 - `DCI/artifacts/infra_gh_workflow.yml` — workflow template
-- `DCI/skills/aws_cdk_python.md` — OIDC federation patterns
+- Skill **AWS CDK with Python** — OIDC federation patterns
 - Infra Makefile (from DCI-02) — `make deploy`, `make traffic-switch`, etc.
 
 ## Notes

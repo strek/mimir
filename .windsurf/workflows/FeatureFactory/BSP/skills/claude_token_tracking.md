@@ -636,7 +636,7 @@ def test_parse_consumption_log():
 
 ## References
 
-- `.windsurf/workflows/EST/EST-08-Sprint_Close_and_Rebaseline.md` - Sprint close workflow
-- `.windsurf/workflows/EST/EST-05-Produce_Rough_Estimates.md` - Token estimation
+- Activity **EST-08** (Sprint Close and Rebaseline) - Sprint close workflow
+- Activity **EST-05** (Produce Rough Estimates) - Token estimation
 - Anthropic Claude API: https://docs.anthropic.com/claude/reference/
 - Anthropic Usage API: https://docs.anthropic.com/claude/reference/usage

@@ -131,7 +131,7 @@ EOF
 
 ### Pattern 3: Informative Logging in Services
 
-Follow `.windsurf/rules/informative-logging.md` - include context for troubleshooting:
+Follow informative logging pattern - include context for troubleshooting:
 
 ```python
 import logging
@@ -465,6 +465,6 @@ def log_token_consumption(scenario_id, user_id, tokens_used, model, sprint=1):
 
 ## References
 
-- `.windsurf/rules/informative-logging.md` - Informative logging requirements
-- `.windsurf/workflows/EST/EST-08-Sprint_Close_and_Rebaseline.md` - consumption.log format
+- informative logging pattern - Informative logging requirements
+- Activity **EST-08** (Sprint Close and Rebaseline) - consumption.log format
 - Django Logging Documentation: https://docs.djangoproject.com/en/stable/topics/logging/

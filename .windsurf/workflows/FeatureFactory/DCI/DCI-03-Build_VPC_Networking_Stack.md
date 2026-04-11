@@ -128,7 +128,7 @@ git commit -m "infra: implement VPC stack with 2 AZ, NAT Gateway, security group
 ## Artifacts Consumed
 
 - `docs/architecture/INFRA_REQUIREMENTS.md` — region, subnet layout, security requirements
-- `DCI/skills/aws_cdk_python.md` — CDK patterns for VPC constructs
+- Skill **AWS CDK with Python** — CDK patterns for VPC constructs
 
 ## Notes
 
