@@ -32,20 +32,26 @@ Feature: FOB-ACTIVITIES-VIEW_ACTIVITY-1 View Activity Details
     And she sees list of prerequisite activities
     And each dependency is clickable to view its details
 
-  Scenario: FOB-ACTIVITIES-VIEW_ACTIVITY-05 View artifacts
-    Given the activity has 3 associated artifacts
-    Then she sees "Artifacts" section
-    And each artifact shows: Name, Type, Required status
+  Scenario: FOB-ACTIVITIES-VIEW_ACTIVITY-05 View input artifacts
+    Given the activity has 3 input artifacts
+    Then she sees "Input Artifacts" card
+    And the card shows count badge "3"
+    And each artifact shows: Name, Type, Required status, Producer
+    And each artifact is clickable to view details
 
-  Scenario: FOB-ACTIVITIES-VIEW_ACTIVITY-06 View roles involved
-    Given the activity has assigned roles
-    Then she sees "Roles" section
-    And each role shows: Name, Responsibility
+  Scenario: FOB-ACTIVITIES-VIEW_ACTIVITY-06 View assigned agent
+    Given the activity has assigned agent "Code Reviewer"
+    Then she sees "Assigned Agent" card
+    And the card shows agent name with link to detail
+    And the card shows truncated agent description
+    And she sees "Change Agent" button if she can edit
 
-  Scenario: FOB-ACTIVITIES-VIEW_ACTIVITY-07 View skills
-    Given the activity has linked skills
-    Then she sees "Skills" section
-    And each skill is clickable for guidance
+  Scenario: FOB-ACTIVITIES-VIEW_ACTIVITY-07 View required skill
+    Given the activity has required skill "React Development"
+    Then she sees "Required Skill" card
+    And the card shows skill title with link to detail
+    And the card shows capability domain and technology stack badges
+    And she sees "Change Skill" button if she can edit
 
   Scenario: FOB-ACTIVITIES-VIEW_ACTIVITY-08 Edit activity button
     Given Maria is viewing the activity
