@@ -1,9 +1,9 @@
 # Activity: Scaffold Project Structure
 
-**Activity ID**: TBD
+**Activity ID**: 90
 **Order**: 3
 **Phase**: Initialize
-**Dependencies**: Predecessor: BSP-02 (Initialize Repository)
+**Dependencies**: None
 
 ## Description
 
@@ -97,13 +97,12 @@ git commit -m "chore(scaffold): create project directory structure per DTA-04"
 
 ## Artifacts Produced
 
-- Complete directory tree with placeholder files
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/SAO.md` — § Code Organization (DTA-04)
-- `docs/architecture/SAO.md` — § Application Blocks (DTA-02)
+None
 
 ## Notes
 
-The exact directory names and structure depend on DTA-02 and DTA-04 decisions. The example above assumes Django — adjust for the actual framework chosen.
+No additional notes.

@@ -1,6 +1,6 @@
 # Activity: Assess Estimation Readiness
 
-**Activity ID**: 25
+**Activity ID**: 66
 **Order**: 1
 **Phase**: Foundation
 **Dependencies**: None
@@ -159,15 +159,12 @@ BSP and DSP overhead FP must appear as a separate line item on the Client Quote 
 
 ## Artifacts Produced
 
-- `docs/plans/ESTIMATION_STRATEGY.md`
+None
 
 ## Artifacts Consumed
 
-- `docs/features/` (BDD feature files)
-- `docs/architecture/SAO.md` (if exists)
-- Reference Table (if exists)
-- Project root directory (for bootstrap status check)
+None
 
 ## Notes
 
-Sprint 0 FP weights (BSP + DSP) are defined in REFERENCE_TABLE §7.
+No additional notes.

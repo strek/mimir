@@ -1,9 +1,9 @@
 # Activity: Finalize Feature
 
-**Activity ID**: 15
+**Activity ID**: 102
 **Order**: 7
 **Phase**: Finalization
-**Dependencies**: Predecessor: Activity 14 (Check Definition of Done)
+**Dependencies**: None
 
 ## Description
 
@@ -84,16 +84,11 @@ Follow Angular convention with proper type, scope, subject, body, and footer.
 
 ## Artifacts Produced
 
-- Git commit(s) — Angular-convention messages summarizing the completed feature
-- Pull request (optional, if on feature branch)
-- Closed GitHub issue — updated with final status and commit reference
-- Updated `docs/ux/2_dialogue-maps/screen-flow.drawio` — completed screens marked with green borders (✅ prefix)
-- Updated `requirements.txt` — any new packages added during feature development
+None
 
 ## Artifacts Consumed
 
-- All BPE-01–06 artifacts — code, tests, DoD sign-off
-- `docs/ux/2_dialogue-maps/screen-flow.drawio` — updated to mark screens complete
+None
 
 ## Notes
 

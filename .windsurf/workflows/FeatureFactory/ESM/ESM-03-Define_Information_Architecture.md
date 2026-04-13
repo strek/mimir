@@ -1,9 +1,9 @@
 # Activity: Define Information Architecture
 
-**Activity ID**: TBD
+**Activity ID**: 37
 **Order**: 3
 **Phase**: Design
-**Dependencies**: Predecessor: Activity 18 (Define User Journey)
+**Dependencies**: None
 
 ## Description
 
@@ -88,11 +88,11 @@ Establish the design system foundation, layout patterns, and component standards
 
 ## Artifacts Produced
 
-- `docs/ux/IA_guidelines.md` — design system specification (Bootstrap tokens, layout patterns, navigation structure, component patterns, icon system, accessibility requirements)
+None
 
 ## Artifacts Consumed
 
-- `docs/features/user_journey.md` (from ESM-02) — provides screens and entities that need design system coverage
+None
 
 ## Notes
 

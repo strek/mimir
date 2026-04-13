@@ -1,9 +1,9 @@
 # Activity: Create Mockups
 
-**Activity ID**: TBD
+**Activity ID**: 40
 **Order**: 6
 **Phase**: Prototyping
-**Dependencies**: Predecessor: Activity 21 (Write Feature Files)
+**Dependencies**: None
 
 ## Description
 
@@ -81,15 +81,11 @@ Build functional prototypes with mocked data to validate UX before full implemen
 
 ## Artifacts Produced
 
-- `templates/{entity}/{operation}.html` — Django HTML mockup templates (one per screen, with Screen ID comment, `data-testid` attributes, all UI states)
-- `{entity}/views.py` — mock Django view functions returning templates with hardcoded/fixture data
-- Mock data fixtures (inline or `fixtures/`) — sample data for rendering the mockup
+None
 
 ## Artifacts Consumed
 
-- `docs/features/act-X-{entity}/*.feature` (from ESM-05) — defines UI elements, states, and interactions each template must represent
-- `docs/ux/2_dialogue-maps/screen-flow.drawio` (from ESM-04) — provides navigation arrows to implement links between templates
-- `docs/ux/IA_guidelines.md` (from ESM-03) — Bootstrap components, icon system, and accessibility patterns to apply
+None
 
 ## Notes
 

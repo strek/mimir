@@ -1,9 +1,9 @@
 # Activity: Create Welcome Page & Verify
 
-**Activity ID**: TBD
+**Activity ID**: 94
 **Order**: 7
 **Phase**: Verify
-**Dependencies**: Predecessor: BSP-06 (Create Makefile)
+**Dependencies**: None
 
 ## Description
 
@@ -210,15 +210,12 @@ Bootstrap verification complete:
 
 ## Artifacts Produced
 
-- Health check view (`{app}/views/health.py`)
-- Welcome template (`templates/welcome.html`)
-- URL configuration update (`config/urls.py`)
+None
 
 ## Artifacts Consumed
 
-- All previous BSP artifacts (Makefile, project structure, dependencies, tooling)
-- `docs/architecture/SAO.md` — for project name and stack details
+None
 
 ## Notes
 
-This is the final BSP activity. After verification passes, the project is bootstrapped and ready for Elaboration phase — pick the first feature from the backlog and start building with the BPE (Build Feature) workflow.
+No additional notes.

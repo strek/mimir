@@ -1,9 +1,9 @@
 # Activity: Implement Journey Certification Tests
 
-**Activity ID**: 13
+**Activity ID**: 100
 **Order**: 5
 **Phase**: Testing
-**Dependencies**: Predecessor: Activity 12 (Implement Feature Acceptance Tests)
+**Dependencies**: None
 
 ## Description
 
@@ -95,14 +95,11 @@ Don't add if:
 
 ## Artifacts Produced
 
-- `tests/e2e/test_*.py` — Playwright journey tests validating complete user flows (HTMX, JavaScript, cross-feature navigation)
-- `tests/fixtures/journey_seed.json` — test data fixture with realistic users, entities, and relationships
+None
 
 ## Artifacts Consumed
 
-- Feature acceptance tests (from BPE-04) — confirm logic layer is green before adding UI layer
-- Running application server — Playwright requires a live server (`LiveServerTestCase`)
-- `docs/features/act-*/` feature file(s) — journey scenarios span multiple feature files
+None
 
 ## Notes
 

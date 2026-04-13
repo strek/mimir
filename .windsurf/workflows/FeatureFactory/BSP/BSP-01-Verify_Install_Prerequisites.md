@@ -1,9 +1,9 @@
 # Activity: Verify & Install Prerequisites
 
-**Activity ID**: TBD
+**Activity ID**: 88
 **Order**: 1
 **Phase**: Provision
-**Dependencies**: None (first activity — requires SAO.md with Technology Stack Table)
+**Dependencies**: None
 
 ## Description
 
@@ -119,13 +119,12 @@ All prerequisites satisfied. ✅
 
 ## Artifacts Produced
 
-- Console output: prerequisites check summary
-- (No files produced — this activity only installs system tools)
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/SAO.md` — Technology Stack Table section
+None
 
 ## Notes
 
-This activity maps to `make provision` (prerequisite check portion). The full `make provision` target will also call BSP-04 (runtimes & dependencies) after prerequisites are verified.
+No additional notes.

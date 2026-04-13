@@ -1,9 +1,9 @@
 # Activity: Define Data Architecture
 
-**Activity ID**: TBD
+**Activity ID**: 46
 **Order**: 5
 **Phase**: Design
-**Dependencies**: Predecessor: DTA-02 (Define Application Blocks)
+**Dependencies**: None
 
 ## Description
 
@@ -77,12 +77,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Data architecture decision → contributes to `artifacts/sao_document_template.md` § "4. Data Architecture"
+None
 
 ## Artifacts Consumed
 
-- Structured requirements list from DTA-01
-- Application blocks decision from DTA-02
+None
 
 ## Notes
 

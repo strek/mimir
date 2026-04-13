@@ -1,9 +1,9 @@
 # Activity: Define User Journey
 
-**Activity ID**: TBD
+**Activity ID**: 36
 **Order**: 2
 **Phase**: Design
-**Dependencies**: Predecessor: Activity 17 (Establish Conventions)
+**Dependencies**: None
 
 ## Description
 
@@ -102,11 +102,11 @@ Establish the high-level user experience narrative with personas, user flows, an
 
 ## Artifacts Produced
 
-- `docs/features/user_journey.md` — complete user journey narrative (personas, Acts, screen descriptions, system architecture notes)
+None
 
 ## Artifacts Consumed
 
-- None (ESM-01 Screen ID convention applied throughout)
+None
 
 ## Notes
 

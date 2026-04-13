@@ -1,9 +1,9 @@
 # Activity: Define Backup & Recovery
 
-**Activity ID**: TBD
+**Activity ID**: 56
 **Order**: 15
 **Phase**: Operations
-**Dependencies**: Predecessor: DTA-05 (Define Data Architecture)
+**Dependencies**: None
 
 ## Description
 
@@ -76,12 +76,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Backup & recovery decision → contributes to `artifacts/sao_document_template.md` § "14. Backup & Recovery"
+None
 
 ## Artifacts Consumed
 
-- Data architecture decision from DTA-05
-- Infrastructure decision from DTA-09
+None
 
 ## Notes
 

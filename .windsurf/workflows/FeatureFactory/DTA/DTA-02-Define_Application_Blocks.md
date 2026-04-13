@@ -1,9 +1,9 @@
 # Activity: Define Application Blocks
 
-**Activity ID**: TBD
+**Activity ID**: 43
 **Order**: 2
 **Phase**: Design
-**Dependencies**: Predecessor: DTA-01 (Analyze ESM Artifacts)
+**Dependencies**: None
 
 ## Description
 
@@ -128,11 +128,11 @@ If gaps exist: "No Skill for Dependency Injection — will need to define patter
 
 ## Artifacts Produced
 
-- Application blocks decision → contributes to `artifacts/sao_document_template.md` § "1. Application Blocks"
+None
 
 ## Artifacts Consumed
 
-- Structured requirements list from DTA-01
+None
 
 ## Notes
 

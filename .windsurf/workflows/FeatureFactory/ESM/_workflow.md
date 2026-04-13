@@ -1,11 +1,11 @@
 # Envision the System
 
-**Playbook**: FeatureFactory v3.8 (Draft)
-**Workflow ID**: 3
-**Description**: It allows you to turn your vision of the system into formal design artifacts - user journey, screen flow, mockups detailing it, feature files detailing its behavior, and design system guiding front-end styling.
+**Playbook**: FeatureFactory v11.6 (Draft)
+**Workflow ID**: 8
+**Description**: Turn your vision into formal design artifacts - user journey, screen flow, mockups, feature files, and design system
 **Phase Organization**: Uses phases
 **Total Activities**: 7
-**Export Date**: 2026-02-12 16:18 UTC
+**Export Date**: 2026-04-13 15:41 UTC
 
 ## Activities
 

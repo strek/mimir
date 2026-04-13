@@ -1,9 +1,9 @@
 # Activity: Create Helm Chart & Values
 
-**Activity ID**: TBD
+**Activity ID**: 82
 **Order**: 2
 **Phase**: Design
-**Dependencies**: Predecessor: DCD-01 (Review SAO & Define CICD Requirements)
+**Dependencies**: None
 
 ## Description
 
@@ -209,14 +209,12 @@ git commit -m "feat(deploy): add Helm chart with local/blue/green values"
 
 ## Artifacts Produced
 
-- `deploy/helm/{project}/` — complete Helm chart
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/CICD_REQUIREMENTS.md` (from DCD-01) — environments, config
-- `DCD/artifacts/helmchart_template.md` — reference chart structure
-- Skill **K8s in EKS — Deployment Patterns** — K8s manifest patterns
+None
 
 ## Notes
 
-The Helm chart lives in the app monorepo (not the infra repo). This keeps app deployment config with app code. Values files are the only thing that changes per environment.
+No additional notes.

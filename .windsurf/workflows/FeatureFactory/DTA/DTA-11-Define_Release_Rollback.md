@@ -1,9 +1,9 @@
 # Activity: Define Release & Rollback
 
-**Activity ID**: TBD
+**Activity ID**: 52
 **Order**: 11
 **Phase**: Operations
-**Dependencies**: Predecessor: DTA-10 (Define CI/CD Pipeline)
+**Dependencies**: None
 
 ## Description
 
@@ -72,11 +72,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Release & rollback decision → contributes to `artifacts/sao_document_template.md` § "10. Release & Rollback"
+None
 
 ## Artifacts Consumed
 
-- CI/CD pipeline decision from DTA-10
+None
 
 ## Notes
 

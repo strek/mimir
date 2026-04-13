@@ -1,9 +1,9 @@
 # Activity: Implement Frontend
 
-**Activity ID**: 11
+**Activity ID**: 98
 **Order**: 3
 **Phase**: Implementation
-**Dependencies**: Predecessor: Activity 10 (Implement Backend)
+**Dependencies**: None
 
 ## Description
 
@@ -126,16 +126,11 @@ Before committing any component, verify all interactive elements have proper att
 
 ## Artifacts Produced
 
-- `templates/{entity}/{operation}.html` — Django HTML templates with `data-testid` attributes and HTMX interactions
-- HTMX partial templates for dynamic updates
-- `static/` CSS/JS assets (if feature requires custom styling or client-side logic)
+None
 
 ## Artifacts Consumed
 
-- `docs/plans/{FEATURE}_IMPLEMENTATION_PLAN.md` (from BPE-01) — frontend steps and component list
-- `docs/ux/IA_guidelines.md` — Bootstrap conventions, component patterns, icon system, accessibility rules
-- Backend code (from BPE-02) — views and URL patterns the templates connect to
-- Skills from capability domains: `FRONTEND_FRAMEWORK`, `UI_TESTING`
+None
 
 ## Notes
 

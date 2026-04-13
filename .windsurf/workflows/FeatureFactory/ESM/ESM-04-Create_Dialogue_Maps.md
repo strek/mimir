@@ -1,9 +1,9 @@
 # Activity: Create Dialogue Maps
 
-**Activity ID**: TBD
+**Activity ID**: 38
 **Order**: 4
 **Phase**: Design
-**Dependencies**: Predecessor: Activity 19 (Define Information Architecture)
+**Dependencies**: None
 
 ## Description
 
@@ -68,12 +68,11 @@ Visualize screen-to-screen flows and entity relationships using Draw.io diagrams
 
 ## Artifacts Produced
 
-- `docs/ux/2_dialogue-maps/screen-flow.drawio` — visual screen-flow diagram with domain model tab and MVP flow swimlanes; each screen box labeled with its Screen ID
+None
 
 ## Artifacts Consumed
 
-- `docs/features/user_journey.md` (from ESM-02) — source of Screen IDs and screen-to-screen flow narrative
-- `docs/ux/IA_guidelines.md` (from ESM-03) — color coding, component, and layout conventions for the diagram
+None
 
 ## Notes
 

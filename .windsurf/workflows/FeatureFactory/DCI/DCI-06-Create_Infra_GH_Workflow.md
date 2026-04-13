@@ -1,9 +1,9 @@
 # Activity: Create Infra GH Workflow
 
-**Activity ID**: TBD
+**Activity ID**: 79
 **Order**: 6
 **Phase**: Deploy
-**Dependencies**: Predecessor: DCI-05 (Build Route53 & DNS Stack)
+**Dependencies**: None
 
 ## Description
 
@@ -149,14 +149,12 @@ git commit -m "ci: add GitHub Actions workflow for infra deploy and traffic swit
 
 ## Artifacts Produced
 
-- `.github/workflows/infra.yml` — Infrastructure CI/CD workflow
+None
 
 ## Artifacts Consumed
 
-- `DCI/artifacts/infra_gh_workflow.yml` — workflow template
-- Skill **AWS CDK with Python** — OIDC federation patterns
-- Infra Makefile (from DCI-02) — `make deploy`, `make traffic-switch`, etc.
+None
 
 ## Notes
 
-The workflow only calls `make` targets. If you need to change deployment logic, change the Makefile, not the workflow YAML. This keeps local and CI/CD behavior identical.
+No additional notes.

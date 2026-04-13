@@ -1,9 +1,9 @@
 # Activity: Initialize Runtimes & Dependencies
 
-**Activity ID**: TBD
+**Activity ID**: 91
 **Order**: 4
 **Phase**: Initialize
-**Dependencies**: Predecessor: BSP-03 (Scaffold Project Structure)
+**Dependencies**: None
 
 ## Description
 
@@ -152,21 +152,12 @@ git commit -m "chore(deps): initialize Python venv, requirements.txt, Django pro
 
 ## Artifacts Produced
 
-- `.venv/` (gitignored)
-- `requirements.txt`
-- `manage.py` (if Django)
-- `config/` settings directory (if Django)
-- `package.json` (if Node.js)
-- `.nvmrc` (if Node.js)
-- `pyproject.toml`
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/SAO.md` — Technology Stack Table
-- `docs/architecture/SAO.md` — § Data Architecture (DTA-05) for DB config
-- `docs/architecture/SAO.md` — § Observability (DTA-12) for logging config
-- `docs/architecture/SAO.md` — § Config & Secrets (DTA-13) for SECRET_KEY handling
+None
 
 ## Notes
 
-The virtual environment `.venv/` is gitignored. Developers recreate it via `make provision` which runs `pip install -r requirements.txt`.
+No additional notes.

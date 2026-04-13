@@ -1,9 +1,9 @@
 # Activity: Define Config & Secrets
 
-**Activity ID**: TBD
+**Activity ID**: 54
 **Order**: 13
 **Phase**: Operations
-**Dependencies**: Predecessor: DTA-09 (Define Infrastructure)
+**Dependencies**: None
 
 ## Description
 
@@ -78,11 +78,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Config & secrets decision → contributes to `artifacts/sao_document_template.md` § "12. Config & Secrets"
+None
 
 ## Artifacts Consumed
 
-- Infrastructure decision from DTA-09
+None
 
 ## Notes
 

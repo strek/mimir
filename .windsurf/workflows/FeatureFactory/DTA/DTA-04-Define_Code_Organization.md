@@ -1,9 +1,9 @@
 # Activity: Define Code Organization
 
-**Activity ID**: TBD
+**Activity ID**: 45
 **Order**: 4
 **Phase**: Design
-**Dependencies**: Predecessor: DTA-02 (Define Application Blocks)
+**Dependencies**: None
 
 ## Description
 
@@ -89,11 +89,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Code organization decision → contributes to `artifacts/sao_document_template.md` § "3. Code Organization"
+None
 
 ## Artifacts Consumed
 
-- Application blocks decision from DTA-02
+None
 
 ## Notes
 

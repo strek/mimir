@@ -1,9 +1,9 @@
 # Activity: Deploy & Verify Cloud Environment
 
-**Activity ID**: TBD
+**Activity ID**: 80
 **Order**: 7
 **Phase**: Verify
-**Dependencies**: Predecessor: DCI-06 (Create Infra GH Workflow)
+**Dependencies**: None
 
 ## Description
 
@@ -156,14 +156,12 @@ git commit -m "docs: add infrastructure verification checklist"
 
 ## Artifacts Produced
 
-- `docs/architecture/INFRA_VERIFICATION.md`
+None
 
 ## Artifacts Consumed
 
-- All DCI stacks (DCI-03, DCI-04, DCI-05)
-- GH Actions workflow (DCI-06)
-- Infra Makefile targets
+None
 
 ## Notes
 
-This is the gate for DCI completion. All checks must pass before proceeding to DCD. If any check fails, fix the underlying stack and re-verify.
+No additional notes.

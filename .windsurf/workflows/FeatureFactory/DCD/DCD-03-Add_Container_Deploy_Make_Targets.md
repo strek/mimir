@@ -1,9 +1,9 @@
 # Activity: Add Container & Deploy Make Targets
 
-**Activity ID**: TBD
+**Activity ID**: 83
 **Order**: 3
 **Phase**: Build
-**Dependencies**: Predecessor: DCD-02 (Create Helm Chart & Values)
+**Dependencies**: None
 
 ## Description
 
@@ -172,15 +172,12 @@ git commit -m "feat(deploy): add container and deployment make targets"
 
 ## Artifacts Produced
 
-- `Dockerfile`
-- Updated `Makefile` with deployment targets
+None
 
 ## Artifacts Consumed
 
-- `BSP/artifacts/makefile_template.mk` — extension point for `##@ Deployment`
-- `deploy/helm/{project}/` (from DCD-02) — Helm chart
-- Skill **K8s in EKS — Deployment Patterns** — deploy commands
+None
 
 ## Notes
 
-The `switch` and `rollback` targets delegate to the infra repo's Makefile (`make traffic-switch`). This keeps traffic management logic in one place (infra repo) while the app repo provides a convenient shortcut.
+No additional notes.

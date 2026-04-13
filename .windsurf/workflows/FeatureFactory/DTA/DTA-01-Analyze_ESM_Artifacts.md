@@ -1,9 +1,9 @@
 # Activity: Analyze ESM Artifacts
 
-**Activity ID**: TBD
+**Activity ID**: 42
 **Order**: 1
 **Phase**: Analysis
-**Dependencies**: None (first activity — requires completed ESM workflow)
+**Dependencies**: None
 
 ## Description
 
@@ -91,15 +91,12 @@ Domain: Data Architecture (DTA-05)
 
 ## Artifacts Produced
 
-- Structured requirements list per domain (working document, not persisted — used as input to subsequent activities)
+None
 
 ## Artifacts Consumed
 
-- `docs/features/user_journey.md` (from ESM)
-- `docs/ux/2_dialogue-maps/screen-flow.drawio` (from ESM)
-- `docs/features/act-*/` .feature files (from ESM)
-- `docs/ux/IA_guidelines.md` (from ESM)
+None
 
 ## Notes
 
-This activity is purely analytical — no architectural decisions are made here. Decisions happen in DTA-02 through DTA-17, each focused on a specific domain.
+No additional notes.

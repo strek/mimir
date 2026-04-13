@@ -1,9 +1,9 @@
 # Activity: Scaffold Infra Repo & CDK Project
 
-**Activity ID**: TBD
+**Activity ID**: 75
 **Order**: 2
 **Phase**: Design
-**Dependencies**: Predecessor: DCI-01 (Review SAO & Define Infra Requirements)
+**Dependencies**: None
 
 ## Description
 
@@ -171,13 +171,12 @@ git commit -m "infra: scaffold CDK project with VPC/EKS/DNS stack placeholders"
 
 ## Artifacts Produced
 
-- `{project}-infra/` repository with full scaffold
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/INFRA_REQUIREMENTS.md` (from DCI-01) — AWS region, services list
-- `DCI/artifacts/infra_repo_scaffold.md` — reference scaffold template
+None
 
 ## Notes
 
-Stack files (`vpc_stack.py`, `eks_stack.py`, `dns_stack.py`) are created as empty placeholders here. They are implemented in DCI-03, DCI-04, and DCI-05 respectively.
+No additional notes.

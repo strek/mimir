@@ -1,9 +1,9 @@
 # Activity: Write Feature Files
 
-**Activity ID**: TBD
+**Activity ID**: 39
 **Order**: 5
 **Phase**: Specification
-**Dependencies**: Predecessor: Activity 20 (Create Dialogue Maps)
+**Dependencies**: None
 
 ## Description
 
@@ -73,12 +73,11 @@ Feature: FOB-{ENTITY}-{OPERATION}-{VERSION} {Description}
 
 ## Artifacts Produced
 
-- `docs/features/act-X-{entity}/{entity}-{operation}.feature` — one Gherkin feature file per screen (happy path, error, edge case, and accessibility scenarios)
+None
 
 ## Artifacts Consumed
 
-- `docs/ux/2_dialogue-maps/screen-flow.drawio` (from ESM-04) — provides the full list of Screen IDs each feature file must cover
-- `docs/features/user_journey.md` (from ESM-02) — provides personas and user goals for As-a / I-want-to / So-that blocks
+None
 
 ## Notes
 

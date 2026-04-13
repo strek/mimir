@@ -1,9 +1,9 @@
 # Activity: Configure Observability & Logging
 
-**Activity ID**: TBD
+**Activity ID**: 95
 **Order**: 8
 **Phase**: Configure
-**Dependencies**: Predecessor: BSP-07 (Create Welcome Page & Verify)
+**Dependencies**: None
 
 ## Description
 
@@ -290,71 +290,12 @@ Refs: Activity EST-08 (Sprint Close and Rebaseline)"
 
 ## Artifacts Produced
 
-- `logs/` directory structure
-- `logs/.gitkeep`
-- `.gitignore` (updated)
-- Django LOGGING configuration in `{project_name}/settings.py`
-- `static/js/logger.js` (JavaScript Logger class)
-- `{app_name}/views/logging_views.py` (GUI log endpoint)
-- `{app_name}/utils/token_tracker.py` (TokenTracker utility)
-- `{app_name}/management/commands/sprint_token_report.py` (optional)
-- URL route for `/api/log/gui/`
-- Updated `templates/base.html` (includes logger.js)
-
----
+None
 
 ## Artifacts Consumed
 
-- Activity **EST-08** (Sprint Close and Rebaseline) — consumption.log format spec
-- Skill **Django Logging Setup** — Backend logging implementation
-- Skill **HTMX Frontend Logging** — Frontend logging implementation
-- Skill **Claude Token Tracking** — Token tracking implementation
-
----
+None
 
 ## Notes
 
-### EST Workflow Integration
-
-The `consumption.log` format is designed for EST-08 Sprint Close & Rebaseline:
-
-1. **Sprint Close** reads `consumption.log` to collect actuals
-2. **Velocity Factor** computed: `VF = Actual Tokens / Estimated Tokens`
-3. **K-token baselines** updated in Reference Table
-4. **Monte Carlo** re-run with calibrated data
-5. **Forecasts refined** (P50/P80/P95)
-
-This creates a continuous improvement loop where estimates get more accurate with each sprint.
-
-### Informative Logging Pattern
-
-Every log message should answer:
-- **Where**: `[module.function:line]`
-- **What**: Operation being performed
-- **Who**: `user_id=X`
-- **Context**: Entity IDs, parameters
-- **Result**: Success/failure, error details
-
-**Example**:
-```python
-logger.info(
-    f"[playbook_service.create_playbook:45] Playbook created | "
-    f"user_id={user.id} | playbook_id={playbook.id} | name={playbook.name}"
-)
-```
-
-### Performance Considerations
-
-- **Backend logs**: RotatingFileHandler prevents disk space issues
-- **Frontend logs**: Sent async, non-blocking
-- **Token logs**: JSON format for fast parsing
-- **Optional**: Implement log batching for high-traffic applications (see htmx_frontend_logging.md)
-
-### Technology Alternatives
-
-This activity is platform-agnostic. If not using Django+HTMX+Claude:
-- **Backend**: Adapt patterns to Flask, FastAPI, Express, etc.
-- **Frontend**: Adapt to React, Vue, Angular, etc.
-- **AI**: Adapt to OpenAI, Gemini, etc.
-
-The Skills provide Django+HTMX+Claude implementations, but the goals and success criteria remain the same.
+No additional notes.

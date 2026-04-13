@@ -1,9 +1,9 @@
 # Activity: Define Test Strategy
 
-**Activity ID**: TBD
+**Activity ID**: 47
 **Order**: 6
 **Phase**: Design
-**Dependencies**: Predecessor: DTA-04 (Define Code Organization)
+**Dependencies**: None
 
 ## Description
 
@@ -77,12 +77,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Test strategy decision → contributes to `artifacts/sao_document_template.md` § "5. Test Strategy"
+None
 
 ## Artifacts Consumed
 
-- Code organization decision from DTA-04
-- Structured requirements list from DTA-01
+None
 
 ## Notes
 

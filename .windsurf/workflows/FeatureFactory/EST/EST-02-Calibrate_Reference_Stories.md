@@ -1,9 +1,9 @@
 # Activity: Calibrate Reference Stories
 
-**Activity ID**: 26
+**Activity ID**: 67
 **Order**: 2
 **Phase**: Foundation
-**Dependencies**: Predecessor: Activity 25 (Assess Estimation Readiness)
+**Dependencies**: None
 
 ## Description
 
@@ -122,11 +122,11 @@ After each sprint close (EST-08), update K-token actuals and $/FP_actual. After 
 
 ## Artifacts Produced
 
-- Setup tab of `docs/plans/ESTIMATION_TEMPLATE.xlsx` (populated)
+None
 
 ## Artifacts Consumed
 
-- Reference Table (`docs/plans/REFERENCE_TABLE.md` or prior project data)
+None
 
 ## Notes
 

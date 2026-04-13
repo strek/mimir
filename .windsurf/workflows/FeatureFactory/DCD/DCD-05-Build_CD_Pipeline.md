@@ -1,13 +1,13 @@
 # Activity: Build CD Pipeline
 
-**Activity ID**: TBD
+**Activity ID**: 85
 **Order**: 5
 **Phase**: Deploy
-**Dependencies**: Predecessor: DCD-04 (Build CI Pipeline)
+**Dependencies**: None
 
 ## Description
 
-Build CD Pipeline (GitHub Actions)
+Build CD Pipeline
 
 ## Guidance
 
@@ -199,14 +199,12 @@ git commit -m "ci: add CD pipeline (deploy idle → smoke → approve → switch
 
 ## Artifacts Produced
 
-- `.github/workflows/cd.yml` — CD pipeline
+None
 
 ## Artifacts Consumed
 
-- `DCD/artifacts/cd_workflow.yml` — CD workflow template
-- Skill **GitHub Actions Patterns** — approval gates, environment protection
-- Makefile targets: `deploy`, `smoke-test`, `switch`, `pipeline-status`
+None
 
 ## Notes
 
-The CD workflow triggers on CI completion (`workflow_run`). This decouples CI and CD — you can re-run CD independently via `workflow_dispatch` if needed (e.g., redeploy same image).
+No additional notes.

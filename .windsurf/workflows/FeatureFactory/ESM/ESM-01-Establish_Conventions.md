@@ -1,6 +1,6 @@
 # Activity: Establish Conventions
 
-**Activity ID**: TBD
+**Activity ID**: 35
 **Order**: 1
 **Phase**: Foundation
 **Dependencies**: None
@@ -121,11 +121,11 @@ Establish the foundational conventions and standards that will be used throughou
 
 ## Artifacts Produced
 
-- Screen ID convention (conceptual foundation — `FOB-{ENTITY}-{OPERATION}-{VERSION}` format, CRUDLF operations, traceability chain); no file written
+None
 
 ## Artifacts Consumed
 
-- None
+None
 
 ## Notes
 

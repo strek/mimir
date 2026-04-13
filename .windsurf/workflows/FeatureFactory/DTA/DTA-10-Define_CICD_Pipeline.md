@@ -1,9 +1,9 @@
 # Activity: Define CI/CD Pipeline
 
-**Activity ID**: TBD
+**Activity ID**: 51
 **Order**: 10
 **Phase**: Operations
-**Dependencies**: Predecessor: DTA-09 (Define Infrastructure)
+**Dependencies**: None
 
 ## Description
 
@@ -87,12 +87,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- CI/CD pipeline decision → contributes to `artifacts/sao_document_template.md` § "9. CI/CD Pipeline"
+None
 
 ## Artifacts Consumed
 
-- Infrastructure decision from DTA-09
-- Test strategy decision from DTA-06
+None
 
 ## Notes
 

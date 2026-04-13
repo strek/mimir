@@ -1,9 +1,9 @@
 # Activity: Define Security
 
-**Activity ID**: TBD
+**Activity ID**: 55
 **Order**: 14
 **Phase**: Operations
-**Dependencies**: Predecessor: DTA-03 (Define Integration & API Design)
+**Dependencies**: None
 
 ## Description
 
@@ -99,12 +99,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Security decision → contributes to `artifacts/sao_document_template.md` § "13. Security"
+None
 
 ## Artifacts Consumed
 
-- Integration & API design decision from DTA-03
-- Structured requirements list from DTA-01
+None
 
 ## Notes
 

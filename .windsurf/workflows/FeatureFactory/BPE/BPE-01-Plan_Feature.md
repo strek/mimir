@@ -1,6 +1,6 @@
 # Activity: Plan Feature
 
-**Activity ID**: 9
+**Activity ID**: 96
 **Order**: 1
 **Phase**: Planning
 **Dependencies**: None
@@ -171,14 +171,11 @@ Types: feat, fix, docs, style, refactor, test, chore
 
 ## Artifacts Produced
 
-- `docs/plans/{FEATURE}_IMPLEMENTATION_PLAN.md` — step-by-step, atomic implementation plan with all tests listed
-- GitHub issue (if project has GitHub integration) — detailed task with acceptance criteria and plan link
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/SAO.md` — architectural patterns and principles guiding design decisions
-- `docs/features/user_journey.md` — user context for what is being built
-- `docs/features/act-*/` feature file(s) — BDD scenarios defining acceptance criteria for the feature
+None
 
 ## Notes
 

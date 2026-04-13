@@ -1,6 +1,6 @@
 # Activity: Process Change Request
 
-**Activity ID**: 16
+**Activity ID**: 103
 **Order**: 8
 **Phase**: Change Management
 **Dependencies**: None
@@ -64,15 +64,11 @@ If unclear - ASK. Never guess user intent or implementation details.
 
 ## Artifacts Produced
 
-- `docs/plans/{FEATURE}_CHANGE_PLAN.md` — change implementation plan presented to and approved by user
-- Updated `docs/features/act-*/` feature file(s) — scenarios revised to reflect the change
-- Updated source code and tests per change scope (models, views, templates, tests)
+None
 
 ## Artifacts Consumed
 
-- Change request description (from user)
-- `docs/architecture/SAO.md` — checked for architectural impact of the change
-- Existing feature artifacts — `.feature` files, models, views, templates being modified
+None
 
 ## Notes
 

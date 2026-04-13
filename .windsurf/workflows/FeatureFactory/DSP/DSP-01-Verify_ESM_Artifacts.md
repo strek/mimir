@@ -1,9 +1,9 @@
 # Activity: Verify ESM Artifacts
 
-**Activity ID**: TBD
+**Activity ID**: 60
 **Order**: 1
 **Phase**: Prerequisite Check
-**Dependencies**: None (first activity)
+**Dependencies**: None
 
 ## Description
 
@@ -69,15 +69,12 @@ If one or more artifacts are missing:
 
 ## Artifacts Produced
 
-- ESM verification report (pass/fail per artifact)
+None
 
 ## Artifacts Consumed
 
-- `docs/features/user_journey.md`
-- `docs/ux/` directory contents
-- `docs/features/act-*/` directory contents
-- `docs/ux/IA_guidelines.md`
+None
 
 ## Notes
 
-This is a gate activity. It does not produce design artifacts — it only validates that the ESM workflow has been completed. If the user has partial artifacts (e.g., user journey exists but no feature files), they should complete the specific missing ESM activities rather than re-running the entire ESM workflow.
+No additional notes.

@@ -1,9 +1,9 @@
 # Activity: Build EKS Cluster & ECR Stack
 
-**Activity ID**: TBD
+**Activity ID**: 77
 **Order**: 4
 **Phase**: Provision
-**Dependencies**: Predecessor: DCI-03 (Build VPC & Networking Stack)
+**Dependencies**: None
 
 ## Description
 
@@ -159,15 +159,12 @@ git commit -m "infra: implement EKS cluster with node group, ECR repo, blue/gree
 
 ## Artifacts Produced
 
-- `stacks/eks_stack.py` — EKS + ECR CDK stack implementation
+None
 
 ## Artifacts Consumed
 
-- `stacks/vpc_stack.py` (from DCI-03) — VPC reference for cluster placement
-- `docs/architecture/INFRA_REQUIREMENTS.md` — node count, instance type
-- Skill **AWS CDK with Python** — CDK EKS patterns
-- Skill **K8s in EKS — Deployment Patterns** — K8s namespace setup
+None
 
 ## Notes
 
-EKS cluster creation takes ~15 minutes. Plan accordingly. Cost: ~$70/month for control plane + ~$60/month for 2x t3.medium nodes.
+No additional notes.

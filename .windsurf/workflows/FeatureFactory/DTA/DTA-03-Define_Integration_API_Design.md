@@ -1,9 +1,9 @@
 # Activity: Define Integration & API Design
 
-**Activity ID**: TBD
+**Activity ID**: 44
 **Order**: 3
 **Phase**: Design
-**Dependencies**: Predecessor: DTA-02 (Define Application Blocks)
+**Dependencies**: None
 
 ## Description
 
@@ -97,12 +97,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Integration & API design decision → contributes to `artifacts/sao_document_template.md` § "2. Integration & API Design"
+None
 
 ## Artifacts Consumed
 
-- Structured requirements list from DTA-01
-- Application blocks decision from DTA-02
+None
 
 ## Notes
 

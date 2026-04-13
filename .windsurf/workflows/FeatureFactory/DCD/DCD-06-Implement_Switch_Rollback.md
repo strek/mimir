@@ -1,9 +1,9 @@
 # Activity: Implement Switch & Rollback
 
-**Activity ID**: TBD
+**Activity ID**: 86
 **Order**: 6
 **Phase**: Deploy
-**Dependencies**: Predecessor: DCD-05 (Build CD Pipeline)
+**Dependencies**: None
 
 ## Description
 
@@ -162,14 +162,12 @@ git commit -m "ci: add emergency rollback workflow with confirmation gate"
 
 ## Artifacts Produced
 
-- `.github/workflows/rollback.yml` — Emergency rollback workflow
-- Rollback documentation in README or runbook
+None
 
 ## Artifacts Consumed
 
-- Infra repo Makefile targets: `traffic-switch`, `traffic-rollback`
-- App Makefile targets: `switch`, `rollback`, `pipeline-status`, `smoke-test`
+None
 
 ## Notes
 
-Rollback is DNS-based, not deployment-based. The previous version's pods are still running in the other namespace. This makes rollback instant (just DNS weight swap) instead of requiring a new deployment.
+No additional notes.

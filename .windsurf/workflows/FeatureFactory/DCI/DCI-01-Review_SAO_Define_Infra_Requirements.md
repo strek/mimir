@@ -1,9 +1,9 @@
 # Activity: Review SAO & Define Infra Requirements
 
-**Activity ID**: TBD
+**Activity ID**: 74
 **Order**: 1
 **Phase**: Design
-**Dependencies**: None (first activity — requires SAO.md from DTA workflow)
+**Dependencies**: None
 
 ## Description
 
@@ -91,12 +91,12 @@ Cross-check: every service in INFRA_REQUIREMENTS.md must trace back to a decisio
 
 ## Artifacts Produced
 
-- `docs/architecture/INFRA_REQUIREMENTS.md`
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/SAO.md` — Technology Stack Table, Deployment Strategy, Infrastructure sections
+None
 
 ## Notes
 
-This activity is design-only — no AWS resources are created yet. The output drives DCI-02 through DCI-05.
+No additional notes.

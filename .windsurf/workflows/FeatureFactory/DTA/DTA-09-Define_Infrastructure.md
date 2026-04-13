@@ -1,9 +1,9 @@
 # Activity: Define Infrastructure
 
-**Activity ID**: TBD
+**Activity ID**: 50
 **Order**: 9
 **Phase**: Operations
-**Dependencies**: Predecessor: DTA-05 (Define Data Architecture)
+**Dependencies**: None
 
 ## Description
 
@@ -77,12 +77,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Infrastructure decision → contributes to `artifacts/sao_document_template.md` § "8. Infrastructure"
+None
 
 ## Artifacts Consumed
 
-- Data architecture decision from DTA-05
-- Application blocks decision from DTA-02
+None
 
 ## Notes
 

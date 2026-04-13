@@ -1,9 +1,9 @@
 # Activity: Define Performance & Scalability
 
-**Activity ID**: TBD
+**Activity ID**: 48
 **Order**: 7
 **Phase**: Design
-**Dependencies**: Predecessor: DTA-05 (Define Data Architecture)
+**Dependencies**: None
 
 ## Description
 
@@ -92,13 +92,12 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Performance & scalability decision → contributes to `artifacts/sao_document_template.md` § "6. Performance & Scalability"
+None
 
 ## Artifacts Consumed
 
-- Data architecture decision from DTA-05
-- Structured requirements list from DTA-01
+None
 
 ## Notes
 
-For single-user desktop applications (e.g., Mimir FOB), many of these decisions are trivial — document them as "N/A — single user" with rationale so future reviewers understand why scaling was not addressed.
+No additional notes.

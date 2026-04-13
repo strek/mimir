@@ -1,9 +1,9 @@
 # Activity: Review SAO & Define CICD Requirements
 
-**Activity ID**: TBD
+**Activity ID**: 81
 **Order**: 1
 **Phase**: Design
-**Dependencies**: None (first activity — requires SAO.md and completed DCI workflow)
+**Dependencies**: None
 
 ## Description
 
@@ -98,14 +98,12 @@ Create `docs/architecture/CICD_REQUIREMENTS.md`:
 
 ## Artifacts Produced
 
-- `docs/architecture/CICD_REQUIREMENTS.md`
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/SAO.md` — deployment strategy, test strategy
-- `docs/architecture/INFRA_REQUIREMENTS.md` (from DCI-01) — AWS services
-- `docs/architecture/INFRA_VERIFICATION.md` (from DCI-07) — confirmed infra
+None
 
 ## Notes
 
-This is design-only. No code changes yet. The output drives DCD-02 through DCD-07.
+No additional notes.

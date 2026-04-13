@@ -1,9 +1,9 @@
 # Activity: Generate AI IDE Configuration
 
-**Activity ID**: TBD
+**Activity ID**: 64
 **Order**: 5
 **Phase**: Configuration
-**Dependencies**: Predecessor: DSP-04 (Choose Target AI IDE)
+**Dependencies**: None
 
 ## Description
 
@@ -203,27 +203,12 @@ Show the generated config file to the user before writing it:
 
 ## Artifacts Produced
 
-- AI IDE configuration file (one per selected target):
-  - `CLAUDE.md` — uses `DSP/artifacts/claude_md_template.md`
-  - `.github/copilot-instructions.md` — uses `DSP/artifacts/copilot_instructions_template.md`
-  - `.windsurf/rules/_ai-context.md` — uses `DSP/artifacts/windsurf_cursor_rules_template.md`
-  - `.cursor/rules/_ai-context.mdc` — adapted from Windsurf template
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/SAO.md`
-- `docs/features/user_journey.md`
-- `docs/features/act-*/` (inventory)
-- `docs/ux/IA_guidelines.md`
-- `.windsurf/workflows/*/` (all workflow metadata)
-- `.windsurf/workflows/*/skills/` (all skills)
-- `.windsurf/workflows/*/artifacts/` (all templates)
-- `.windsurf/rules/*.md` (coding conventions)
-- DSP-03 inventory report (workflows, skills, templates)
-- DSP-04 target selection
+None
 
 ## Notes
 
-This is the core value-producing activity of the DSP workflow. The quality of the generated config directly determines how effectively the AI agent can work on the project. A well-crafted config means the AI can pick up any feature file and start building immediately, following the right patterns, using the right workflows, and producing the right artifacts.
-
-The existing `CLAUDE.md` in the Mimir project itself serves as a **living example** of what this activity produces for the Claude Code target.
+No additional notes.

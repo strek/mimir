@@ -1,9 +1,9 @@
 # Activity: Choose Target AI IDE
 
-**Activity ID**: TBD
+**Activity ID**: 63
 **Order**: 4
 **Phase**: Configuration
-**Dependencies**: Predecessor: DSP-03 (Verify Architecture & Code Organization)
+**Dependencies**: None
 
 ## Description
 
@@ -84,12 +84,12 @@ Explain to the user what will be generated:
 
 ## Artifacts Produced
 
-- Target AI IDE selection record
+None
 
 ## Artifacts Consumed
 
-- None (user decision only)
+None
 
 ## Notes
 
-The most common setup is "Windsurf/Cursor for daily coding + Claude Code for complex architectural work." If the user selects this combo, generate both `.windsurf/rules/_ai-context.md` and `CLAUDE.md` — they will reference the same underlying docs/workflows/skills but in their respective formats.
+No additional notes.

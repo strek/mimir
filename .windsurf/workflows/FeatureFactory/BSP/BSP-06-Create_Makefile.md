@@ -1,9 +1,9 @@
 # Activity: Create Makefile
 
-**Activity ID**: TBD
+**Activity ID**: 93
 **Order**: 6
 **Phase**: Configure
-**Dependencies**: Predecessor: BSP-05 (Configure Dev Tooling)
+**Dependencies**: None
 
 ## Description
 
@@ -74,20 +74,12 @@ git commit -m "chore(make): create Makefile with provision, run, test, lint, for
 
 ## Artifacts Produced
 
-- `Makefile` (from `BSP/artifacts/makefile_template.mk`)
+None
 
 ## Artifacts Consumed
 
-- `BSP/artifacts/makefile_template.mk` — Makefile template (single source of truth)
-- `docs/architecture/SAO.md` — Technology Stack Table (for tool paths)
-- `docs/architecture/SAO.md` — § Test Strategy (DTA-06) for test targets
-- `docs/architecture/SAO.md` — § Developer Experience (DTA-16) for quality targets
+None
 
 ## Notes
 
-The Makefile is the **single orchestration layer** for all operations. CI/CD pipelines (GitHub Actions) are thin wrappers that call `make` targets in sequence. This means:
-- Local dev and CI/CD use identical commands
-- Any pipeline step can be reproduced locally
-- GH Actions never contains business logic, only `make` calls + approval gates
-
-The `##@ Infrastructure` and `##@ Deployment` sections are extension points. They are populated by the DCI and DCD workflows respectively during Inception.
+No additional notes.

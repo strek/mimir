@@ -1,9 +1,9 @@
 # Activity: Define Documentation Strategy
 
-**Activity ID**: TBD
+**Activity ID**: 58
 **Order**: 17
 **Phase**: Support
-**Dependencies**: Predecessor: DTA-04 (Define Code Organization)
+**Dependencies**: None
 
 ## Description
 
@@ -81,11 +81,11 @@ Report coverage and gaps.
 
 ## Artifacts Produced
 
-- Documentation strategy decision → contributes to `artifacts/sao_document_template.md` § "16. Documentation Strategy"
+None
 
 ## Artifacts Consumed
 
-- Code organization decision from DTA-04
+None
 
 ## Notes
 

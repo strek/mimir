@@ -1,9 +1,9 @@
 # Activity: Configure Dev Tooling
 
-**Activity ID**: TBD
+**Activity ID**: 92
 **Order**: 5
 **Phase**: Configure
-**Dependencies**: Predecessor: BSP-04 (Initialize Runtimes & Dependencies)
+**Dependencies**: None
 
 ## Description
 
@@ -171,17 +171,12 @@ git commit -m "chore(tooling): configure linter, formatter, pre-commit, IDE sett
 
 ## Artifacts Produced
 
-- `.pre-commit-config.yaml`
-- `.vscode/settings.json`
-- `.vscode/extensions.json`
-- `.vscode/launch.json`
-- `.editorconfig`
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/SAO.md` — § Developer Experience (DTA-16)
-- `docs/architecture/SAO.md` — § Code Organization (DTA-04) for line length, style conventions
+None
 
 ## Notes
 
-Debug configurations assume Django. Adjust the `launch.json` if a different framework was chosen in DTA-02.
+No additional notes.

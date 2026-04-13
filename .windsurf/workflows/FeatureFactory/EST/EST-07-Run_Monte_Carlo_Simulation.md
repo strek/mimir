@@ -1,9 +1,9 @@
 # Activity: Run Monte Carlo Simulation
 
-**Activity ID**: 31
+**Activity ID**: 72
 **Order**: 7
 **Phase**: Simulation
-**Dependencies**: Predecessor: Activity 29 (Produce Rough Estimates)
+**Dependencies**: None
 
 ## Description
 
@@ -159,15 +159,11 @@ Tokens × API rate = internal cost of delivery. This informs margin analysis and
 
 ## Artifacts Produced
 
-- Monte Carlo tab of `docs/plans/ESTIMATION_TEMPLATE.xlsx` (simulation results + EBS charts — internal)
-- Client Quote tab updated with AFP P50/P80/P95 bands
-- `docs/plans/MC_SNAPSHOT_{DATE}.md`
+None
 
 ## Artifacts Consumed
 
-- Rough Estimates tab (L1 PERT triplets) or WBS tab (L2 PERT triplets)
-- Setup tab (daily throughput, sprint parameters, internal combined multiplier)
-- Client Quote tab (AFP, $/FP)
+None
 
 ## Notes
 

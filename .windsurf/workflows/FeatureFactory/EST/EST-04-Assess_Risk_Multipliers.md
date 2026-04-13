@@ -1,13 +1,13 @@
 # Activity: Assess Risk Multipliers
 
-**Activity ID**: 28
+**Activity ID**: 69
 **Order**: 4
 **Phase**: Estimation
-**Dependencies**: Predecessor: Activity 27 (Size Scenarios Level 1)
+**Dependencies**: None
 
 ## Description
 
-Assess Risk Multipliers — Internal (ECF/TCF) and Client-Facing (Stack Factor / Org Factor)
+Assess Risk Multipliers
 
 ## Guidance
 
@@ -186,16 +186,11 @@ If the preview AFP produces a surprising total, diagnose which input is off (FP 
 
 ## Artifacts Produced
 
-- ECF tab of `docs/plans/ESTIMATION_TEMPLATE.xlsx` (populated)
-- TCF tab of `docs/plans/ESTIMATION_TEMPLATE.xlsx` (populated)
-- Internal combined multiplier recorded in Setup tab
-- Stack Factor + Org Factor recorded in Client Quote tab
+None
 
 ## Artifacts Consumed
 
-- Scenario List tab (for context on project scope/type)
-- `docs/architecture/SAO.md` (for technical complexity assessment)
-- Reference Table §4 (Stack Factor), §5 (Org Factor), §6 ($/FP)
+None
 
 ## Notes
 

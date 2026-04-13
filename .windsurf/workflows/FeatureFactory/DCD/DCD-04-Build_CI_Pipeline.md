@@ -1,13 +1,13 @@
 # Activity: Build CI Pipeline
 
-**Activity ID**: TBD
+**Activity ID**: 84
 **Order**: 4
 **Phase**: Build
-**Dependencies**: Predecessor: DCD-03 (Add Container & Deploy Make Targets)
+**Dependencies**: None
 
 ## Description
 
-Build CI Pipeline (GitHub Actions)
+Build CI Pipeline
 
 ## Guidance
 
@@ -147,14 +147,12 @@ git commit -m "ci: add CI pipeline (test → lint → build → push)"
 
 ## Artifacts Produced
 
-- `.github/workflows/ci.yml` — CI pipeline
+None
 
 ## Artifacts Consumed
 
-- `DCD/artifacts/ci_workflow.yml` — CI workflow template
-- Skill **GitHub Actions Patterns** — GH Actions patterns
-- Makefile targets: `provision`, `lint`, `test`, `test-integration`, `containers`
+None
 
 ## Notes
 
-PRs run tests but do NOT build/push containers. Only merges to `main` trigger the build job. This prevents unauthorized images in ECR.
+No additional notes.

@@ -1,9 +1,9 @@
 # Activity: Build VPC & Networking Stack
 
-**Activity ID**: TBD
+**Activity ID**: 76
 **Order**: 3
 **Phase**: Provision
-**Dependencies**: Predecessor: DCI-02 (Scaffold Infra Repo & CDK Project)
+**Dependencies**: None
 
 ## Description
 
@@ -123,13 +123,12 @@ git commit -m "infra: implement VPC stack with 2 AZ, NAT Gateway, security group
 
 ## Artifacts Produced
 
-- `stacks/vpc_stack.py` — VPC CDK stack implementation
+None
 
 ## Artifacts Consumed
 
-- `docs/architecture/INFRA_REQUIREMENTS.md` — region, subnet layout, security requirements
-- Skill **AWS CDK with Python** — CDK patterns for VPC constructs
+None
 
 ## Notes
 
-NAT Gateway costs ~$30/month. For dev environments, consider 1 shared NAT. For production, use 1 per AZ.
+No additional notes.

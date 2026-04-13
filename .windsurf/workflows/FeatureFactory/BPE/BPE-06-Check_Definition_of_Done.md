@@ -1,9 +1,9 @@
 # Activity: Check Definition of Done
 
-**Activity ID**: 14
+**Activity ID**: 101
 **Order**: 6
 **Phase**: Validation
-**Dependencies**: Predecessor: Activity 13 (Implement Journey Certification Tests)
+**Dependencies**: None
 
 ## Description
 
@@ -121,14 +121,11 @@ All checkboxes must be completed before considering the story "Done". Any deviat
 
 ## Artifacts Produced
 
-- DoD checklist sign-off (verified in-chat or as checked-off section in implementation plan)
-- GitHub Backlog issue (optional) — for any deviations deferred by user approval
+None
 
 ## Artifacts Consumed
 
-- All BPE-01–05 artifacts (implementation plan, code, tests, E2E tests)
-- `docs/features/act-*/` feature file(s) — verified against actual behavior
-- `tests.log` — test run results confirming 100% pass rate
+None
 
 ## Notes
 
