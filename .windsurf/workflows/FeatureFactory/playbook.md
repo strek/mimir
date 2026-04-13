@@ -1,7 +1,7 @@
-# FeatureFactory Playbook v18.7
+# FeatureFactory Playbook v11.8
 
 **Playbook**: FeatureFactory
-**Version**: 18.7 (Draft)
+**Version**: 11.8 (Draft)
 **Purpose**: End-to-end workflow for AI-assisted software product development — from idea to shipped feature, with estimation, architecture, and repeatable delivery.
 
 ---
@@ -60,6 +60,25 @@ Makefile                                ← Single orchestration layer (BSP + DC
 docs/plans/iterations/ITER-*.yaml      ← Execution manifests (PIT output, consumed by MIT)
 docs/lessons_learned/ITER-*.md         ← Iteration retrospectives (MIT output, consumed by PIT)
 ```
+
+## Artifact Templates
+
+Reusable templates that live in each workflow's `artifacts/` directory. **DSP-05** inventories all of these when generating the AI IDE configuration — the "Artifact Templates" section of CLAUDE.md / copilot-instructions / Windsurf rules is built from this list.
+
+| Template | Workflow | Output Path | Used By |
+|----------|----------|-------------|---------|
+| User Journey Template | ESM | `ESM/artifacts/user_journey_template.md` | ESM-02, DSP-05 |
+| IA Guidelines Template | ESM | `ESM/artifacts/ia_guidelines_template.md` | ESM-03, DSP-05 |
+| Feature File Template (Gherkin) | ESM | `ESM/artifacts/feature_file_template.feature` | ESM-05, DSP-05 |
+| System Architecture Overview Template | DTA | `DTA/artifacts/sao_document_template.md` | DTA-18, DSP-02, DSP-03, DSP-05, BPE-01 |
+| CLAUDE.md Template | DSP | `DSP/artifacts/claude_md_template.md` | DSP-05 → DSP-06 |
+| Copilot Instructions Template | DSP | `DSP/artifacts/copilot_instructions_template.md` | DSP-05 → DSP-06 |
+| Windsurf/Cursor Rules Template | DSP | `DSP/artifacts/windsurf_cursor_rules_template.md` | DSP-05 → DSP-06 |
+| Makefile Template | BSP | `BSP/artifacts/makefile_template.mk` | BSP-06, DSP-05 |
+| Helm Chart Template | DCD | `DCD/artifacts/` (reference structure) | DCD-04, DSP-05 |
+| Infra Repo Scaffold | DCI | `DCI/artifacts/` (reference structure) | DCI-02–04, DSP-05 |
+| Implementation Plan Template | BPE | `BPE/artifacts/implementation_plan_template.md` | BPE-01 → BPE-04, DSP-05 |
+| Definition of Done Checklist Template | BPE | `BPE/artifacts/definition_of_done_checklist_template.md` | BPE-06, DSP-05 |
 
 ---
 

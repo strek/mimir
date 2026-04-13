@@ -104,9 +104,17 @@ List templates found in workflow `artifacts/` directories:
 | Template | Workflow | Purpose | Location |
 |----------|----------|---------|----------|
 | User Journey Template | ESM | Structure for user journey doc | `ESM/artifacts/user_journey_template.md` |
+| IA Guidelines Template | ESM | Design system & UI patterns spec | `ESM/artifacts/ia_guidelines_template.md` |
 | Feature File Template | ESM | BDD scenario format | `ESM/artifacts/feature_file_template.feature` |
 | SAO Template | DTA | Architecture document structure | `DTA/artifacts/sao_document_template.md` |
 | CLAUDE.md Template | DSP | AI config for Claude Code | `DSP/artifacts/claude_md_template.md` |
+| Copilot Instructions Template | DSP | AI config for GitHub Copilot | `DSP/artifacts/copilot_instructions_template.md` |
+| Windsurf/Cursor Rules Template | DSP | AI config for Windsurf/Cursor | `DSP/artifacts/windsurf_cursor_rules_template.md` |
+| Makefile Template | BSP | Project orchestration Makefile | `BSP/artifacts/makefile_template.mk` |
+| Helm Chart Template | DCD | K8s Helm chart structure | `DCD/artifacts/` (reference structure) |
+| Infra Repo Scaffold | DCI | CDK infra repo structure | `DCI/artifacts/` (reference structure) |
+| Implementation Plan Template | BPE | Feature implementation plan | `BPE/artifacts/implementation_plan_template.md` |
+| Definition of Done Checklist Template | BPE | DoD checklist for feature sign-off | `BPE/artifacts/definition_of_done_checklist_template.md` |
 ```
 
 #### Section: AI/Human Collaboration Patterns
@@ -207,7 +215,31 @@ None
 
 ## Artifacts Consumed
 
-None
+**ESM Templates** (inventoried for Section 7 — Artifact Templates):
+- User Journey Template (`ESM/artifacts/user_journey_template.md`)
+- IA Guidelines Template (`ESM/artifacts/ia_guidelines_template.md`)
+- Feature File Template (`ESM/artifacts/feature_file_template.feature`)
+
+**DTA Templates**:
+- System Architecture Overview Template (`DTA/artifacts/sao_document_template.md`)
+
+**DSP Templates** (used to generate the output config file in step 2):
+- CLAUDE.md Template (`DSP/artifacts/claude_md_template.md`)
+- Copilot Instructions Template (`DSP/artifacts/copilot_instructions_template.md`)
+- Windsurf/Cursor Rules Template (`DSP/artifacts/windsurf_cursor_rules_template.md`)
+
+**BSP Templates** (inventoried for Section 7):
+- Makefile Template (`BSP/artifacts/makefile_template.mk`)
+
+**DCD Templates** (inventoried for Section 7):
+- Helm Chart Template (`DCD/artifacts/` — reference structure)
+
+**BPE Templates** (inventoried for Section 7):
+- Implementation Plan Template (`BPE/artifacts/implementation_plan_template.md`)
+- Definition of Done Checklist Template (`BPE/artifacts/definition_of_done_checklist_template.md`)
+
+**DCI Templates** (inventoried for Section 7):
+- Infra Repo Scaffold (`DCI/artifacts/` — reference structure)
 
 ## Notes
 
