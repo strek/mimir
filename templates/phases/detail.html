@@ -1,0 +1,7 @@
+{# Phase detail — skeleton; implementation in S2 #}
+{% extends "base.html" %}
+{% block title %}{{ phase.name }} — {{ workflow.name }}{% endblock %}
+{% block content %}
+{# TODO S2: header with name/order badge, parent workflow badge, activities list, edit/delete buttons #}
+{% include "phases/_delete_modal.html" %}
+{% endblock %}
