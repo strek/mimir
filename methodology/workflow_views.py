@@ -28,12 +28,19 @@ def workflow_global_list(request):
     
     # Count unique playbooks
     playbook_count = workflows.values('playbook').distinct().count()
-    
-    logger.info(f"User {request.user.username} viewing global workflows list ({workflows.count()} workflows)")
-    
+
+    # Sum activities across all returned workflows
+    total_activity_count = sum(w.get_activity_count() for w in workflows)
+
+    logger.info(
+        f"User {request.user.username} viewing global workflows list "
+        f"({workflows.count()} workflows, {total_activity_count} activities)"
+    )
+
     return render(request, 'workflows/global_list.html', {
         'workflows': workflows,
-        'playbook_count': playbook_count
+        'playbook_count': playbook_count,
+        'total_activity_count': total_activity_count,
     })
 
 
