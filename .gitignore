@@ -221,6 +221,7 @@ tmp/
 tests.log
 *.sqlite3
 *.db
+!mimir.db
 
 
 # Application logs
