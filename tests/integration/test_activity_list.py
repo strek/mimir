@@ -22,10 +22,10 @@ User = get_user_model()
 
 @pytest.mark.django_db
 class TestActivityList:
-    """Integration tests for activity list view (ACT-LIST scenarios)."""
+    """Integration tests for activity list view."""
     
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self, create_test_phases):
         """Set up test data for each test."""
         self.client = Client()
         self.user = User.objects.create_user(
@@ -51,6 +51,9 @@ class TestActivityList:
             playbook=self.playbook,
             order=1
         )
+        
+        # Create test phases
+        self.phases = create_test_phases(self.playbook)
     
     def test_act_list_01_navigate_from_workflow(self):
         """ACT-LIST-01: Navigate to activities list from workflow."""
@@ -124,21 +127,21 @@ class TestActivityList:
             workflow=self.workflow,
             name='Plan Features',
             guidance='Feature planning',
-            phase='Planning',
+            phase=self.phases['Planning'],
             order=1
         )
         Activity.objects.create(
             workflow=self.workflow,
             name='Write Specs',
             guidance='Technical specs',
-            phase='Planning',
+            phase=self.phases['Planning'],
             order=2
         )
         Activity.objects.create(
             workflow=self.workflow,
             name='Implement Code',
             guidance='Write code',
-            phase='Execution',
+            phase=self.phases['Execution'],
             order=3
         )
         

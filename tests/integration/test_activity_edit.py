@@ -18,7 +18,7 @@ class TestActivityEdit:
     """Integration tests for activity edit functionality."""
     
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self, create_test_phases):
         """Set up test data for each test."""
         self.client = Client()
         self.user = User.objects.create_user(
@@ -45,12 +45,15 @@ class TestActivityEdit:
             order=1
         )
         
+        # Create test phases
+        self.phases = create_test_phases(self.playbook)
+        
         # Create activity
         self.activity = Activity.objects.create(
             workflow=self.workflow,
             name='Design Component',
             guidance='Create UI design',
-            phase='Planning',
+            phase=self.phases['Planning'],
             order=1
         )
     
@@ -184,7 +187,7 @@ class TestActivityEdit:
         response = self.client.post(url, {
             'name': self.activity.name,
             'guidance': self.activity.guidance,
-            'phase': self.activity.phase or '',
+            'phase': self.activity.phase.id if self.activity.phase else '',
             'order': self.activity.order,
             'predecessor': predecessor.id,
         })

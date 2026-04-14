@@ -47,15 +47,14 @@ class TestActivityModel:
             workflow=test_workflow,
             name='Design Component',
             guidance='Create component design',
-            order=1,
-            phase='Planning'
+            order=1
         )
         
         assert activity.id is not None
         assert activity.name == 'Design Component'
         assert activity.guidance == 'Create component design'
         assert activity.order == 1
-        assert activity.phase == 'Planning'
+        assert activity.phase is None  # No phase assigned by default
         assert activity.workflow == test_workflow
     
     def test_activity_defaults(self, test_workflow):
@@ -226,27 +225,6 @@ class TestActivityModel:
         activity.refresh_from_db()
         
         assert activity.updated_at > original_updated
-    
-    def test_get_phase_display_name_with_phase(self, test_workflow):
-        """Test get_phase_display_name returns phase when set."""
-        activity = Activity.objects.create(
-            workflow=test_workflow,
-            name='Test Activity',
-            guidance='Test',
-            phase='Planning'
-        )
-        
-        assert activity.get_phase_display_name() == 'Planning'
-    
-    def test_get_phase_display_name_without_phase(self, test_workflow):
-        """Test get_phase_display_name returns Unassigned when no phase."""
-        activity = Activity.objects.create(
-            workflow=test_workflow,
-            name='Test Activity',
-            guidance='Test'
-        )
-        
-        assert activity.get_phase_display_name() == 'Unassigned'
     
     def test_playbook_property_returns_workflow_playbook(self, test_workflow):
         """Test that playbook property returns the parent workflow's playbook."""

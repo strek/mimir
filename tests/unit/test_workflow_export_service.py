@@ -42,8 +42,11 @@ class TestWorkflowExportService:
         )
     
     @pytest.fixture
-    def activities(self, workflow):
+    def activities(self, workflow, create_test_phases):
         """Create test activities."""
+        # Create test phases
+        phases = create_test_phases(workflow.playbook)
+        
         activities = []
         for i in range(1, 4):
             activity = Activity.objects.create(
@@ -51,7 +54,7 @@ class TestWorkflowExportService:
                 name=f'Activity {i}',
                 guidance=f'Guidance for activity {i}',
                 order=i,
-                phase='Foundation' if i == 1 else 'Implementation'
+                phase=phases['Foundation'] if i == 1 else phases['Implementation']
             )
             activities.append(activity)
         return activities

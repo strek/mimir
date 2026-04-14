@@ -80,28 +80,31 @@ class TestActivityGraphService:
         # Check edges connect activities
         assert '->' in svg or 'edge' in svg.lower()
     
-    def test_generate_graph_with_phases(self):
+    def test_generate_graph_with_phases(self, create_test_phases):
         """Test graph generation with phase grouping."""
+        # Create test phases
+        phases = create_test_phases(self.playbook)
+        
         # Create activities with phases
         Activity.objects.create(
             workflow=self.workflow,
             name='Plan Features',
             guidance='Planning',
-            phase='Planning',
+            phase=phases['Planning'],
             order=1
         )
         Activity.objects.create(
             workflow=self.workflow,
             name='Write Code',
             guidance='Implementation',
-            phase='Execution',
+            phase=phases['Execution'],
             order=2
         )
         Activity.objects.create(
             workflow=self.workflow,
             name='Deploy',
             guidance='Deployment',
-            phase='Execution',
+            phase=phases['Execution'],
             order=3
         )
         
@@ -170,10 +173,11 @@ class TestActivityGraphService:
         assert 'Activity with Deps' in svg
         assert 'Activity without Deps' in svg
     
-    def test_has_phases_returns_true_when_phases_exist(self):
+    def test_has_phases_returns_true_when_phases_exist(self, create_test_phases):
         """Test _has_phases returns True when activities have phases."""
+        phases = create_test_phases(self.playbook)
         activities = [
-            Activity(phase='Planning'),
+            Activity(phase=phases['Planning']),
             Activity(phase=None),
         ]
         
@@ -190,11 +194,12 @@ class TestActivityGraphService:
         result = self.service._has_phases(activities)
         assert result is False
     
-    def test_group_activities_by_phase(self):
+    def test_group_activities_by_phase(self, create_test_phases):
         """Test activities are correctly grouped by phase."""
-        act1 = Activity(name='Act1', phase='Planning', order=1)
-        act2 = Activity(name='Act2', phase='Planning', order=2)
-        act3 = Activity(name='Act3', phase='Execution', order=3)
+        phases = create_test_phases(self.playbook)
+        act1 = Activity(name='Act1', phase=phases['Planning'], order=1)
+        act2 = Activity(name='Act2', phase=phases['Planning'], order=2)
+        act3 = Activity(name='Act3', phase=phases['Execution'], order=3)
         act4 = Activity(name='Act4', phase=None, order=4)
         
         activities = [act1, act2, act3, act4]

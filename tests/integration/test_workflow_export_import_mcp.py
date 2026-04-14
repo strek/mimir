@@ -98,16 +98,20 @@ class TestWorkflowExportImportIntegration:
         )
     
     @pytest.fixture
-    def activities(self, workflow_draft):
+    def activities(self, workflow_draft, create_test_phases):
         """Create 15 test activities."""
+        # Create test phases
+        phases = create_test_phases(workflow_draft.playbook)
+        
         activities = []
         for i in range(1, 16):
+            phase = phases['Foundation'] if i <= 5 else phases['Implementation'] if i <= 10 else phases['Testing']
             activity = Activity.objects.create(
                 workflow=workflow_draft,
                 name=f'Activity {i}',
                 guidance=f'Guidance for activity {i}\n\nStep 1: Do this\nStep 2: Do that',
                 order=i,
-                phase='Foundation' if i <= 5 else 'Implementation' if i <= 10 else 'Testing'
+                phase=phase
             )
             activities.append(activity)
         return activities

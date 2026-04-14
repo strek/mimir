@@ -178,11 +178,22 @@ class WorkflowProtocolService:
         for new_activity_data in changes.get('new', []):
             logger.info(f"Creating new activity: {new_activity_data['name']} (order={new_activity_data['order']})")
             
+            # Resolve phase name to phase_id if provided
+            phase_id = None
+            phase_name = new_activity_data.get('phase')
+            if phase_name:
+                from methodology.models import Phase
+                try:
+                    phase = Phase.objects.get(playbook=workflow.playbook, name=phase_name)
+                    phase_id = phase.id
+                except Phase.DoesNotExist:
+                    logger.warning(f"Phase '{phase_name}' not found in playbook {workflow.playbook_id}, creating activity without phase")
+            
             activity = ActivityService.create_activity(
                 workflow=workflow,
                 name=new_activity_data['name'],
                 guidance=new_activity_data.get('guidance', ''),
-                phase=new_activity_data.get('phase'),
+                phase_id=phase_id,
                 order=new_activity_data.get('order')
             )
             applied['new'] += 1
