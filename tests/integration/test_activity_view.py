@@ -18,7 +18,7 @@ class TestActivityView:
     """Integration tests for activity detail view."""
     
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self, create_test_phases):
         """Set up test data for each test."""
         self.client = Client()
         self.user = User.objects.create_user(
@@ -45,12 +45,15 @@ class TestActivityView:
             order=1
         )
         
+        # Create test phases
+        self.phases = create_test_phases(self.playbook)
+        
         # Create activity
         self.activity = Activity.objects.create(
             workflow=self.workflow,
             name='Design Component',
             guidance='Create UI design for the component',
-            phase='Planning',
+            phase=self.phases['Planning'],
             order=1
         )
     
