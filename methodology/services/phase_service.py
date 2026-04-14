@@ -7,6 +7,7 @@ Handles creation, updating, deletion, and retrieval of phases within playbooks.
 import logging
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import transaction
+from django.db import models
 
 from methodology.models import Phase, Playbook
 
@@ -59,8 +60,20 @@ class PhaseService:
             logger.warning(f"User {user.email} attempted to create phase in released playbook {playbook_id}")
             raise PermissionDenied("Cannot modify released playbook. Submit a PIP instead.")
         
+        # Check for duplicate name
+        if Phase.objects.filter(playbook=playbook, name=name).exists():
+            logger.warning(f"Phase with name '{name}' already exists in playbook {playbook_id}")
+            raise ValidationError(f"Phase with name '{name}' already exists in this playbook")
+        
         # Create phase
         with transaction.atomic():
+            # Auto-assign order if not provided
+            if order is None:
+                max_order = Phase.objects.filter(playbook=playbook).aggregate(
+                    models.Max('order')
+                )['order__max']
+                order = (max_order or 0) + 1
+            
             phase = Phase.objects.create(
                 playbook=playbook,
                 name=name,

@@ -120,10 +120,11 @@ def phase_create(request, playbook_pk):
                 playbook_id=playbook_pk,
                 name=name,
                 description=description,
-                order=order
+                order=order,
+                user=request.user
             )
             logger.info(f"Phase '{name}' created successfully in playbook {playbook_pk}")
-            messages.success(request, f"Phase '{phase['name']}' created successfully!")
+            messages.success(request, f"Phase '{phase.name}' created successfully!")
             return redirect('phase_list', playbook_pk=playbook_pk)
             
         except ValidationError as e:
@@ -221,6 +222,7 @@ def phase_edit(request, playbook_pk, phase_pk):
             if order is not None:
                 update_fields['order'] = order
             
+            update_fields['user'] = request.user
             PhaseService.update_phase(phase_pk, **update_fields)
             
             logger.info(f"Phase {phase_pk} updated successfully")
@@ -276,7 +278,7 @@ def phase_delete(request, playbook_pk, phase_pk):
         phase_name = phase.name
         
         try:
-            PhaseService.delete_phase(phase_pk)
+            PhaseService.delete_phase(phase_pk, request.user)
             logger.info(f"Phase {phase_pk} deleted successfully")
             messages.success(request, f"Phase '{phase_name}' deleted successfully!")
             return redirect('phase_list', playbook_pk=playbook_pk)
