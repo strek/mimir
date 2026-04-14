@@ -35,6 +35,7 @@ urlpatterns = [
     path("playbooks/", include("methodology.playbook_urls")),
     path("playbooks/", include("methodology.workflow_urls")),  # Workflow URLs scoped to playbook
     path("playbooks/<int:playbook_pk>/workflows/<int:workflow_pk>/activities/", include("methodology.activity_urls")),  # Activity URLs scoped to workflow
+    path("playbooks/<int:playbook_pk>/phases/", include("methodology.phase_urls")),  # Phase URLs scoped to playbook
     path("playbooks/<int:playbook_pk>/skills/", include("methodology.skill_urls")),  # Skill URLs scoped to playbook
     path("", include("methodology.artifact_urls")),  # Artifact URLs
     path("workflows/", workflow_views.workflow_global_list, name="workflow_global_list"),  # Global workflows view
