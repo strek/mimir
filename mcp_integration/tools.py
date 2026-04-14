@@ -1867,6 +1867,19 @@ async def unlink_artifact_from_activity(artifact_input_id: int) -> dict:
 # PHASE MCP TOOLS
 # ============================================================================
 
+def _phase_to_dict(phase):
+    """Convert Phase model instance to dict."""
+    return {
+        'id': phase.id,
+        'name': phase.name,
+        'description': phase.description,
+        'order': phase.order,
+        'playbook_id': phase.playbook_id,
+        'created_at': phase.created_at.isoformat() if phase.created_at else None,
+        'updated_at': phase.updated_at.isoformat() if phase.updated_at else None,
+    }
+
+
 async def create_phase(
     playbook_id: int,
     name: str,
@@ -1904,11 +1917,13 @@ async def create_phase(
         playbook_id=playbook_id,
         name=name,
         description=description,
-        order=order
+        order=order,
+        user=user
     )
     
-    logger.info(f'MCP Tool: Phase {phase["id"]} created in playbook {playbook_id}')
-    return phase
+    phase_dict = _phase_to_dict(phase)
+    logger.info(f'MCP Tool: Phase {phase_dict["id"]} created in playbook {playbook_id}')
+    return phase_dict
 
 
 async def list_phases(playbook_id: int) -> list[dict]:
@@ -1932,10 +1947,14 @@ async def list_phases(playbook_id: int) -> list[dict]:
         raise ValueError(f'Playbook {playbook_id} not found')
     
     from methodology.services.phase_service import PhaseService
-    phases = await sync_to_async(PhaseService.list_phases)(playbook_id)
+    phases = await sync_to_async(PhaseService.list_phases)(playbook_id, user)
     
-    logger.info(f'MCP Tool: Retrieved {len(phases)} phases for playbook {playbook_id}')
-    return phases
+    # Convert QuerySet to list of dicts
+    phases_list = await sync_to_async(list)(phases)
+    phases_dicts = [_phase_to_dict(p) for p in phases_list]
+    
+    logger.info(f'MCP Tool: Retrieved {len(phases_dicts)} phases for playbook {playbook_id}')
+    return phases_dicts
 
 
 async def get_phase(phase_id: int) -> dict:
@@ -1962,10 +1981,17 @@ async def get_phase(phase_id: int) -> dict:
         raise ValueError(f'Phase {phase_id} not found')
     
     from methodology.services.phase_service import PhaseService
-    phase_data = await sync_to_async(PhaseService.get_phase_with_activities)(phase_id)
+    phase_data = await sync_to_async(PhaseService.get_phase_with_activities)(phase_id, user)
+    
+    # Convert phase object to dict
+    result = {
+        **_phase_to_dict(phase_data['phase']),
+        'activities': phase_data['workflow_activities'],
+        'artifacts': phase_data['artifacts']
+    }
     
     logger.info(f'MCP Tool: Retrieved phase {phase_id}')
-    return phase_data
+    return result
 
 
 async def update_phase(
@@ -2008,11 +2034,13 @@ async def update_phase(
         phase_id=phase_id,
         name=name,
         description=description,
-        order=order
+        order=order,
+        user=user
     )
     
+    phase_dict = _phase_to_dict(updated_phase)
     logger.info(f'MCP Tool: Phase {phase_id} updated')
-    return updated_phase
+    return phase_dict
 
 
 async def delete_phase(phase_id: int) -> dict:
@@ -2043,7 +2071,7 @@ async def delete_phase(phase_id: int) -> dict:
         raise PermissionError('Cannot delete phases in released playbook')
     
     from methodology.services.phase_service import PhaseService
-    await sync_to_async(PhaseService.delete_phase)(phase_id)
+    await sync_to_async(PhaseService.delete_phase)(phase_id, user)
     
     logger.info(f'MCP Tool: Phase {phase_id} deleted')
     return {'deleted': True}
@@ -2075,10 +2103,18 @@ async def reorder_phases(playbook_id: int, phase_order: list[int]) -> dict:
         raise PermissionError('Cannot reorder phases in released playbook')
     
     from methodology.services.phase_service import PhaseService
-    result = await sync_to_async(PhaseService.reorder_phases)(
+    # Convert list of IDs to list of (id, order) tuples
+    phase_order_list = [(phase_id, idx + 1) for idx, phase_id in enumerate(phase_order)]
+    updated_phases = await sync_to_async(PhaseService.reorder_phases)(
         playbook_id=playbook_id,
-        phase_order=phase_order
+        phase_order_list=phase_order_list,
+        user=user
     )
+    
+    result = {
+        'reordered': True,
+        'count': len(updated_phases)
+    }
     
     logger.info(f'MCP Tool: Reordered {result["count"]} phases in playbook {playbook_id}')
     return result
