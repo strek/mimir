@@ -9,7 +9,7 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2><i class="fa-solid fa-brain me-2"></i>Agents</h2>
+            <h2><i class="fa-solid fa-brain-circuit me-2"></i>Agents</h2>
             <p class="text-muted">AI assistants configured to perform activities within playbooks</p>
         </div>
     </div>
@@ -61,7 +61,7 @@
                     {% for agent in agents %}
                     <tr data-testid="agent-row-{{ agent.id }}">
                         <td>
-                            <i class="fa-solid fa-brain text-primary me-2"></i>
+                            <i class="fa-solid fa-brain-circuit text-primary me-2"></i>
                             <strong>{{ agent.name }}</strong>
                         </td>
                         <td class="text-muted small">
@@ -88,7 +88,7 @@
     <!-- Empty state -->
     <div class="card border-0 shadow-sm" data-testid="empty-state">
         <div class="card-body text-center py-5">
-            <i class="fa-solid fa-brain fa-4x text-muted mb-3"></i>
+            <i class="fa-solid fa-brain-circuit fa-4x text-muted mb-3"></i>
             <h4 class="text-muted">No agents yet</h4>
             {% if query %}
             <p class="text-muted">No agents match "<strong>{{ query }}</strong>".</p>
