@@ -653,7 +653,7 @@ async def get_activity(activity_id: int) -> dict:
 
 
 async def update_activity(activity_id: int, name: str = None, guidance: str = None,
-                        phase: str = None, order: int = None) -> dict:
+                        phase_id: int = None, order: int = None) -> dict:
     """
     Update activity in DRAFT playbook. Increments grandparent version.
     
@@ -662,7 +662,7 @@ async def update_activity(activity_id: int, name: str = None, guidance: str = No
     :param activity_id: Activity ID. Example: 1
     :param name: New name or None
     :param guidance: New guidance or None
-    :param phase: New phase or None
+    :param phase_id: New phase ID or None
     :param order: New order or None
     :return: Updated activity dict
     :raises PermissionError: if grandparent playbook is released
@@ -693,8 +693,8 @@ async def update_activity(activity_id: int, name: str = None, guidance: str = No
         update_data['name'] = name
     if guidance is not None:
         update_data['guidance'] = guidance
-    if phase is not None:
-        update_data['phase'] = phase
+    if phase_id is not None:
+        update_data['phase_id'] = phase_id
     if order is not None:
         update_data['order'] = order
     
