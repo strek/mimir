@@ -584,7 +584,7 @@ async def list_activities(workflow_id: int) -> list:
             'id': a.id,
             'name': a.name,
             'guidance': a.guidance,
-            'phase': a.phase,
+            'phase_id': a.phase_id,
             'order': a.order,
             'workflow_id': a.workflow_id,
             'predecessor_id': a.predecessor_id,
@@ -715,7 +715,7 @@ async def update_activity(activity_id: int, name: str = None, guidance: str = No
         'id': activity.id,
         'name': activity.name,
         'guidance': activity.guidance,
-        'phase': activity.phase,
+        'phase_id': activity.phase_id,
         'order': activity.order,
         'workflow_id': activity.workflow_id,
     }
