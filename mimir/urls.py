@@ -23,6 +23,7 @@ from methodology import activity_views
 from methodology import skill_views
 from methodology import agent_views
 from methodology import artifact_views
+from methodology import phase_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -39,6 +40,7 @@ urlpatterns = [
     path("playbooks/<int:playbook_pk>/skills/", include("methodology.skill_urls")),  # Skill URLs scoped to playbook
     path("", include("methodology.artifact_urls")),  # Artifact URLs
     path("workflows/", workflow_views.workflow_global_list, name="workflow_global_list"),  # Global workflows view
+    path("phases/", phase_views.phase_list_global, name="phase_list_global"),  # Global phases view
     path("activities/", activity_views.activity_global_list, name="activity_global_list"),  # Global activities view
     path("skills/", skill_views.skill_list_global, name="skill_list"),  # Global skills view
     path("agents/", include("methodology.agent_urls")),  # Agent views (list, create, detail)

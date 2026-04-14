@@ -75,29 +75,29 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    {% if phase.activities %}
+                    {% if workflow_activities %}
+                    {% for workflow_data in workflow_activities %}
+                    <h6 class="mt-3 mb-2">
+                        <a href="{% url 'workflow_detail' playbook.pk workflow_data.workflow.id %}">
+                            {{ workflow_data.workflow.name }}
+                        </a>
+                    </h6>
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover table-sm">
                             <thead>
                                 <tr>
                                     <th>Order</th>
                                     <th>Name</th>
-                                    <th>Workflow</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for activity in phase.activities %}
+                                {% for activity in workflow_data.activities %}
                                 <tr>
                                     <td><span class="badge bg-secondary">#{{ activity.order }}</span></td>
                                     <td>
                                         <a href="{% url 'activity_detail' playbook.pk activity.workflow.id activity.id %}">
                                             {{ activity.name }}
-                                        </a>
-                                    </td>
-                                    <td>
-                                        <a href="{% url 'workflow_detail' playbook.pk activity.workflow.id %}">
-                                            {{ activity.workflow.name }}
                                         </a>
                                     </td>
                                     <td>
@@ -113,6 +113,7 @@
                             </tbody>
                         </table>
                     </div>
+                    {% endfor %}
                     {% else %}
                     <div class="alert alert-info mb-0">
                         <i class="fa-solid fa-info-circle"></i> No activities assigned to this phase yet.

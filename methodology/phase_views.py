@@ -18,6 +18,50 @@ logger = logging.getLogger(__name__)
 # ==================== LIST ====================
 
 @login_required
+def phase_list_global(request):
+    """
+    Global phases list — all phases across all playbooks owned by the user.
+    
+    Supports search via ?q= query parameter (matches name and description).
+    
+    Template: phases/list_global.html
+    Template Context:
+        - phases: QuerySet of Phase instances (filtered by query if provided)
+        - query: Current search string
+        - total_count: Total phases before filtering
+    
+    :param request: Django request object
+    :return: Rendered global list template
+    """
+    query = request.GET.get('q', '').strip()
+    
+    # Get all phases for user's playbooks
+    phases = Phase.objects.filter(playbook__author=request.user).select_related('playbook')
+    
+    # Apply search filter if query provided
+    if query:
+        phases = phases.filter(
+            name__icontains=query
+        ) | phases.filter(
+            description__icontains=query
+        )
+    
+    total_count = Phase.objects.filter(playbook__author=request.user).count()
+    
+    logger.info(
+        f"User {request.user.username} viewing global phase list"
+        + (f", query={query!r}" if query else "")
+    )
+    
+    context = {
+        'phases': phases.order_by('playbook__name', 'order'),
+        'query': query,
+        'total_count': total_count,
+    }
+    return render(request, 'phases/list_global.html', context)
+
+
+@login_required
 def phase_list(request, playbook_pk):
     """
     Display list of phases for a playbook.
@@ -27,7 +71,7 @@ def phase_list(request, playbook_pk):
     :return: Rendered phase list template
     """
     playbook = get_object_or_404(Playbook, pk=playbook_pk, author=request.user)
-    phases = PhaseService.list_phases(playbook_pk)
+    phases = PhaseService.list_phases(playbook_pk, request.user)
     
     logger.info(f"User {request.user.username} viewing phases for playbook {playbook_pk}")
     
@@ -114,13 +158,21 @@ def phase_detail(request, playbook_pk, phase_pk):
     :return: Rendered phase detail template
     """
     playbook = get_object_or_404(Playbook, pk=playbook_pk, author=request.user)
-    phase_data = PhaseService.get_phase_with_activities(phase_pk)
+    phase_data = PhaseService.get_phase_with_activities(phase_pk, request.user)
     
     logger.info(f"User {request.user.username} viewing phase {phase_pk}")
     
+    # Transform workflow_activities dict to list of dicts for template
+    workflow_activities_list = [
+        {'workflow': workflow, 'activities': activities}
+        for workflow, activities in phase_data['workflow_activities'].items()
+    ]
+    
     context = {
         'playbook': playbook,
-        'phase': phase_data,
+        'phase': phase_data['phase'],
+        'workflow_activities': workflow_activities_list,
+        'artifacts': phase_data['artifacts'],
     }
     return render(request, 'phases/detail.html', context)
 

@@ -73,9 +73,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link disabled" href="#" data-testid="nav-phases"
+                        <a class="nav-link {% if '/phases/' in request.path %}active{% endif %}" 
+                           href="{% url 'phase_list_global' %}" 
+                           data-testid="nav-phases"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
-                           title="Coming soon: Manage workflow phases">
+                           title="View all phases across your playbooks"
+                           {% if '/phases/' in request.path %}aria-current="page"{% endif %}>
                             <i class="fas fa-bars-progress"></i> Phases
                         </a>
                     </li>
