@@ -96,7 +96,7 @@ class TestActivityEdit:
         data = {
             'name': 'Updated Component Design',
             'guidance': 'Create UI design',
-            'phase': 'Planning',
+            'phase': self.phases['Planning'].id,
             'order': 1,
         }
         response = self.client.post(url, data)
@@ -119,7 +119,7 @@ class TestActivityEdit:
         data = {
             'name': 'Design Component',
             'guidance': 'Updated description with more details',
-            'phase': 'Planning',
+            'phase': self.phases['Planning'].id,
             'order': 1,
         }
         response = self.client.post(url, data)
@@ -139,14 +139,14 @@ class TestActivityEdit:
         data = {
             'name': 'Design Component',
             'guidance': 'Create UI design',
-            'phase': 'Execution',
+            'phase': self.phases['Execution'].id,
             'order': 1,
         }
         response = self.client.post(url, data)
         
         assert response.status_code == 302
         self.activity.refresh_from_db()
-        assert self.activity.phase == 'Execution'
+        assert self.activity.phase == self.phases['Execution']
     
     def test_edit_06_update_order(self):
         """Test updating activity order."""
@@ -159,7 +159,7 @@ class TestActivityEdit:
         data = {
             'name': 'Design Component',
             'guidance': 'Create UI design',
-            'phase': 'Planning',
+            'phase': self.phases['Planning'].id,
             'order': 5,
         }
         response = self.client.post(url, data)

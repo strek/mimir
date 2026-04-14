@@ -31,7 +31,7 @@
             <p class="text-muted">
                 <span class="badge bg-secondary" data-testid="order-badge">Order: #{{ activity.order }}</span>
                 {% if activity.phase %}
-                <span class="badge bg-info" data-testid="phase-badge">{{ activity.phase }}</span>
+                <span class="badge bg-info" data-testid="phase-badge">{{ activity.phase.name }}</span>
                 {% endif %}
                 {% if activity.predecessor or activity.successor %}
                 <span class="badge bg-info" data-testid="dependencies-badge">
