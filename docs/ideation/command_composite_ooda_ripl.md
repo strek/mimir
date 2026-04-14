@@ -6,10 +6,7 @@
 
 ## Seed: On Command and Composite Cognition
 
-> *"Nothing kills respect faster than pity."*
-> — Ninefox Gambit, Yoon Ha Lee
-
-**Command as equation-solving:** Identify the variables, solve the system, implement — ruthlessly or sneakily, whatever the topology of the problem demands. Boyd's OODA, Clausewitz's Schwerpunkt, implicit guidance and control — all variations of the same idea.
+**Command as equation-solving:** Human + AI composite: identify the variables, solve the system, implement — ruthlessly or sneakily, whatever the topology of the problem demands. Boyd's OODA, Clausewitz's Schwerpunkt, implicit guidance and control — all variations of the same idea.
 
 **The Composite framing** (Cheris/Jedao as archetype):
 - Shared problem representation

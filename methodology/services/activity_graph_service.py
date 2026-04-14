@@ -191,10 +191,10 @@ class ActivityGraphService:
         """
         phase_groups = {}
         for activity in activities:
-            phase = activity.phase or 'Unassigned'
-            if phase not in phase_groups:
-                phase_groups[phase] = []
-            phase_groups[phase].append(activity)
+            phase_name = activity.phase.name if activity.phase else 'Unassigned'
+            if phase_name not in phase_groups:
+                phase_groups[phase_name] = []
+            phase_groups[phase_name].append(activity)
         return phase_groups
     
     def _add_activity_node(self, graph, activity, playbook, workflow):

@@ -52,10 +52,10 @@ def activity_global_list(request):
     # Group by phase for overview
     phase_groups = {}
     for activity in activities:
-        phase = activity.phase or 'Unassigned'
-        if phase not in phase_groups:
-            phase_groups[phase] = []
-        phase_groups[phase].append(activity)
+        phase_name = activity.phase.name if activity.phase else 'Unassigned'
+        if phase_name not in phase_groups:
+            phase_groups[phase_name] = []
+        phase_groups[phase_name].append(activity)
     
     logger.info(f"User {request.user.username} viewing global activities list ({activities.count()} activities)")
     
@@ -200,11 +200,14 @@ def activity_create(request, playbook_pk, workflow_pk):
         
         # Validate and create
         try:
+            # Convert phase to phase_id (int or None)
+            phase_id = int(phase) if phase else None
+            
             activity = ActivityService.create_activity(
                 workflow=workflow,
                 name=name,
                 guidance=guidance,
-                phase=phase,
+                phase_id=phase_id,
                 order=order_int,
                 predecessor=predecessor,
                 successor=successor
@@ -390,10 +393,13 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
         
         # Validate and update
         try:
+            # Convert phase to phase_id (int or None)
+            phase_id = int(phase) if phase else None
+            
             update_fields = {
                 'name': name,
                 'guidance': guidance,
-                'phase': phase,
+                'phase_id': phase_id,
                 'predecessor': predecessor,
                 'successor': successor,
             }
@@ -436,7 +442,7 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
     form_data = {
         'name': activity.name,
         'guidance': activity.guidance,
-        'phase': activity.phase or '',
+        'phase': activity.phase.id if activity.phase else '',
         'order': activity.order,
         'predecessor': activity.predecessor.id if activity.predecessor else '',
         'successor': activity.successor.id if activity.successor else '',

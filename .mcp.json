@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mimir": {
+      "command": "/Users/denispetelin/GitHub/mimir/.venv/bin/python",
+      "args": [
+        "/Users/denispetelin/GitHub/mimir/manage.py",
+        "mcp_server",
+        "--user=admin"
+      ]
+    }
+  }
+}

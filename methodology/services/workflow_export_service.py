@@ -88,7 +88,7 @@ class WorkflowExportService:
         
         playbook = workflow.playbook
         export_date = datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-        has_phases = any(a.phase for a in workflow.activities.all())
+        has_phases = any(a.phase_id for a in workflow.activities.all())
         phase_info = "Uses phases" if has_phases else "No phase organization"
         
         md = f"""# {workflow.name}
@@ -129,7 +129,7 @@ After editing, use import_workflow_from_local MCP tool to import changes.
             dependencies.append(f"Successor: Activity {activity.successor.id} ({activity.successor.name})")
         
         dependencies_text = "\n".join(dependencies) if dependencies else "None"
-        phase_text = activity.phase if activity.phase else "None"
+        phase_text = activity.phase.name if activity.phase else "None"
         
         content = f"""# Activity: {activity.name}
 

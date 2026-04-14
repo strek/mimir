@@ -54,11 +54,13 @@ class Activity(models.Model):
         default=1,
         help_text="Execution order within workflow"
     )
-    phase = models.CharField(
-        max_length=100,
-        blank=True,
+    phase = models.ForeignKey(
+        'Phase',
+        on_delete=models.SET_NULL,
         null=True,
-        help_text="Optional phase grouping (e.g., 'Planning', 'Execution')"
+        blank=True,
+        related_name='activities',
+        help_text="Optional phase assignment for lifecycle stage grouping"
     )
     
     # Dependencies - predecessor/successor relationships
@@ -133,20 +135,6 @@ class Activity(models.Model):
         """
         return self.workflow.can_edit(user)
     
-    def get_phase_display_name(self):
-        """
-        Get formatted phase name or default.
-        
-        :returns: Phase name or 'Unassigned' if no phase set
-        :rtype: str
-        
-        Example:
-            >>> activity.get_phase_display_name()
-            'Planning'  # If phase is set
-            >>> no_phase_activity.get_phase_display_name()
-            'Unassigned'  # If phase is None or empty
-        """
-        return self.phase if self.phase else "Unassigned"
     
     @property
     def reference_name(self) -> str:
@@ -166,7 +154,7 @@ class Activity(models.Model):
     
     def clean(self):
         """
-        Validate activity dependencies.
+        Validate activity dependencies and phase assignment.
         
         :raises ValidationError: If validation fails
         
@@ -175,6 +163,7 @@ class Activity(models.Model):
         - Successor must be in same workflow
         - Cannot be self-referential
         - No circular dependencies
+        - Phase must belong to same playbook
         """
         from django.core.exceptions import ValidationError
         
@@ -207,6 +196,12 @@ class Activity(models.Model):
                 raise ValidationError(
                     'Circular dependency detected: predecessor and successor cannot be the same activity'
                 )
+        
+        # Validate phase belongs to same playbook
+        if self.phase and self.phase.playbook_id != self.workflow.playbook_id:
+            raise ValidationError({
+                'phase': 'Phase must belong to the same playbook as the workflow'
+            })
     
     # Display properties for activity feed
     

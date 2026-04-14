@@ -170,9 +170,10 @@ class WorkflowImportService:
                     })
                     changes['summary']['reordered'] += 1
                 
+                current_phase_name = current.phase.name if current.phase else None
                 if (imported['name'] != current.name or 
                     imported['guidance'] != current.guidance or
-                    imported['phase'] != current.phase):
+                    imported['phase'] != current_phase_name):
                     changes['modified'].append({
                         'activity_id': imported['activity_id'],
                         'name': imported['name'],
