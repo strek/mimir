@@ -227,9 +227,14 @@ def activity_create(request, playbook_pk, workflow_pk):
 
 def _render_create_form(request, playbook, workflow, form_data, errors):
     """Helper to render create form with context."""
+    from methodology.models import Phase
+    
     # Get available predecessors and successors
     available_predecessors = ActivityService.get_available_predecessors(workflow)
     available_successors = ActivityService.get_available_successors(workflow)
+    
+    # Get available phases for this playbook
+    available_phases = Phase.objects.filter(playbook=playbook).order_by('order')
     
     # Check if dropdowns should be disabled (no other activities)
     disable_dependencies = workflow.get_activity_count() == 0
@@ -241,6 +246,7 @@ def _render_create_form(request, playbook, workflow, form_data, errors):
         'errors': errors,
         'available_predecessors': available_predecessors,
         'available_successors': available_successors,
+        'available_phases': available_phases,
         'disable_dependencies': disable_dependencies,
     }
     return render(request, 'activities/create.html', context)
@@ -459,10 +465,12 @@ def _render_edit_form(request, playbook, workflow, activity, form_data, errors):
     # Get available predecessors and successors (exclude current activity)
     available_predecessors = ActivityService.get_available_predecessors(workflow, exclude_activity_id=activity.id)
     
-    # Get available agents, skills, and artifacts from playbook
-    from methodology.models import Agent, Skill, Artifact
+    # Get available agents, skills, artifacts, and phases from playbook
+    from methodology.models import Agent, Skill, Artifact, Phase
     available_agents = Agent.objects.filter(playbook=playbook).order_by('name')
     available_skills = Skill.objects.filter(playbook=playbook).order_by('title')
+    available_phases = Phase.objects.filter(playbook=playbook).order_by('order')
+    
     # Exclude artifacts produced by this activity
     available_artifacts = Artifact.objects.filter(
         playbook=playbook
@@ -483,6 +491,7 @@ def _render_edit_form(request, playbook, workflow, activity, form_data, errors):
         'available_agents': available_agents,
         'available_skills': available_skills,
         'available_artifacts': available_artifacts,
+        'available_phases': available_phases,
 
         'errors': errors,
         'available_predecessors': available_predecessors,
