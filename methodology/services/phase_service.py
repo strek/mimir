@@ -299,16 +299,24 @@ class PhaseService:
         
         # Update phase orders
         with transaction.atomic():
-            updated_phases = []
-            for phase_id, new_order in phase_order_list:
+            # First pass: set all to temporary negative orders to avoid unique constraint violations
+            phases_to_update = []
+            for idx, (phase_id, new_order) in enumerate(phase_order_list):
                 try:
                     phase = Phase.objects.get(id=phase_id, playbook=playbook)
-                    phase.order = new_order
+                    phase.order = -(idx + 1)  # Temporary negative order
                     phase.save()
-                    updated_phases.append(phase)
+                    phases_to_update.append((phase, new_order))
                 except Phase.DoesNotExist:
                     logger.error(f"Phase {phase_id} not found in playbook {playbook_id}")
                     raise ValidationError(f"Phase {phase_id} not found in playbook")
+            
+            # Second pass: set final orders
+            updated_phases = []
+            for phase, new_order in phases_to_update:
+                phase.order = new_order
+                phase.save()
+                updated_phases.append(phase)
             
             # Increment playbook version
             playbook.increment_version()
