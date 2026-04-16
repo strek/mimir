@@ -611,107 +611,114 @@ async def get_activity(activity_id: int) -> dict:
     
     user = await sync_to_async(get_current_user)()
     
-    from methodology.models import Activity
-    try:
-        activity = await sync_to_async(Activity.objects.select_related(
-            'predecessor', 'successor', 'workflow__playbook', 'agent', 'skill', 'phase'
-        ).prefetch_related(
-            'output_artifacts', 'input_artifacts__artifact'
-        ).get)(
-            id=activity_id,
-            workflow__playbook__author=user
+    # Run all database access in a single sync function
+    def get_activity_data():
+        from methodology.models import Activity
+        try:
+            activity = Activity.objects.select_related(
+                'predecessor', 'successor', 'workflow__playbook', 'agent', 'skill', 'phase'
+            ).prefetch_related(
+                'output_artifacts', 'input_artifacts__artifact'
+            ).get(
+                id=activity_id,
+                workflow__playbook__author=user
+            )
+        except Activity.DoesNotExist:
+            logger.error(f'MCP Tool: Activity id={activity_id} not found for user')
+            raise ValueError(f'Activity {activity_id} not found')
+        
+        # Build agent dict
+        agent_dict = None
+        if activity.agent:
+            agent_dict = {
+                'id': activity.agent.id,
+                'name': activity.agent.name,
+                'description': activity.agent.description,
+            }
+        
+        # Build skill dict
+        skill_dict = None
+        if activity.skill:
+            skill_dict = {
+                'id': activity.skill.id,
+                'title': activity.skill.title,
+                'capability_domain': activity.skill.capability_domain,
+                'technology_stack': activity.skill.technology_stack,
+            }
+        
+        # Build output artifacts list
+        output_artifacts = list(activity.output_artifacts.all())
+        output_artifacts_list = [
+            {
+                'id': artifact.id,
+                'name': artifact.name,
+                'type': artifact.type,
+                'is_required': artifact.is_required,
+            }
+            for artifact in output_artifacts
+        ]
+        
+        # Build input artifacts list
+        input_artifact_inputs = list(activity.input_artifacts.all())
+        input_artifacts_list = []
+        for ai in input_artifact_inputs:
+            input_artifacts_list.append({
+                'id': ai.artifact.id,
+                'name': ai.artifact.name,
+                'type': ai.artifact.type,
+                'is_required': ai.is_required,
+            })
+        
+        # Build predecessor dict
+        predecessor_dict = None
+        if activity.predecessor:
+            predecessor_dict = {
+                'id': activity.predecessor.id,
+                'name': activity.predecessor.name,
+            }
+        
+        # Build successor dict
+        successor_dict = None
+        if activity.successor:
+            successor_dict = {
+                'id': activity.successor.id,
+                'name': activity.successor.name,
+            }
+        
+        result = {
+            'id': activity.id,
+            'name': activity.name,
+            'guidance': activity.guidance,
+            'phase': activity.phase,
+            'order': activity.order,
+            'workflow_id': activity.workflow_id,
+            'predecessor': predecessor_dict,
+            'successor': successor_dict,
+            'agent': agent_dict,
+            'skill': skill_dict,
+            'output_artifacts': output_artifacts_list,
+            'input_artifacts': input_artifacts_list,
+        }
+        
+        logger.info(
+            f'MCP Tool: Activity with predecessor={activity.predecessor_id}, '
+            f'successor={activity.successor_id}, agent={activity.agent_id}, '
+            f'skill={activity.skill_id}, outputs={len(output_artifacts_list)}, '
+            f'inputs={len(input_artifacts_list)}'
         )
-    except Activity.DoesNotExist:
-        logger.error(f'MCP Tool: Activity id={activity_id} not found for user')
-        raise ValueError(f'Activity {activity_id} not found')
+        
+        return result
     
-    # Track access for "Recently Used" dashboard section
-    # Non-critical operation - log errors but don't fail the request
+    # Execute all database operations in sync context
+    result = await sync_to_async(get_activity_data)()
+    
+    # Track access for "Recently Used" dashboard section (non-critical)
     try:
         from methodology.services.activity_service import ActivityService
         await sync_to_async(ActivityService.touch_activity_access)(activity_id)
     except Exception as e:
         logger.warning(f'Failed to track access for activity {activity_id}: {e}')
-        # Continue - access tracking is non-critical
     
-    # Build agent dict (Issue #71)
-    # Use sync_to_async to safely access related objects in async context
-    agent_dict = None
-    agent = await sync_to_async(lambda: activity.agent)()
-    if agent:
-        agent_dict = {
-            'id': agent.id,
-            'name': agent.name,
-            'description': agent.description,
-        }
-    
-    # Build skill dict (Issue #71)
-    skill_dict = None
-    skill = await sync_to_async(lambda: activity.skill)()
-    if skill:
-        skill_dict = {
-            'id': skill.id,
-            'title': skill.title,
-            'capability_domain': skill.capability_domain,
-            'technology_stack': skill.technology_stack,
-        }
-    
-    # Build output artifacts list (Issue #71)
-    output_artifacts = await sync_to_async(list)(activity.output_artifacts.all())
-    output_artifacts_list = [
-        {
-            'id': artifact.id,
-            'name': artifact.name,
-            'type': artifact.type,
-            'is_required': artifact.is_required,
-        }
-        for artifact in output_artifacts
-    ]
-    
-    # Build input artifacts list (Issue #71)
-    input_artifact_inputs = await sync_to_async(list)(activity.input_artifacts.all())
-    input_artifacts_list = []
-    for ai in input_artifact_inputs:
-        # Access related artifact object safely in async context
-        artifact = await sync_to_async(lambda ai=ai: ai.artifact)()
-        input_artifacts_list.append({
-            'id': artifact.id,
-            'name': artifact.name,
-            'type': artifact.type,
-            'is_required': ai.is_required,
-        })
-    
-    # Access phase, predecessor, successor safely in async context
-    phase = await sync_to_async(lambda: activity.phase)()
-    predecessor = await sync_to_async(lambda: activity.predecessor)()
-    successor = await sync_to_async(lambda: activity.successor)()
-    
-    result = {
-        'id': activity.id,
-        'name': activity.name,
-        'guidance': activity.guidance,
-        'phase': phase,
-        'order': activity.order,
-        'workflow_id': activity.workflow_id,
-        'predecessor': {
-            'id': predecessor.id,
-            'name': predecessor.name,
-        } if predecessor else None,
-        'successor': {
-            'id': successor.id,
-            'name': successor.name,
-        } if successor else None,
-        'agent': agent_dict,
-        'skill': skill_dict,
-        'output_artifacts': output_artifacts_list,
-        'input_artifacts': input_artifacts_list,
-    }
-    logger.info(
-        f'MCP Tool: Activity with predecessor={activity.predecessor_id}, '
-        f'successor={activity.successor_id}, agent={activity.agent_id}, '
-        f'skill={activity.skill_id}, outputs={len(output_artifacts_list)}, '
-        f'inputs={len(input_artifacts_list)}'
-    )
     return result
 
 
