@@ -272,9 +272,17 @@ def test_call_list_playbooks_tool(mcp_server):
     logger.info(f"✓ list_playbooks returned: {result}")
 
 
+@pytest.fixture
+def test_user(db):
+    """Create test user for async context test."""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    return User.objects.create_user(username='testuser', email='test@test.com', password='test123')
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_get_activity_async_context():
+async def test_get_activity_async_context(test_user):
     """
     Test that get_activity works in async context (FastMCP event loop).
     
@@ -283,16 +291,13 @@ async def test_get_activity_async_context():
     
     The fix: DJANGO_ALLOW_ASYNC_UNSAFE='true' set in tools.py before imports.
     """
-    from django.contrib.auth import get_user_model
     from asgiref.sync import sync_to_async
     from methodology.models import Playbook, Workflow, Activity
     from mcp_integration.context import set_current_user
     from mcp_integration.tools import get_activity
     
-    User = get_user_model()
-    
     # Set up user context
-    user = await sync_to_async(User.objects.get)(username='admin')
+    user = test_user
     set_current_user(user)
     
     # Create test data using Django ORM directly
