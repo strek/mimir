@@ -272,6 +272,75 @@ def test_call_list_playbooks_tool(mcp_server):
     logger.info(f"✓ list_playbooks returned: {result}")
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_get_activity_async_context():
+    """
+    Test that get_activity works in async context (FastMCP event loop).
+    
+    This test verifies the fix for the async context error where Django ORM
+    calls were failing with "You cannot call this from an async context".
+    
+    The fix: DJANGO_ALLOW_ASYNC_UNSAFE='true' set in tools.py before imports.
+    """
+    from django.contrib.auth import get_user_model
+    from asgiref.sync import sync_to_async
+    from methodology.models import Playbook, Workflow, Activity
+    from mcp_integration.context import set_current_user
+    from mcp_integration.tools import get_activity
+    
+    User = get_user_model()
+    
+    # Set up user context
+    user = await sync_to_async(User.objects.get)(username='admin')
+    set_current_user(user)
+    
+    # Create test data using Django ORM directly
+    def create_test_data():
+        playbook = Playbook.objects.create(
+            name='Test Playbook',
+            description='Test',
+            category='test',
+            status='draft',
+            source='owned',
+            author=user
+        )
+        workflow = Workflow.objects.create(
+            name='Test Workflow',
+            description='Test',
+            playbook=playbook,
+            order=1
+        )
+        activity = Activity.objects.create(
+            name='Test Activity',
+            guidance='Test guidance',
+            workflow=workflow,
+            order=1
+        )
+        return activity.id
+    
+    activity_id = await sync_to_async(create_test_data)()
+    
+    # Call get_activity - this should NOT raise async context error
+    result = await get_activity(activity_id=activity_id)
+    
+    # Verify we got data back
+    assert result is not None
+    assert 'id' in result
+    assert 'name' in result
+    assert 'phase' in result
+    assert 'agent' in result
+    assert 'skill' in result
+    assert 'output_artifacts' in result
+    assert 'input_artifacts' in result
+    
+    logger.info(f"✓ get_activity returned: {result['name']}")
+    logger.info(f"  Phase: {result.get('phase')}")
+    logger.info(f"  Agent: {result.get('agent')}")
+    logger.info(f"  Skill: {result.get('skill')}")
+    logger.info(f"  Artifacts: {len(result.get('output_artifacts', []))} out, {len(result.get('input_artifacts', []))} in")
+
+
 @pytest.mark.skip(reason="Interactive test - run manually to verify server works")
 def test_server_runs_indefinitely(mcp_server):
     """
