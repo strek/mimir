@@ -635,22 +635,25 @@ async def get_activity(activity_id: int) -> dict:
         # Continue - access tracking is non-critical
     
     # Build agent dict (Issue #71)
+    # Use sync_to_async to safely access related objects in async context
     agent_dict = None
-    if activity.agent:
+    agent = await sync_to_async(lambda: activity.agent)()
+    if agent:
         agent_dict = {
-            'id': activity.agent.id,
-            'name': activity.agent.name,
-            'description': activity.agent.description,
+            'id': agent.id,
+            'name': agent.name,
+            'description': agent.description,
         }
     
     # Build skill dict (Issue #71)
     skill_dict = None
-    if activity.skill:
+    skill = await sync_to_async(lambda: activity.skill)()
+    if skill:
         skill_dict = {
-            'id': activity.skill.id,
-            'title': activity.skill.title,
-            'capability_domain': activity.skill.capability_domain,
-            'technology_stack': activity.skill.technology_stack,
+            'id': skill.id,
+            'title': skill.title,
+            'capability_domain': skill.capability_domain,
+            'technology_stack': skill.technology_stack,
         }
     
     # Build output artifacts list (Issue #71)
