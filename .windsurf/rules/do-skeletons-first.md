@@ -6,7 +6,7 @@ description: Creating classes, properties, methods, controllers, views etc.
 The core principle is that the developer who has no knowledge of the system can implement methods/properties etc. following only documentation in the skeleton - think its like you are a designer defining the task for the implementer.
 
 Do as follows:
-- Read .windsurf/rules/short-concise-methods.md
+- Read `.windsurf/rules/do-write-concise-methods.md`
 - Read .windsurf/rules/keep-docstrings-consistent.md
 - Create class and method/function stubs and document them
 - Include full docstrings, return types (eg "-> list[str]", and sample return values (per global rules)
