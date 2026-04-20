@@ -5,12 +5,11 @@ description: In the beginning of a new conversation with the user. When user ask
 
 # Rule: Plan Before Doing
 
-All work starts with planning:
-- Read the feature or spec in full.
-- Think about packages we will bring in - consult user which one to use if there is more than one serving the purpose. 
-- Don't forget that we need to update requirements.txt if we adding packages
-- Assess the current codebase - modles, views, utils, etc. Write down what is implemented, what needs to change, what needs to be added.
-- When reviewing the codebase - do not assume the method exists simply because there is a signature and a docstring - verify if its really there, you may find just a "TODO:" or "raise NotImplementedError"
-- Scan the docs/architecture folder - note any inconsistencies we have between architecture docs and the implementation you scanned. Ask user to resolve them.
-- Create a written step-by-step plan: models, APIs, services, views, and tests (ABSOLUTELY DONT FORGET TESTS), styles, components - everything.
-- Review and get plan approval from the user before coding.
+1. Read the feature or spec in full.
+2. If you need new packages, pick one path with the user when multiple fit; update `requirements.txt` when adding dependencies.
+3. Assess the codebase: what exists, what must change, what must be added. Do not trust signature + docstring alone—open the body; you may find `TODO` or `NotImplementedError`.
+4. Scan `docs/architecture/`; note doc vs code drift and ask the user to resolve.
+5. Write a step-by-step plan (models, APIs, services, views, **tests**, templates, styles).
+6. **Show the plan and get approval or refinements before coding.**
+7. **After each step:** update the plan, show where you stand, state the next step, then implement.
+8. When reality diverges (e.g. missing API you assumed), revise the plan and repeat from step 6.

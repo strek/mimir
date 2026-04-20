@@ -3,10 +3,11 @@ trigger: model_decision
 description: When implementing a method or property - add extensive logging level.
 ---
 
-Every service call or controller action must log to `app.log` at INFO level.
-If logging is not yet configured - configure it. `app.log` is wiped on every restart for clean diagnosis.
+Every service call or controller action must log to `app.log` at **INFO**. Configure logging if missing; `app.log` is cleared on restart for clean diagnosis.
 
-## Logging Setup Pattern
+**Ask yourself:** Where did it break? Why? What data and decisions led here?
+
+## Logging setup
 
 ```python
 import logging
@@ -15,128 +16,72 @@ from pprint import pformat
 from tabulate import tabulate
 
 logger = logging.getLogger(__name__)
-buffer = io.StringIO()  # to collect structured info about data
+buffer = io.StringIO()  # structured dumps
 ```
 
-## Core Logging Principles
+**Buffers:** use `StringIO`; log `buffer.getvalue()`, then `truncate(0)` (and `seek(0)` if reusing). **Summaries:** include shape/types, `head`/`tail`/`describe`, null counts where useful.
 
-When designing log messages, always ask:
-- What information will I need to precisely pinpoint where the error is occurring?
-- What context will I need in the logs to understand why it happened?
-- What data transformations or validations occurred?
-- Which decisions led to the current point?
+## Patterns (examples)
 
-## Required Logging Patterns
+**1. Entry**
 
-### 1. Method Entry with Context
 ```python
 def method_name(self, param1, param2):
-    logger.info(f'Starting {method_name} with param1={param1}, param2 shape: {param2.shape if hasattr(param2, "shape") else type(param2)}')
+    logger.info(
+        f'Starting {method_name} param1={param1} param2_shape={getattr(param2, "shape", type(param2))}'
+    )
 ```
 
-### 2. Data Structure Logging with Buffers
+**2. Structures**
+
 ```python
-# For DataFrames and complex structures
 df.info(buf=buffer)
-logger.info(f'Here is what I got for {dataset_name}: \n{buffer.getvalue()}')
+logger.info(f'{dataset_name}:\n{buffer.getvalue()}')
 buffer.truncate(0)
-
-# For configuration objects
-logger.info(f'Configuration loaded: \n{pformat(config_dict)}')
-
-# For tabular data summaries
-logger.info(f'Data preview: \n{tabulate(df.head(), headers=df.columns.tolist())}')
+logger.info(f'Config:\n{pformat(config_dict)}')
+logger.info(f'Preview:\n{tabulate(df.head(), headers=df.columns.tolist())}')
 ```
 
-### 3. Conditional Logic Documentation
+**3. Branches**
+
 ```python
 if condition:
-    logger.info(f'Column {column_name} present in df; attempting to process...')
-    # processing logic
+    logger.info(f'Column {column_name} present; processing...')
 else:
-    logger.warning(f'Column {column_name} missing; using default value: {default}')
+    logger.warning(f'Column {column_name} missing; default={default}')
 ```
 
-### 4. Data Validation and Transformation Results
+**4. Validation / transforms**
+
 ```python
-# Before transformation
-logger.debug(f'Input data types: {df.dtypes.to_dict()}')
-
-# After transformation
-detected_objects = df.dtypes == 'object'
-if detected_objects.any():
-    logger.warning(f'Object types still present in columns: {detected_objects[detected_objects].index.tolist()}')
-else:
-    logger.debug('All columns successfully converted to appropriate types')
-
-# Statistical summaries
-logger.info(f'Processing results for {operation_name}: \n{result.describe()}')
+logger.debug(f'Input dtypes: {df.dtypes.to_dict()}')
+# after transform
+logger.info(f'{operation_name}:\n{result.describe()}')
 ```
 
-### 5. Error Context and Recovery
+**5. Errors**
+
 ```python
 try:
-    # operation
-    logger.info(f'Successfully completed {operation_name}')
+    logger.info(f'Completed {operation_name}')
 except Exception as e:
-    logger.error(f'Failed {operation_name} with error: {e}. Context: param1={param1}, data_shape={data.shape}')
-    # recovery logic
-    logger.info(f'Attempting recovery with fallback strategy')
+    logger.error(f'{operation_name} failed: {e} param1={param1} data_shape={getattr(data, "shape", None)}')
+    logger.info('Attempting recovery...')
 ```
 
-## Minimum Logging Requirements
+## Minimum on each major step
 
-At minimum, our logging shall include:
-- **Method entry**: Operation name, key parameters, data shapes/types
-- **Configuration**: Setup decisions, rule books, parameters used
-- **Data validation**: Input validation results, type conversions input and output, missing data handling warnings and errors
-- **Processing steps**: Each major transformation with before/after summaries
-- **Conditional logic**: Why certain paths were taken, what conditions triggered decisions
-- **Results**: Statistical summaries, output shapes, success/failure indicators
-- **Error context**: Full parameter context, data state, recovery attempts
+Method entry (name, key params, shapes/types), config used, validation results, processing steps (before/after where it matters), branch rationale, results, error context.
 
-## Log Level Guidelines
+## Levels
 
-- **DEBUG**: Detailed flow control, type checking, internal state
-- **INFO**: Method entry/exit, configuration, major processing steps, results
-- **WARNING**: Concerning but recoverable conditions, substitutions, fallback usage, data quality issues
-- **ERROR**: Failures requiring attention, unrecoverable conditions
+- **DEBUG:** flow, dtypes, internal state; sample data (`head`/`tail`/`describe`) when feasible.
+- **INFO:** entry/exit, config, main steps, outcomes.
+- **WARNING:** recoverable issues, fallbacks, data quality.
+- **ERROR:** failures needing attention.
 
-## Buffer Management
+## INFO line must answer (when relevant)
 
-When using StringIO buffers for structured logging:
-```python
-buffer = io.StringIO()
-# ... collect data in buffer
-logger.info(f'Structured data: \n{buffer.getvalue()}')
-buffer.truncate(0)  # Clear for reuse
-buffer.seek(0)      # Reset position if needed
-```
+Who acted, what changed, why, where (class/method/line if possible), inputs/ids, operation name, error if any, context (user, env, txn). Optional: next debug step.
 
-## Data Summary Patterns
-
-For complex data structures, always include:
-- Shape/size information
-- Data type summaries
-- Statistical descriptions for numeric data
-- Sample data (head/tail) for inspection
-- Null/missing value counts
-
-
-## On the INFO level, always include:
-
-- Who triggered the action (user or agent)
-- What the action did (inputs, affected models)
-- Why the action occurred (based on intent, rule, or logic)
-- The exact location (class, method/function, line if possible)
-- Key input parameters or identifiers relevant to the operation
-- The specific operation or action being attempted
-- The error or unexpected condition encountered
-- Relevant context or state (e.g., user ID, transaction ID, environment)
-- (Optional) Next steps or hints if possible on how to investigate further
-
-Design each log message so that if something fails, you can find the source and root cause without guessing or needing to reproduce the problem.
-
-## On the DEBUG level, always include:
-
-- The data we are operating on as real values, when feasible (we cannot show the entire dataframe, of course, but lets do head() and  tail() and describe())
+Design messages so you can find root cause without reproducing blindly.
