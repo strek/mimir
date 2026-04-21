@@ -81,7 +81,46 @@ class TestPlaybookViewWorkflowsTab:
         content = response.content.decode('utf-8')
         assert 'id="workflows-tab"' in content
         assert 'data-testid="tab-workflows"' in content
-    
+
+    def test_workflows_tab_shows_count_badge(self, playbook_with_workflows):
+        """Workflows tab displays a count badge (parity with Phases/Agents tabs)."""
+        import re
+        client = Client()
+        user = playbook_with_workflows['user']
+        playbook = playbook_with_workflows['playbook']
+
+        client.force_login(user)
+        response = client.get(reverse('playbook_detail', kwargs={'pk': playbook.pk}))
+
+        content = response.content.decode('utf-8')
+        match = re.search(
+            r'<button[^>]*data-testid="tab-workflows"[^>]*>.*?</button>',
+            content, re.DOTALL,
+        )
+        assert match is not None, "Workflows tab button not found"
+        tab_html = match.group(0)
+        assert 'badge' in tab_html, f"Workflows tab missing count badge: {tab_html}"
+        assert '>3<' in tab_html, f"Workflows tab badge should show count of 3: {tab_html}"
+
+    def test_workflows_tab_hides_count_badge_when_empty(self, playbook_no_workflows):
+        """Workflows tab omits the badge when there are no workflows."""
+        import re
+        client = Client()
+        user = playbook_no_workflows['user']
+        playbook = playbook_no_workflows['playbook']
+
+        client.force_login(user)
+        response = client.get(reverse('playbook_detail', kwargs={'pk': playbook.pk}))
+
+        content = response.content.decode('utf-8')
+        match = re.search(
+            r'<button[^>]*data-testid="tab-workflows"[^>]*>.*?</button>',
+            content, re.DOTALL,
+        )
+        assert match is not None
+        tab_html = match.group(0)
+        assert 'badge' not in tab_html, f"Workflows tab should hide badge when empty: {tab_html}"
+
     def test_workflows_tab_content_area_exists(self, playbook_with_workflows):
         """Workflows tab content area is present."""
         client = Client()

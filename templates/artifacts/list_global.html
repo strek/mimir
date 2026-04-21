@@ -8,7 +8,7 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2><i class="fa-solid fa-file-lines me-2"></i>Artifacts</h2>
+            <h2><i class="fa-solid fa-gift me-2"></i>Artifacts</h2>
             <p class="text-muted">Deliverables and outputs produced by activities across all playbooks</p>
         </div>
     </div>
@@ -61,7 +61,7 @@
                     {% for artifact in artifacts %}
                     <tr data-testid="artifact-row-{{ artifact.id }}">
                         <td>
-                            <i class="fa-solid fa-file-lines text-primary me-2"></i>
+                            <i class="fa-solid fa-gift text-primary me-2"></i>
                             <strong>{{ artifact.name }}</strong>
                             {% if artifact.is_required %}
                             <span class="badge bg-danger ms-2">Required</span>
@@ -94,7 +94,7 @@
     <!-- Empty state -->
     <div class="card border-0 shadow-sm" data-testid="empty-state">
         <div class="card-body text-center py-5">
-            <i class="fa-solid fa-file-lines fa-4x text-muted mb-3"></i>
+            <i class="fa-solid fa-gift fa-4x text-muted mb-3"></i>
             <h4 class="text-muted">No artifacts yet</h4>
             {% if query %}
             <p class="text-muted">No artifacts match "<strong>{{ query }}</strong>".</p>
@@ -106,7 +106,7 @@
             <a href="{% url 'playbook_list' %}"
                class="btn btn-primary mt-3"
                data-testid="go-to-playbooks-btn">
-                <i class="fa-solid fa-book me-2"></i>Go to Playbooks
+                <i class="fa-solid fa-book-sparkles me-2"></i>Go to Playbooks
             </a>
             {% endif %}
         </div>

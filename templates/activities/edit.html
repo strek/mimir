@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load markdown_filters %}
 
 {% block title %}Edit {{ activity.name }} - Activity{% endblock %}
 
@@ -195,7 +196,7 @@
                                 {% for agent in available_agents %}
                                 <option value="{{ agent.id }}" 
                                         {% if form_data.agent|stringformat:"s" == agent.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ agent.name }}{% if agent.description %} - {{ agent.description|striptags|truncatewords:10 }}{% endif %}
+                                    {{ agent.name }}{% if agent.description %} - {{ agent.description|markdown|striptags|truncatewords:10 }}{% endif %}
                                 </option>
                                 {% endfor %}
                             </select>
@@ -269,7 +270,7 @@
                                            {% if artifact.id in form_data.artifact_inputs %}checked{% endif %}
                                            data-testid="artifact-checkbox-{{ artifact.id }}">
                                     <label class="form-check-label" for="artifact_{{ artifact.id }}">
-                                        <i class="fa-solid fa-file-lines text-primary me-1"></i>
+                                        <i class="fa-solid fa-gift text-primary me-1"></i>
                                         <strong>{{ artifact.name }}</strong>
                                         <span class="badge bg-secondary ms-2">{{ artifact.type }}</span>
                                         {% if artifact.is_required %}
@@ -287,7 +288,7 @@
                             </p>
                             {% endif %}
                             <small class="form-text text-muted">
-                                <i class="fa-solid fa-file-lines"></i> Optional: Select artifacts consumed as inputs
+                                <i class="fa-solid fa-gift"></i> Optional: Select artifacts consumed as inputs
                             </small>
                         </div>
 

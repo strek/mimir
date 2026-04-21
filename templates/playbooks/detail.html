@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load markdown_filters %}
 
 {% block title %}{{ playbook.name }} - Playbook
 <script>
@@ -75,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="d-flex justify-content-between align-items-start mb-4" data-testid="playbook-header">
         <div>
             <h2>
-                <i class="fa-solid fa-book"></i> {{ playbook.name }}
+                <i class="fa-solid fa-book-sparkles"></i> {{ playbook.name }}
             </h2>
             <p class="text-muted">
                 <span class="badge bg-{{ playbook.get_status_badge_color }}" data-testid="status-badge">{{ playbook.get_status_display }}</span>
@@ -118,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
                        class="btn btn-primary"
                        data-bs-toggle="tooltip"
                        title="Submit a Process Improvement Proposal to change this playbook">
-                        <i class="fa-solid fa-file-lines"></i> Submit PIP
+                        <i class="fa-solid fa-lightbulb"></i> Submit PIP
                     </a>
                 {% else %}
                     <!-- Active/Disabled status - legacy, allow edit -->
@@ -171,7 +172,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     data-bs-target="#workflows-content" 
                     type="button" 
                     role="tab">
-                <i class="fa-solid fa-sitemap"></i> Workflows
+                <i class="fa-solid fa-diagram-project"></i> Workflows
+                {% if quick_stats.workflows %}
+                <span class="badge bg-secondary ms-1">{{ quick_stats.workflows }}</span>
+                {% endif %}
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -182,7 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     data-bs-target="#phases-content"
                     type="button"
                     role="tab">
-                <i class="fa-solid fa-layer-group"></i> Phases
+                <i class="fa-solid fa-bars-progress"></i> Phases
                 {% if quick_stats.phases %}
                 <span class="badge bg-secondary ms-1">{{ quick_stats.phases }}</span>
                 {% endif %}
@@ -254,28 +258,28 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="row text-center">
                                 <div class="col-md-4 mb-3" data-testid="stat-workflows">
                                     <div class="p-3 border rounded">
-                                        <i class="fa-solid fa-sitemap fa-2x text-primary mb-2"></i>
+                                        <i class="fa-solid fa-diagram-project fa-2x text-primary mb-2"></i>
                                         <h3 class="mb-0">{{ quick_stats.workflows }}</h3>
                                         <small class="text-muted">Workflows</small>
                                     </div>
                                 </div>
                                 <div class="col-md-4 mb-3" data-testid="stat-phases">
                                     <div class="p-3 border rounded">
-                                        <i class="fa-solid fa-layer-group fa-2x text-info mb-2"></i>
+                                        <i class="fa-solid fa-bars-progress fa-2x text-info mb-2"></i>
                                         <h3 class="mb-0">{{ quick_stats.phases }}</h3>
                                         <small class="text-muted">Phases</small>
                                     </div>
                                 </div>
                                 <div class="col-md-4 mb-3" data-testid="stat-activities">
                                     <div class="p-3 border rounded">
-                                        <i class="fa-solid fa-tasks fa-2x text-success mb-2"></i>
+                                        <i class="fa-solid fa-list-check fa-2x text-success mb-2"></i>
                                         <h3 class="mb-0">{{ quick_stats.activities }}</h3>
                                         <small class="text-muted">Activities</small>
                                     </div>
                                 </div>
                                 <div class="col-md-4 mb-3" data-testid="stat-artifacts">
                                     <div class="p-3 border rounded">
-                                        <i class="fa-solid fa-folder fa-2x text-warning mb-2"></i>
+                                        <i class="fa-solid fa-gift fa-2x text-warning mb-2"></i>
                                         <h3 class="mb-0">{{ quick_stats.artifacts }}</h3>
                                         <small class="text-muted">Artifacts</small>
                                     </div>
@@ -289,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 <div class="col-md-4 mb-3" data-testid="stat-skills">
                                     <div class="p-3 border rounded">
-                                        <i class="fa-solid fa-lightbulb fa-2x text-danger mb-2"></i>
+                                        <i class="fa-solid fa-hand-holding-magic fa-2x text-danger mb-2"></i>
                                         <h3 class="mb-0">{{ quick_stats.skills }}</h3>
                                         <small class="text-muted">Skills</small>
                                     </div>
@@ -308,14 +312,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     <!-- Workflows Section -->
                     <div class="card mb-4" data-testid="workflows-section">
                         <div class="card-header">
-                            <h5 class="mb-0"><i class="fa-solid fa-sitemap"></i> Workflows</h5>
+                            <h5 class="mb-0"><i class="fa-solid fa-diagram-project"></i> Workflows</h5>
                         </div>
                         <div class="card-body">
                             {% if workflows %}
                                 <ul class="list-group list-group-flush">
                                     {% for workflow in workflows %}
                                         <li class="list-group-item">
-                                            <i class="fa-solid fa-sitemap text-primary"></i>
+                                            <i class="fa-solid fa-diagram-project text-primary"></i>
                                             <strong>{{ workflow.name }}</strong>
                                             {% if workflow.description %}
                                                 <p class="mb-0 text-muted small">{{ workflow.description }}</p>
@@ -373,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <!-- Phases Tab -->
         <div class="tab-pane fade" id="phases-content" role="tabpanel" data-testid="phases-tab-content">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0"><i class="fa-solid fa-layer-group me-2"></i>Lifecycle Phases</h5>
+                <h5 class="mb-0"><i class="fa-solid fa-bars-progress me-2"></i>Lifecycle Phases</h5>
                 {% if can_edit %}
                 <a href="{% url 'phase_create' playbook.pk %}"
                    class="btn btn-primary btn-sm"
@@ -392,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
                    data-testid="phase-tab-row-{{ phase.pk }}">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <i class="fa-solid fa-layer-group text-primary me-2"></i>
+                            <i class="fa-solid fa-bars-progress text-primary me-2"></i>
                             <strong>{{ phase.name }}</strong>
                             <span class="badge bg-secondary ms-2">Order: {{ phase.order }}</span>
                         </div>
@@ -438,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="fa-solid fa-brain-circuit text-primary me-2"></i>
                     <strong>{{ agent.name }}</strong>
                     {% if agent.description %}
-                    <p class="mb-0 text-muted small">{{ agent.description|truncatewords:20 }}</p>
+                    <p class="mb-0 text-muted small">{{ agent.description|markdown|striptags|truncatewords:20 }}</p>
                     {% endif %}
                 </a>
                 {% endfor %}

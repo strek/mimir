@@ -20,12 +20,12 @@
             <div class="d-flex justify-content-between align-items-start mb-4">
                 <div>
                     <h1 class="display-6" data-testid="phase-title">
-                        <i class="fa-solid fa-layer-group"></i> {{ phase.name }}
+                        <i class="fa-solid fa-bars-progress"></i> {{ phase.name }}
                     </h1>
                     <p class="text-muted">
                         <span class="badge bg-info" data-testid="order-badge">Order: #{{ phase.order }}</span>
                         <span class="badge bg-secondary" data-testid="activity-count-badge">
-                            <i class="fa-solid fa-tasks"></i> {{ phase.activity_count }} activities
+                            <i class="fa-solid fa-list-check"></i> {{ phase.activity_count }} activities
                         </span>
                     </p>
                     <p class="text-muted small">
@@ -70,7 +70,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fa-solid fa-tasks"></i> Activities in this Phase
+                        <i class="fa-solid fa-list-check"></i> Activities in this Phase
                         <span class="badge bg-secondary">{{ phase.activity_count }}</span>
                     </h5>
                 </div>

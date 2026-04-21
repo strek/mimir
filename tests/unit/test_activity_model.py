@@ -286,5 +286,5 @@ class TestActivityModel:
             guidance='Test'
         )
         
-        assert activity.get_icon_class() == 'fas fa-tasks'
+        assert activity.get_icon_class() == 'fas fa-list-check'
     

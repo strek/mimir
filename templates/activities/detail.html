@@ -22,7 +22,7 @@
     <div class="d-flex justify-content-between align-items-start mb-4" data-testid="activity-header">
         <div>
             <h1 class="display-6" data-testid="activity-title">
-                <i class="fa-solid fa-tasks"></i> 
+                <i class="fa-solid fa-list-check"></i> 
                 {% if activity.reference_name %}
                 <span class="badge bg-secondary me-2">{{ activity.reference_name }}</span>
                 {% endif %}
@@ -136,7 +136,7 @@
             <!-- Workflow Card -->
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fa-solid fa-sitemap"></i> Workflow</h5>
+                    <h5 class="mb-0"><i class="fa-solid fa-diagram-project"></i> Workflow</h5>
                 </div>
                 <div class="card-body">
                     <h6 class="card-title">{{ workflow.name }}</h6>
@@ -161,7 +161,7 @@
                             </a>
                         </h6>
                         {% if activity.agent.description %}
-                        <p class="card-text small text-muted">{{ activity.agent.description|striptags|truncatewords:15 }}</p>
+                        <p class="card-text small text-muted">{{ activity.agent.description|markdown|striptags|truncatewords:15 }}</p>
                         {% endif %}
                     {% else %}
                         <p class="text-muted mb-0" data-testid="no-agent">
@@ -244,7 +244,7 @@
             <div class="card" data-testid="artifacts-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fa-solid fa-file-lines"></i> Input Artifacts
+                        <i class="fa-solid fa-gift"></i> Input Artifacts
                         {% if artifact_inputs %}
                         <span class="badge bg-secondary ms-2">{{ artifact_inputs|length }}</span>
                         {% endif %}
@@ -256,7 +256,7 @@
                             {% for artifact_input in artifact_inputs %}
                             <li class="list-group-item px-0" data-testid="artifact-input-{{ artifact_input.artifact.id }}">
                                 <a href="{% url 'artifact_detail' pk=artifact_input.artifact.id %}">
-                                    <i class="fa-solid fa-file-lines text-primary me-2"></i>
+                                    <i class="fa-solid fa-gift text-primary me-2"></i>
                                     <strong>{{ artifact_input.artifact.name }}</strong>
                                 </a>
                                 <span class="badge bg-secondary ms-2">{{ artifact_input.artifact.type }}</span>

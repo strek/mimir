@@ -267,6 +267,6 @@ class Activity(models.Model):
         
         Example:
             >>> activity.get_icon_class()
-            'fas fa-tasks'
+            'fas fa-list-check'
         """
-        return 'fas fa-tasks'
+        return 'fas fa-list-check'

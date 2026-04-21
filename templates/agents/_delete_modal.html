@@ -21,7 +21,7 @@
                 <p>You are about to delete:</p>
                 <p data-testid="agent-name-display"><strong>{{ agent.name }}</strong></p>
                 <p class="text-muted small">
-                    <i class="fa-solid fa-book"></i> {{ agent.playbook.name }}
+                    <i class="fa-solid fa-book-sparkles"></i> {{ agent.playbook.name }}
                 </p>
 
                 {% if activity_count > 0 %}
@@ -31,7 +31,7 @@
                 </div>
                 <ul class="list-unstyled ms-2" data-testid="activity-list">
                     {% for activity in activities %}
-                    <li><i class="fa-solid fa-tasks text-muted me-1"></i>{{ activity.name }}</li>
+                    <li><i class="fa-solid fa-list-check text-muted me-1"></i>{{ activity.name }}</li>
                     {% endfor %}
                     {% if activity_count > 5 %}
                     <li class="text-muted">…and {{ activity_count|add:"-5" }} more</li>

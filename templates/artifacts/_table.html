@@ -22,7 +22,7 @@
                         <td>
                             <a href="{% url 'artifact_detail' pk=artifact.pk %}" 
                                class="text-decoration-none">
-                                <i class="fa-solid fa-file"></i> {{ artifact.name }}
+                                <i class="fa-solid fa-gift"></i> {{ artifact.name }}
                             </a>
                         </td>
 
@@ -39,7 +39,7 @@
                             </a>
                             <br>
                             <small class="text-muted">
-                                <i class="fa-solid fa-folder"></i> {{ artifact.produced_by.workflow.name }}
+                                <i class="fa-solid fa-diagram-project"></i> {{ artifact.produced_by.workflow.name }}
                             </small>
                         </td>
 

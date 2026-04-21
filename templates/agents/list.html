@@ -51,9 +51,9 @@
             <table class="table table-hover mb-0" data-testid="agents-table">
                 <thead class="table-light">
                     <tr>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Playbook</th>
+                        <th style="width: 20%">Name</th>
+                        <th style="width: 55%">Description</th>
+                        <th style="width: 15%">Playbook</th>
                         <th style="width: 10%">Actions</th>
                     </tr>
                 </thead>
@@ -65,7 +65,7 @@
                             <strong>{{ agent.name }}</strong>
                         </td>
                         <td class="text-muted small">
-                            {{ agent.description|striptags|truncatewords:20 }}
+                            {{ agent.description|markdown|striptags|truncatewords:20 }}
                         </td>
                         <td class="text-muted small">{{ agent.playbook.name }}</td>
                         <td>
@@ -100,7 +100,7 @@
             <a href="{% url 'playbook_list' %}"
                class="btn btn-primary mt-3"
                data-testid="go-to-playbooks-btn">
-                <i class="fa-solid fa-book me-2"></i>Go to Playbooks
+                <i class="fa-solid fa-book-sparkles me-2"></i>Go to Playbooks
             </a>
             {% endif %}
         </div>
