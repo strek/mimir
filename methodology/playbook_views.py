@@ -221,6 +221,7 @@ def playbook_edit(request, pk):
                 'playbook': playbook,
                 'errors': {'name': 'Name is required'},
                 'form_data': request.POST,
+                'tags_string': request.POST.get('tags', ''),
             })
 
         try:
@@ -236,12 +237,14 @@ def playbook_edit(request, pk):
                 'playbook': playbook,
                 'errors': {'name': str(e.message)},
                 'form_data': request.POST,
+                'tags_string': request.POST.get('tags', ''),
             })
 
     return render(request, 'playbooks/edit.html', {
         'playbook': playbook,
         'errors': {},
         'form_data': {},
+        'tags_string': ', '.join(playbook.tags) if playbook.tags else '',
     })
 
 
