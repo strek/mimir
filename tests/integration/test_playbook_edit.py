@@ -1,8 +1,8 @@
 """
 Integration tests for Playbook EDIT operation.
 
-Covers the edit form GET/POST lifecycle, specifically ensuring
-tags_string is always present in the template context.
+Covers the edit form GET/POST lifecycle, including tags_string context
+presence, tags persistence on save, and the ValidationError render path.
 """
 
 import pytest
@@ -81,6 +81,32 @@ class TestPlaybookEdit:
         assert response.status_code == 200
         assert response.context['tags_string'] == ''
 
+    # --- POST: ValidationError path (duplicate name) ---
+
+    def test_edit_post_duplicate_name_tags_string_in_context(self):
+        """tags_string is preserved in context when POST fails due to duplicate name."""
+        self._make_playbook()
+        pb2 = Playbook.objects.create(
+            name='Other Playbook',
+            description='Another one',
+            category='development',
+            author=self.user,
+            tags=[],
+        )
+        response = self.client.post(
+            reverse('playbook_edit', kwargs={'pk': pb2.pk}),
+            {
+                'name': 'Test Playbook',
+                'description': 'Updated',
+                'category': 'development',
+                'visibility': 'private',
+                'tags': 'ux, research',
+            },
+        )
+        assert response.status_code == 200
+        assert 'tags_string' in response.context
+        assert response.context['tags_string'] == 'ux, research'
+
     # --- POST: success ---
 
     def test_edit_post_success_redirects(self):
@@ -99,3 +125,35 @@ class TestPlaybookEdit:
         assert response['Location'] == reverse('playbook_detail', kwargs={'pk': pb.pk})
         pb.refresh_from_db()
         assert pb.name == 'Updated Name'
+
+    def test_edit_post_tags_are_persisted(self):
+        """Tags submitted in POST are saved to the playbook."""
+        pb = self._make_playbook(tags=[])
+        self.client.post(
+            reverse('playbook_edit', kwargs={'pk': pb.pk}),
+            {
+                'name': 'Test Playbook',
+                'description': 'Desc',
+                'category': 'development',
+                'visibility': 'private',
+                'tags': 'ux, research',
+            },
+        )
+        pb.refresh_from_db()
+        assert pb.tags == ['ux', 'research']
+
+    def test_edit_post_tags_cleared_when_empty(self):
+        """Submitting empty tags clears the playbook tags."""
+        pb = self._make_playbook(tags=['ux', 'research'])
+        self.client.post(
+            reverse('playbook_edit', kwargs={'pk': pb.pk}),
+            {
+                'name': 'Test Playbook',
+                'description': 'Desc',
+                'category': 'development',
+                'visibility': 'private',
+                'tags': '',
+            },
+        )
+        pb.refresh_from_db()
+        assert pb.tags == []

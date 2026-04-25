@@ -12,7 +12,7 @@ User = get_user_model()
 
 
 @pytest.fixture
-def no_tags_playbook(db):
+def no_tags_playbook(transactional_db):
     """A playbook with no tags owned by a test user."""
     user = User.objects.create_user(
         username='journey_edit_user',
@@ -50,9 +50,14 @@ def test_edit_form_renders_for_playbook_with_no_tags(page, live_server, no_tags_
     expect(tags_input).to_be_visible()
     expect(tags_input).to_have_value('')
 
-    # Can add tags and save successfully
+    # Add tags and save
     tags_input.fill('ux, research')
     page.get_by_test_id('save-button').click()
 
     # Redirected to detail page after save
     expect(page).to_have_url(f'{live_server.url}/playbooks/{playbook.pk}/')
+
+    # Reopen edit form — tags are persisted and pre-filled
+    page.goto(f'{live_server.url}/playbooks/{playbook.pk}/edit/')
+    expect(page).to_have_url(f'{live_server.url}/playbooks/{playbook.pk}/edit/')
+    expect(page.get_by_test_id('playbook-tags-input')).to_have_value('ux, research')
