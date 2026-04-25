@@ -539,7 +539,6 @@ async def create_activity(workflow_id: int, name: str, guidance: str = "",
         workflow=workflow,
         name=name,
         guidance=guidance,
-        phase=phase,
         predecessor=predecessor
     )
     
