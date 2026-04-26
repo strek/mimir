@@ -197,3 +197,141 @@ Feature: FOB-WORKFLOWS-EXPORT_IMPORT-1 MCP Workflow Synchronization
     And AI suggests: "Add error handling guidance to Activity 8"
     And AI suggests: "Split Activity 12 into two smaller activities"
     And Maria can accept suggestions and import changes via MCP
+
+  # ============================================================================
+  # MCP FULL PLAYBOOK EXPORT / IMPORT
+  # Covers portability between Mimir instances — complements UI-level act-10.
+  # JSON schema is defined in act-10-import-export/import-export.feature.
+  # ============================================================================
+
+  # PRIMARY USE CASE for MCP playbook export/import:
+  # Two separate Mimir instances, no shared DB, no shared filesystem.
+  # Cascade exports on Instance A → Maria copies the file → Cascade imports on Instance B.
+  # The JSON file is the only transfer mechanism.
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-19 Cross-instance migration via MCP
+    # Golden path: export on one instance, import on another.
+    Given Cascade is connected to Mimir MCP on Instance A
+    And playbook (id=4) "GDD Playbook" exists on Instance A
+    When Cascade calls "export_playbook" with playbook_id=4 and output_path="./exports/gdd-playbook.json"
+    And Maria copies "gdd-playbook.json" to Instance B
+    And Cascade calls "import_playbook" with input_path="./exports/gdd-playbook.json" on Instance B
+    Then the playbook exists on Instance B with all workflows, activities, and entity links intact
+    And all entity IDs on Instance B differ from those on Instance A
+    And the playbook has no dependency on Instance A's database state
+    And the playbook status and version on Instance B match those from the exported JSON
+    And the playbook source is "imported" on Instance B
+    And the playbook is owned by the current MCP user on Instance B
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-20 Export full playbook to JSON file via MCP
+    Given playbook (id=4) has 5 workflows, 23 activities, 2 agents, 3 skills, 4 rules, 3 phases, 4 artifacts
+    When Cascade calls MCP tool "export_playbook" with:
+      | playbook_id | 4                             |
+      | output_path | ./exports/gdd-playbook.json   |
+    Then MCP writes a valid JSON file to "./exports/gdd-playbook.json"
+    And MCP returns success with:
+      | field      | value                        |
+      | path       | ./exports/gdd-playbook.json  |
+      | workflows  | 5                            |
+      | activities | 23                           |
+      | agents     | 2                            |
+      | skills     | 3                            |
+      | rules      | 4                            |
+      | phases     | 3                            |
+      | artifacts  | 4                            |
+    And the JSON conforms to the schema defined in act-10
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-21 Import full playbook from JSON file via MCP
+    Given a valid "gdd-playbook.json" exists at "./exports/gdd-playbook.json"
+    And no playbook with the name from that file exists on this instance
+    When Cascade calls MCP tool "import_playbook" with:
+      | input_path | ./exports/gdd-playbook.json |
+    Then MCP creates a new playbook from the JSON
+    And MCP returns success with:
+      | field       | value                   |
+      | playbook_id | (new integer ID)        |
+      | name        | (name from JSON)        |
+      | status      | (preserved from JSON)   |
+      | version     | (preserved from JSON)   |
+      | source      | imported                |
+    And the new playbook contains all entities from the source file
+    And the playbook author is the current MCP user
+
+  # ============================================================================
+  # NAME COLLISION STRATEGIES
+  # import_playbook accepts an optional conflict_strategy parameter.
+  # Matching is always by name: workflow by name, activity by (workflow_name, activity_name),
+  # agent/skill/phase/rule/artifact each by their own name or slug.
+  # Default (no parameter): raise an error if a playbook with the same name exists.
+  # conflict_strategy=replace: delete existing playbook and all its content, import fresh.
+  # conflict_strategy=add_missing: add absent entities to the existing playbook, skip existing.
+  #   If no playbook with that name exists, add_missing behaves identically to the default
+  #   happy path — the playbook is created fresh with no conflict to resolve.
+  # Note: add_missing is available in both MCP (conflict_strategy parameter) and UI
+  #   ([Add Missing] button in the conflict dialog) — behaviour is identical.
+  # ============================================================================
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-22 Import name collision with no strategy raises error
+    Given Instance B already has a playbook named "GDD Playbook"
+    When Cascade calls "import_playbook" with:
+      | input_path | ./exports/gdd-playbook.json |
+    Then MCP returns error:
+      "ConflictError: Playbook 'GDD Playbook' already exists.
+       Use conflict_strategy='replace' to overwrite or 'add_missing' to add only new entities."
+    And the existing playbook is unchanged
+    And no new playbook is created
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-23 conflict_strategy=replace drops existing and imports fresh
+    Given Instance B already has playbook "GDD Playbook" with 10 activities
+    When Cascade calls "import_playbook" with:
+      | input_path        | ./exports/gdd-playbook.json |
+      | conflict_strategy | replace                     |
+    Then the existing "GDD Playbook" and all its content are permanently deleted
+    And a new playbook "GDD Playbook" is created from the JSON
+    And the new playbook has status and version preserved from the JSON, and source "imported"
+    And the new playbook contains exactly the entities from the JSON file
+    And the deletion and creation are a single atomic operation: if the import fails, the original playbook is preserved
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-24 conflict_strategy=add_missing adds only absent entities
+    Given Instance B already has playbook "GDD Playbook" containing:
+      | entity type | name               | present |
+      | workflow    | VIS — Vision       | yes     |
+      | workflow    | DYN — Dynamics     | no      |
+      | activity    | Define aesthetic   | yes     |
+      | activity    | Write elevator pitch | no    |
+    When Cascade calls "import_playbook" with:
+      | input_path        | ./exports/gdd-playbook.json |
+      | conflict_strategy | add_missing                 |
+    Then workflow "VIS — Vision" is not modified (already present by name)
+    And activity "Define aesthetic" is not modified (already present by name)
+    And workflow "DYN — Dynamics" is created (was absent)
+    And activity "Write elevator pitch" is created (was absent)
+    And no existing entity is deleted or overwritten
+    And if the operation fails, no new entities are added and the existing playbook is unchanged
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-25 MCP round-trip preserves full structure
+    Given Cascade exports playbook (id=4) to "./exports/export-v1.json"
+    When Cascade imports "./exports/export-v1.json" with conflict_strategy="replace"
+    And Cascade exports the newly imported playbook to "./exports/export-v2.json"
+    Then "export-v1.json" and "export-v2.json" are structurally identical
+    Except for the "exported_at" timestamp
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-26 Export non-existent playbook raises error
+    When Cascade calls "export_playbook" with:
+      | playbook_id | 999                      |
+      | output_path | ./exports/missing.json   |
+    Then MCP returns error "ValueError: Playbook 999 not found"
+    And no file is written
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-27 Import from non-existent file raises error
+    When Cascade calls "import_playbook" with:
+      | input_path | ./exports/nonexistent.json |
+    Then MCP returns error "ValueError: File not found: ./exports/nonexistent.json"
+
+  Scenario: FOB-WORKFLOWS-EXPORT_IMPORT-28 Import JSON with broken predecessor reference raises error
+    Given a JSON file where activity "Create Mockup" has predecessor_ref "activity-99"
+    But no activity with ref "activity-99" exists in the file
+    When Cascade calls "import_playbook" with that file
+    Then MCP returns error "ValueError: Activity 'Create Mockup' references unknown predecessor 'activity-99'"
+    And no playbook is created
+    And no partial entities remain in the database
