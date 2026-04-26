@@ -19,16 +19,18 @@ Feature: FOB-MCP-ACTIVITIES-1 AI Assistant Interacts with Activities via MCP
 
   Scenario: FOB-MCP-CONFIG-ACTIVITIES-CREATE_ACTIVITY
     Given draft playbook (id=1, version=0.2) has workflow (id=1)
+    And playbook has phase (id=3, name="Planning")
     When Cascade calls MCP tool "create_activity" with:
       | workflow_id |                                       1 |
       | name        | Define Props Interface                  |
       | guidance    | Document component props and prop types |
-      | phase       | Planning                                |
+      | phase_id    |                                       3 |
     Then MCP returns success with activity:
       | id          |                      1 |
       | name        | Define Props Interface |
       | order       |                      1 |
       | workflow_id |                      1 |
+      | phase_id    |                      3 |
     And grandparent playbook version is incremented from "0.2" to "0.3"
     And activity is assigned auto-incremented order number
 

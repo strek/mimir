@@ -13,6 +13,7 @@ os.environ.setdefault('DJANGO_ALLOW_ASYNC_UNSAFE', 'true')
 import logging
 from typing import Literal, Optional
 from decimal import Decimal
+from django.core.exceptions import ValidationError
 from fastmcp import FastMCP
 from asgiref.sync import sync_to_async
 
@@ -491,14 +492,14 @@ async def delete_workflow(workflow_id: int) -> dict:
 # ============================================================================
 
 async def create_activity(workflow_id: int, name: str, guidance: str = "",
-                        phase: str = None, predecessor_id: int = None) -> dict:
+                        phase_id: int = None, predecessor_id: int = None) -> dict:
     """
     Create activity in workflow (DRAFT playbook). Increments grandparent version.
-    
+
     :param workflow_id: Parent workflow ID. Example: 1
     :param name: Activity name. Example: "Design Component"
     :param guidance: Rich Markdown guidance (optional)
-    :param phase: Phase grouping (optional)
+    :param phase_id: Phase ID to assign (optional, must belong to same playbook). Example: 3
     :param predecessor_id: Predecessor activity ID (optional, must be in same workflow)
     :return: Created activity dict
     :raises PermissionError: if grandparent playbook is released
@@ -535,14 +536,19 @@ async def create_activity(workflow_id: int, name: str, guidance: str = "",
     # Call existing service
     from methodology.services.activity_service import ActivityService
     old_version = workflow.playbook.version
-    activity = await sync_to_async(ActivityService.create_activity)(
-        workflow=workflow,
-        name=name,
-        guidance=guidance,
-        phase=phase,
-        predecessor=predecessor
-    )
-    
+    try:
+        activity = await sync_to_async(ActivityService.create_activity)(
+            workflow=workflow,
+            name=name,
+            guidance=guidance,
+            phase_id=phase_id,
+            predecessor=predecessor
+        )
+    except ValidationError as e:
+        msg = e.message if hasattr(e, 'message') else str(e)
+        logger.error(f'MCP Tool: create_activity validation error: {msg}')
+        raise ValueError(msg)
+
     # Increment grandparent version
     workflow.playbook.version += Decimal('0.1')
     await sync_to_async(workflow.playbook.save)()
@@ -553,7 +559,7 @@ async def create_activity(workflow_id: int, name: str, guidance: str = "",
         'id': activity.id,
         'name': activity.name,
         'guidance': activity.guidance,
-        'phase': activity.phase,
+        'phase_id': activity.phase_id,
         'order': activity.order,
         'workflow_id': workflow.id,
         'predecessor_id': predecessor.id if predecessor else None,
@@ -798,14 +804,18 @@ async def update_activity(activity_id: int, name: str = None, guidance: str = No
     if update_data:
         from methodology.services.activity_service import ActivityService
         old_version = activity.workflow.playbook.version
-        
-        # Update activity
-        activity = await sync_to_async(ActivityService.update_activity)(activity_id, **update_data)
-        
+
+        try:
+            activity = await sync_to_async(ActivityService.update_activity)(activity_id, **update_data)
+        except ValidationError as e:
+            msg = e.message if hasattr(e, 'message') else str(e)
+            logger.error(f'MCP Tool: update_activity validation error: {msg}')
+            raise ValueError(msg)
+
         # Increment grandparent version
         activity.workflow.playbook.version += Decimal('0.1')
         await sync_to_async(activity.workflow.playbook.save)()
-        
+
         logger.info(f'MCP Tool: Updated activity, grandparent version {old_version} → {activity.workflow.playbook.version}')
     
     return {

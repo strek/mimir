@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 from django.contrib.auth import get_user_model
 from methodology.models import Playbook, Workflow, Activity, Phase, Agent, Skill, Artifact, ArtifactInput
 from mcp_integration.context import set_current_user
-from mcp_integration.tools import update_activity, get_activity
+from mcp_integration.tools import create_activity, update_activity, get_activity
 
 User = get_user_model()
 
@@ -69,6 +69,125 @@ def phase(draft_playbook):
 
 
 @pytest.mark.django_db(transaction=True)
+class TestMCPActivityCreate:
+    """Test create_activity MCP tool."""
+
+    @pytest.mark.asyncio
+    async def test_create_activity_happy_path(self, setup_user_context, workflow, draft_playbook):
+        """Create activity returns correct fields and increments playbook version."""
+        version_before = await sync_to_async(lambda: draft_playbook.version)()
+
+        result = await create_activity(workflow_id=workflow.id, name='New Activity')
+
+        assert result['name'] == 'New Activity'
+        assert result['workflow_id'] == workflow.id
+        assert result['order'] == 1
+        assert result['phase_id'] is None
+        assert 'id' in result
+
+        # Verify persisted in DB
+        activity = await sync_to_async(Activity.objects.get)(pk=result['id'])
+        assert activity.name == 'New Activity'
+
+        # Playbook version should have incremented
+        await sync_to_async(draft_playbook.refresh_from_db)()
+        assert draft_playbook.version > version_before
+
+    @pytest.mark.asyncio
+    async def test_create_activity_phase_id_persisted(self, setup_user_context, workflow, phase):
+        """phase_id is wired through to the service and persisted on the activity."""
+        result = await create_activity(
+            workflow_id=workflow.id,
+            name='Phase Activity',
+            phase_id=phase.id,
+        )
+        assert result['name'] == 'Phase Activity'
+        assert result['phase_id'] == phase.id
+
+        created = await sync_to_async(Activity.objects.get)(pk=result['id'])
+        assert created.phase_id == phase.id
+
+    @pytest.mark.asyncio
+    async def test_create_activity_with_predecessor(self, setup_user_context, workflow, activity):
+        """Predecessor wiring is persisted correctly."""
+        result = await create_activity(
+            workflow_id=workflow.id,
+            name='Follow-up Activity',
+            predecessor_id=activity.id,
+        )
+
+        assert result['name'] == 'Follow-up Activity'
+        follow_up = await sync_to_async(Activity.objects.get)(pk=result['id'])
+        assert follow_up.predecessor_id == activity.id
+
+    @pytest.mark.asyncio
+    async def test_create_activity_invalid_phase_id_raises_value_error(self, setup_user_context, workflow):
+        """Non-existent phase_id raises ValueError, not a raw Django ValidationError."""
+        with pytest.raises(ValueError, match='Phase'):
+            await create_activity(
+                workflow_id=workflow.id,
+                name='Bad Phase Activity',
+                phase_id=99999,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_activity_phase_from_different_playbook_raises_value_error(
+        self, setup_user_context, workflow, maria
+    ):
+        """phase_id from a different playbook raises ValueError."""
+        other_playbook = await sync_to_async(Playbook.objects.create)(
+            name='Other Playbook', description='', category='test',
+            status='draft', source='owned', author=maria,
+        )
+        other_phase = await sync_to_async(Phase.objects.create)(
+            name='Foreign Phase', playbook=other_playbook, order=1,
+        )
+        with pytest.raises(ValueError, match='Phase'):
+            await create_activity(
+                workflow_id=workflow.id,
+                name='Wrong Phase Activity',
+                phase_id=other_phase.id,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_activity_duplicate_name_raises_value_error(self, setup_user_context, workflow, activity):
+        """Duplicate activity name in same workflow raises ValueError."""
+        with pytest.raises(ValueError, match=activity.name):
+            await create_activity(
+                workflow_id=workflow.id,
+                name=activity.name,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_activity_released_playbook_raises_permission_error(self, setup_user_context, maria):
+        """Creating activity in a released playbook raises PermissionError."""
+        released = await sync_to_async(Playbook.objects.create)(
+            name='Released Playbook', description='', category='test',
+            status='released', source='owned', author=maria,
+        )
+        workflow = await sync_to_async(Workflow.objects.create)(
+            name='Released Workflow', description='', playbook=released, order=1,
+        )
+        with pytest.raises(PermissionError, match='released'):
+            await create_activity(workflow_id=workflow.id, name='Blocked Activity')
+
+    @pytest.mark.asyncio
+    async def test_create_activity_predecessor_in_different_workflow_raises_value_error(
+        self, setup_user_context, draft_playbook, workflow, activity
+    ):
+        """Predecessor from a different workflow raises ValueError."""
+        other_workflow = await sync_to_async(Workflow.objects.create)(
+            name='Other Workflow', description='', playbook=draft_playbook, order=2,
+        )
+        with pytest.raises(ValueError, match=str(activity.id)):
+            await create_activity(
+                workflow_id=other_workflow.id,
+                name='Cross-workflow Activity',
+                predecessor_id=activity.id,
+            )
+
+
+@pytest.mark.django_db(transaction=True)
 class TestMCPActivityUpdate:
     """Test update_activity MCP tool."""
     
@@ -90,6 +209,54 @@ class TestMCPActivityUpdate:
         # Access phase relationship using sync_to_async
         phase_obj = await sync_to_async(lambda: activity.phase)()
         assert phase_obj.name == 'Inception'
+
+    @pytest.mark.asyncio
+    async def test_update_activity_invalid_phase_id_raises_value_error(self, setup_user_context, activity):
+        """Non-existent phase_id raises ValueError, not a raw Django ValidationError."""
+        with pytest.raises(ValueError, match='Phase'):
+            await update_activity(activity_id=activity.id, phase_id=99999)
+
+    @pytest.mark.asyncio
+    async def test_update_activity_phase_from_different_playbook_raises_value_error(
+        self, setup_user_context, activity, maria
+    ):
+        """phase_id from a different playbook raises ValueError."""
+        other_playbook = await sync_to_async(Playbook.objects.create)(
+            name='Other Playbook', description='', category='test',
+            status='draft', source='owned', author=maria,
+        )
+        other_phase = await sync_to_async(Phase.objects.create)(
+            name='Foreign Phase', playbook=other_playbook, order=1,
+        )
+        with pytest.raises(ValueError, match='Phase'):
+            await update_activity(activity_id=activity.id, phase_id=other_phase.id)
+
+    @pytest.mark.asyncio
+    async def test_update_activity_duplicate_name_raises_value_error(
+        self, setup_user_context, workflow, activity
+    ):
+        """Renaming to an existing activity name in the same workflow raises ValueError."""
+        other = await sync_to_async(Activity.objects.create)(
+            name='Other Activity', workflow=workflow, order=2,
+        )
+        with pytest.raises(ValueError, match='Other Activity'):
+            await update_activity(activity_id=activity.id, name=other.name)
+
+    @pytest.mark.asyncio
+    async def test_update_activity_released_playbook_raises_permission_error(self, setup_user_context, maria):
+        """Updating activity in a released playbook raises PermissionError."""
+        released = await sync_to_async(Playbook.objects.create)(
+            name='Released Playbook', description='', category='test',
+            status='released', source='owned', author=maria,
+        )
+        wf = await sync_to_async(Workflow.objects.create)(
+            name='Released Workflow', description='', playbook=released, order=1,
+        )
+        act = await sync_to_async(Activity.objects.create)(
+            name='Locked Activity', workflow=wf, order=1,
+        )
+        with pytest.raises(PermissionError, match='released'):
+            await update_activity(activity_id=act.id, name='New Name')
 
 
 @pytest.mark.django_db(transaction=True)
