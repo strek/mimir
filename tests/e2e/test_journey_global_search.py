@@ -1,6 +1,44 @@
 """User Journey Certification Test for NAV-06 Global Search."""
 import pytest
+from django.contrib.auth import get_user_model
 from playwright.sync_api import expect
+
+from methodology.models import Activity, Playbook, Workflow
+
+User = get_user_model()
+
+
+@pytest.fixture
+def nav06_sample_data(transactional_db):
+    """Same searchable sample as tests/integration/test_global_search.py (NAV-06)."""
+    user = User.objects.create_user(
+        username='nav06_user',
+        email='nav06@example.com',
+        password='testpass123',
+    )
+    playbook = Playbook.objects.create(
+        name='Component Development Playbook',
+        description='Playbook for components',
+        category='development',
+        author=user,
+    )
+    workflow = Workflow.objects.create(
+        playbook=playbook,
+        name='Component Workflow',
+        description='Workflow for components',
+        order=1,
+    )
+    Activity.objects.create(
+        workflow=workflow,
+        name='Create Component',
+        guidance='Do component work',
+        order=1,
+    )
+    return {
+        'username': 'nav06_user',
+        'password': 'testpass123',
+        'playbook_name': 'Component Development Playbook',
+    }
 
 
 @pytest.mark.e2e
@@ -17,13 +55,10 @@ def test_complete_global_search_journey(page, live_server, nav06_sample_data):
     search_input = page.get_by_test_id('global-search-input')
     expect(search_input).to_be_visible()
     
-    # Type in search
+    # Type in search (HTMX listens for keyup, not programmatic fill alone)
     search_input.fill('Component')
-    page.wait_for_timeout(500)
-    
-    # Verify suggestions appear
-    suggestions = page.locator('#global-search-suggestions-container')
-    expect(suggestions).to_be_visible()
+    search_input.dispatch_event('keyup')
+    expect(page.get_by_test_id('global-search-suggestions')).to_be_visible(timeout=10_000)
     
     # Submit search
     search_input.press('Enter')

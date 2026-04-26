@@ -5,9 +5,35 @@ from a real browser perspective, ensuring the full stack works correctly.
 
 IMPORTANT: These tests run in SYNC mode (not async) to avoid
 pytest-asyncio conflicts with Django ORM operations.
+
+MCP integration tests use ``django_db(transaction=True)``, which flushes the DB
+between tests and removes the ``admin`` user from session ``e2e_seed`` loaddata.
+Re-seed credentials before the happy-path login so a full ``pytest tests/ tests/e2e/`` run stays green.
 """
 import pytest
+from django.contrib.auth import get_user_model
 from playwright.sync_api import Page
+
+User = get_user_model()
+
+
+@pytest.fixture
+def admin_login_user(db):
+    """Ensure admin / admin123 exists after TransactionTestCase-style integration tests."""
+    user, _ = User.objects.get_or_create(
+        username='admin',
+        defaults={
+            'email': 'admin@example.com',
+            'is_staff': True,
+            'is_superuser': True,
+        },
+    )
+    user.email = 'admin@example.com'
+    user.is_staff = True
+    user.is_superuser = True
+    user.set_password('admin123')
+    user.save()
+    return user
 
 
 @pytest.mark.e2e
@@ -15,7 +41,7 @@ from playwright.sync_api import Page
 class TestLoginE2E:
     """End-to-end tests for user login using Playwright."""
     
-    def test_login_with_valid_credentials_success(self, page: Page, live_server_url: str):
+    def test_login_with_valid_credentials_success(self, page: Page, live_server_url: str, admin_login_user):
         """
         Test E2E-AUTH-01: User can log in with valid credentials.
         
