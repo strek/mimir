@@ -8,7 +8,7 @@ import logging
 from decimal import Decimal
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
-from methodology.models import Playbook, PlaybookVersion
+from methodology.models import Playbook, PlaybookVersion, VersionSource
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +69,12 @@ class PlaybookService:
             if status in ['released', 'active']:
                 PlaybookVersion.objects.create(
                     playbook=playbook,
-                    version_number=1,
+                    version_number=Decimal('1.0'),
                     snapshot_data={'name': playbook.name, 'version': str(playbook.version)},
                     change_summary='Initial version',
+                    description='Initial version',
+                    is_major=True,
+                    source=VersionSource.RELEASE,
                     created_by=author,
                 )
             

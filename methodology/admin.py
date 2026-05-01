@@ -1,7 +1,18 @@
 """Admin configuration for methodology models."""
 
 from django.contrib import admin
-from methodology.models import Playbook, PlaybookVersion, Workflow, Activity, Artifact, ArtifactInput, Skill, Agent, Rule
+from methodology.models import (
+    Activity,
+    Agent,
+    Artifact,
+    ArtifactInput,
+    Playbook,
+    PlaybookVersion,
+    ProcessImprovementProposal,
+    Rule,
+    Skill,
+    Workflow,
+)
 
 
 @admin.register(Playbook)
@@ -16,10 +27,28 @@ class PlaybookAdmin(admin.ModelAdmin):
 @admin.register(PlaybookVersion)
 class PlaybookVersionAdmin(admin.ModelAdmin):
     """Admin configuration for PlaybookVersion model."""
-    list_display = ('playbook', 'version_number', 'created_at')
-    list_filter = ('created_at',)
-    search_fields = ('playbook__name', 'change_summary')
-    readonly_fields = ('created_at',)
+
+    list_display = (
+        "playbook",
+        "version_number",
+        "is_major",
+        "source",
+        "pip",
+        "created_at",
+    )
+    list_filter = ("is_major", "source", "created_at")
+    search_fields = ("playbook__name", "change_summary", "description")
+    readonly_fields = ("created_at",)
+    raw_id_fields = ("pip",)
+
+
+@admin.register(ProcessImprovementProposal)
+class ProcessImprovementProposalAdmin(admin.ModelAdmin):
+    list_display = ("title", "playbook", "status", "created_at")
+    list_filter = ("status",)
+    search_fields = ("title", "playbook__name")
+    readonly_fields = ("created_at",)
+    raw_id_fields = ("playbook",)
 
 
 @admin.register(Workflow)
