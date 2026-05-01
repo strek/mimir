@@ -13,3 +13,8 @@ def scenario_s01_playbook_version_model() -> None:
 def scenario_s02_playbook_version_migration() -> None:
     """FOB-PLAYBOOKS-VERSIONING-27 — int to Decimal migration."""
     raise NotImplementedError()
+
+
+def scenario_s03_playbook_release_with_description() -> None:
+    """FOB-PLAYBOOKS-VERSIONING-07 — Release + next major."""
+    raise NotImplementedError()
