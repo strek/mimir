@@ -255,6 +255,28 @@ Feature: FOB-PLAYBOOKS-VIEW_PLAYBOOK-1 View Playbook Details
       | Active   | green  |
       | Disabled | gray   |
       | Draft    | yellow |
+
+  @completed
+  Scenario: FOB-PLAYBOOKS-VIEW_PLAYBOOK-25 Quick Stats tiles are clickable drill-downs ✅ IMPLEMENTED
+    Given Maria is on the playbook detail page for "React Frontend Development"
+    And she sees the Quick Stats card with 7 tiles: Workflows, Phases, Activities, Artifacts, Agents, Skills, Rules
+    Then each tile is rendered as an anchor with a visible hover affordance
+    And each tile's link points to the playbook-scoped list URL for that entity
+    And each link uses the playbook id of "React Frontend Development"
+    # Implemented: templates/playbooks/detail.html (quick-stat-link); integration:
+    # test_playbook_view_quick_stats_clickable.py, test_playbook_view_quick_stats_icons.py
+
+  @completed
+  Scenario: FOB-PLAYBOOKS-VIEW_PLAYBOOK-26 Clicking a Quick Stats tile opens the scoped list ✅ IMPLEMENTED
+    Given Maria is on the playbook detail page for "React Frontend Development"
+    When she clicks the "Activities" tile in Quick Stats
+    Then she navigates to /playbooks/<pk>/activities/
+    And she sees only activities that belong to "React Frontend Development"
+    And the page header indicates the playbook context
+    # Repeat acceptance for: Workflows, Phases, Artifacts, Agents, Skills, Rules
+    # Implemented: same as 25 plus activity_list_for_playbook, agent_list_for_playbook,
+    # playbook-scoped skills/rules URLs, artifact_list with playbook_id
+
 # =============================================================================
 # IMPLEMENTATION STATUS (as of 2025-11-28)
 # =============================================================================
@@ -266,6 +288,8 @@ Feature: FOB-PLAYBOOKS-VIEW_PLAYBOOK-1 View Playbook Details
 # - FOB-PLAYBOOKS-VIEW_PLAYBOOK-18: Export to JSON ✅
 # - FOB-PLAYBOOKS-VIEW_PLAYBOOK-19: Duplicate playbook ✅
 # - FOB-PLAYBOOKS-VIEW_PLAYBOOK-20: Toggle status ✅
+# - FOB-PLAYBOOKS-VIEW_PLAYBOOK-25: Quick Stats clickable drill-downs ✅ (2026-04-30)
+# - FOB-PLAYBOOKS-VIEW_PLAYBOOK-26: Quick Stats → scoped entity lists ✅ (2026-04-30)
 #
 # INTEGRATION ENHANCEMENTS (Not in original spec):
 # - Workflows are clickable (link to workflow_detail)
@@ -280,6 +304,8 @@ Feature: FOB-PLAYBOOKS-VIEW_PLAYBOOK-1 View Playbook Details
 # - Playbook VIEW Phase 1: 9 tests ✅
 # - Playbook VIEW Phase 2: 5 tests ✅
 # - Workflows CRUDV: 40 tests ✅
+# - Quick Stats drill-down / playbook-scoped lists: integration ✅ (see test_playbook_view_quick_stats_clickable,
+#   test_activity_list_for_playbook, test_agent_list_for_playbook)
 #
 # MISSING TESTS:
 # ⚠️  No playbook LIST tests found!
