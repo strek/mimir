@@ -23,5 +23,6 @@ urlpatterns = [
     # Actions
     path('<int:pk>/export/', playbook_views.playbook_export, name='playbook_export'),
     path('<int:pk>/duplicate/', playbook_views.playbook_duplicate, name='playbook_duplicate'),
+    path('<int:pk>/release/', playbook_views.playbook_release, name='playbook_release'),
     path('<int:pk>/toggle-status/', playbook_views.playbook_toggle_status, name='playbook_toggle_status'),
 ]

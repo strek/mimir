@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from methodology.forms.playbook_forms import PlaybookBasicInfoForm
 from methodology.models import Playbook, Workflow
@@ -296,6 +297,39 @@ def playbook_delete(request, pk):
 
 
 # ==================== ACTIONS ====================
+
+@login_required
+@require_POST
+def playbook_release(request, pk):
+    """
+    Confirm release: draft → released next major line, or released → next major line.
+
+    POST body ``release_description`` is required.
+
+    """
+    playbook = get_object_or_404(Playbook, pk=pk)
+    description = request.POST.get("release_description", "")
+
+    try:
+        PlaybookService.release_playbook(pk, request.user, description=description)
+    except PermissionError:
+        messages.error(request, "You don't have permission to release this playbook.")
+    except ValidationError as e:
+        if getattr(e, "error_dict", None):
+            for errs in e.error_dict.values():
+                for msg in errs:
+                    messages.error(request, str(msg))
+        elif getattr(e, "messages", False):
+            for msg in e.messages:
+                messages.error(request, msg)
+        else:
+            messages.error(request, str(e.message))
+    else:
+        messages.success(request, "Playbook released.")
+
+    logger.info(f"Release POST for playbook id={pk} by {request.user.username}")
+    return redirect("playbook_detail", pk=pk)
+
 
 @login_required
 def playbook_export(request, pk):
