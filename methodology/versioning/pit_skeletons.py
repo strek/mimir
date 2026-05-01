@@ -58,3 +58,8 @@ def scenario_s10_post_revert_edit_release() -> None:
 def scenario_s11_history_listing_endpoint() -> None:
     """FOB-PLAYBOOKS-VERSIONING-12 data."""
     raise NotImplementedError()
+
+
+def scenario_s12_history_timeline_ui() -> None:
+    """FOB-PLAYBOOKS-VIEW_PLAYBOOK-08."""
+    raise NotImplementedError()
