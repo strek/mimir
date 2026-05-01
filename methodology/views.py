@@ -251,3 +251,13 @@ def global_search_suggestions(request):
             "activities": activities,
         },
     )
+
+
+def pip_list(request):
+    """
+    Placeholder for the Playbook Improvement Proposals list.
+
+    :param request: Django HTTP request.
+    :return: Rendered placeholder page until PIP list UI exists.
+    """
+    return render(request, "methodology/pip_under_construction.html")

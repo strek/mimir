@@ -32,6 +32,7 @@ urlpatterns = [
     path("dashboard/", methodology_views.dashboard, name="dashboard"),
     path("dashboard/activities/", methodology_views.dashboard_activities, name="dashboard_activities"),
     path("", methodology_views.index, name="index"),
+    path("pip/list/", methodology_views.pip_list, name="pip_list"),
     path("search/", methodology_views.global_search, name="global_search"),
     path("search/suggestions/", methodology_views.global_search_suggestions, name="global_search_suggestions"),
     path("playbooks/", include("methodology.playbook_urls")),
