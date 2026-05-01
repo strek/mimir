@@ -38,3 +38,8 @@ def scenario_s06_pip_single_aggregate_minor() -> None:
 def scenario_s07_pip_sequential_minors() -> None:
     """FOB-PLAYBOOKS-VERSIONING-23."""
     raise NotImplementedError()
+
+
+def scenario_s08_pip_manage_minor_contract() -> None:
+    """PIP-MANAGE-05 contract."""
+    raise NotImplementedError()

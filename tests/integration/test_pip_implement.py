@@ -3,6 +3,7 @@
 from methodology.versioning.pit_skeletons import (
     scenario_s06_pip_single_aggregate_minor,
     scenario_s07_pip_sequential_minors,
+    scenario_s08_pip_manage_minor_contract,
 )
 
 
@@ -12,3 +13,7 @@ def test_pip_with_n_changes_produces_single_minor_bump_skeleton():
 
 def test_sequential_pips_increment_minor_skeleton():
     scenario_s07_pip_sequential_minors()
+
+
+def test_pip_manage_05_minor_bump_contract_skeleton():
+    scenario_s08_pip_manage_minor_contract()
