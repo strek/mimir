@@ -312,3 +312,57 @@ class PlaybookService:
             next_version,
         )
         return playbook
+
+    @staticmethod
+    @transaction.atomic
+    def revert_released_playbook_to_draft(
+        playbook_id, *, actor, reason: str
+    ) -> Playbook:
+        """
+        Staff transition: ``released`` → ``draft``, keeping the current playbook version.
+
+        When no ``PlaybookVersion`` row exists yet for ``playbook.version``, inserts an
+        admin-sourced audit row (unique constraint is per ``(playbook, version_number)``).
+        """
+        text = (reason or "").strip()
+        if not text:
+            raise ValidationError("Revert reason is required.")
+
+        if not getattr(actor, "is_staff", False):
+            raise PermissionError("Only staff can revert a released playbook to draft.")
+
+        playbook = Playbook.objects.get(pk=playbook_id)
+        if playbook.status != "released":
+            raise ValidationError(
+                "Only released playbooks can be reverted to draft "
+                f"(current status: {playbook.status})."
+            )
+
+        hold_version = playbook.version
+        playbook.status = "draft"
+        playbook.save(update_fields=["status", "updated_at"])
+
+        if not PlaybookVersion.objects.filter(
+            playbook=playbook, version_number=hold_version
+        ).exists():
+            PlaybookVersion.objects.create(
+                playbook=playbook,
+                version_number=hold_version,
+                snapshot_data={
+                    "event": "admin_revert_to_draft",
+                    "version": str(hold_version),
+                    "name": playbook.name,
+                },
+                change_summary=text,
+                description=text,
+                is_major=False,
+                source=VersionSource.ADMIN,
+                created_by=actor,
+            )
+
+        logger.info(
+            "Playbook id=%s reverted released → draft at v%s",
+            playbook_id,
+            hold_version,
+        )
+        return playbook

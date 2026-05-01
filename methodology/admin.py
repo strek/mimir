@@ -1,6 +1,7 @@
 """Admin configuration for methodology models."""
 
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.core.exceptions import ValidationError
 from methodology.models import (
     Activity,
     Agent,
@@ -18,10 +19,30 @@ from methodology.models import (
 @admin.register(Playbook)
 class PlaybookAdmin(admin.ModelAdmin):
     """Admin configuration for Playbook model."""
+
     list_display = ('name', 'author', 'category', 'status', 'source', 'version', 'created_at')
     list_filter = ('status', 'category', 'source', 'visibility')
     search_fields = ('name', 'description', 'tags')
     readonly_fields = ('created_at', 'updated_at')
+    actions = ('revert_released_playbooks_to_draft',)
+
+    @admin.action(description="Revert Released → Draft (keeps numeric version)")
+    def revert_released_playbooks_to_draft(self, request, queryset):
+        from methodology.services.playbook_service import PlaybookService
+
+        for playbook in queryset:
+            try:
+                PlaybookService.revert_released_playbook_to_draft(
+                    playbook.pk,
+                    actor=request.user,
+                    reason=f"Admin revert (user id={request.user.pk}, playbook id={playbook.pk})",
+                )
+            except (ValidationError, PermissionError) as exc:
+                self.message_user(request, f"{playbook.name}: {exc}", level=messages.ERROR)
+            else:
+                self.message_user(
+                    request, f'Reverted "{playbook.name}" to draft.', level=messages.SUCCESS
+                )
 
 
 @admin.register(PlaybookVersion)
