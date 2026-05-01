@@ -48,3 +48,8 @@ def scenario_s08_pip_manage_minor_contract() -> None:
 def scenario_s09_admin_revert_draft() -> None:
     """FOB-PLAYBOOKS-VERSIONING-24."""
     raise NotImplementedError()
+
+
+def scenario_s10_post_revert_edit_release() -> None:
+    """FOB-PLAYBOOKS-VERSIONING-25."""
+    raise NotImplementedError()
