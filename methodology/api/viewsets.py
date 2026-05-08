@@ -135,6 +135,41 @@ class PlaybookViewSet(viewsets.ModelViewSet):
         
         logger.info(f'API: Deleted playbook "{playbook_name}" with {workflow_count} workflows')
         return Response({'deleted': True, 'playbook_id': pk}, status=status.HTTP_204_NO_CONTENT)
+    
+    @action(detail=True, methods=['put'], url_path='phases/reorder')
+    def reorder_phases(self, request, pk=None):
+        """
+        Reorder phases in draft playbook.
+        
+        Maps to: reorder_phases MCP tool
+        """
+        logger.info(f'API: reorder_phases called - playbook_id={pk}')
+        
+        playbook = self.get_object()
+        phase_order = request.data.get('phase_order', [])
+        
+        if not phase_order:
+            return Response(
+                {'error': 'phase_order is required', 'code': 'VALIDATION_ERROR'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Import service here to avoid circular imports
+        from methodology.services.phase_service import PhaseService
+        
+        result = PhaseService.reorder_phases(pk, phase_order)
+        
+        # Increment playbook version
+        old_version = playbook.version
+        playbook.version += Decimal('0.1')
+        playbook.save()
+        
+        logger.info(f'API: Reordered {len(phase_order)} phases, version {old_version} → {playbook.version}')
+        
+        return Response({
+            'reordered': True,
+            'count': len(phase_order)
+        })
 
 
 class WorkflowViewSet(viewsets.ModelViewSet):
@@ -142,7 +177,8 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     ViewSet for Workflow resource.
     
     Maps to MCP tools: create_workflow, list_workflows, get_workflow,
-    update_workflow, delete_workflow.
+    update_workflow, delete_workflow, export_workflow_to_local,
+    import_workflow_from_local, apply_upload_protocol, create_pip_from_protocol.
     """
     
     serializer_class = WorkflowSerializer
@@ -202,6 +238,111 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         
         response_serializer = self.get_serializer(workflow)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'])
+    def export(self, request, pk=None):
+        """
+        Export workflow to markdown files.
+        
+        Maps to: export_workflow_to_local MCP tool
+        """
+        logger.info(f'API: export_workflow_to_local called - workflow_id={pk}')
+        
+        workflow = self.get_object()
+        target_directory = request.data.get('target_directory', '.windsurf/workflows')
+        folder_name = request.data.get('folder_name')
+        
+        # Import service here to avoid circular imports
+        from methodology.services.workflow_export_service import WorkflowExportService
+        
+        result = WorkflowExportService.export_workflow(
+            workflow_id=pk,
+            target_directory=target_directory,
+            folder_name=folder_name
+        )
+        
+        return Response(result)
+    
+    @action(detail=True, methods=['post'])
+    def import_workflow(self, request, pk=None):
+        """
+        Import workflow from markdown files.
+        
+        Maps to: import_workflow_from_local MCP tool
+        """
+        logger.info(f'API: import_workflow_from_local called - workflow_id={pk}')
+        
+        workflow = self.get_object()
+        source_directory = request.data.get('source_directory')
+        auto_apply = request.data.get('auto_apply', False)
+        
+        if not source_directory:
+            return Response(
+                {'error': 'source_directory is required', 'code': 'VALIDATION_ERROR'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Import service here to avoid circular imports
+        from methodology.services.workflow_import_service import WorkflowImportService
+        
+        result = WorkflowImportService.import_workflow(
+            workflow_id=pk,
+            source_directory=source_directory,
+            auto_apply=auto_apply
+        )
+        
+        return Response(result)
+    
+    @action(detail=True, methods=['post'], url_path='apply-protocol')
+    def apply_protocol(self, request, pk=None):
+        """
+        Apply upload protocol to draft workflow.
+        
+        Maps to: apply_upload_protocol MCP tool
+        """
+        logger.info(f'API: apply_upload_protocol called - workflow_id={pk}')
+        
+        workflow = self.get_object()
+        protocol_file = request.data.get('protocol_file')
+        
+        if not protocol_file:
+            return Response(
+                {'error': 'protocol_file is required', 'code': 'VALIDATION_ERROR'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Import service here to avoid circular imports
+        from methodology.services.workflow_import_service import WorkflowImportService
+        
+        result = WorkflowImportService.apply_upload_protocol(protocol_file)
+        
+        return Response(result)
+    
+    @action(detail=True, methods=['post'], url_path='create-pip')
+    def create_pip(self, request, pk=None):
+        """
+        Create PIP from protocol for released workflow.
+        
+        Maps to: create_pip_from_protocol MCP tool
+        """
+        logger.info(f'API: create_pip_from_protocol called - workflow_id={pk}')
+        
+        workflow = self.get_object()
+        protocol_file = request.data.get('protocol_file')
+        pip_title = request.data.get('pip_title')
+        
+        if not protocol_file or not pip_title:
+            return Response(
+                {'error': 'protocol_file and pip_title are required', 'code': 'VALIDATION_ERROR'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Import service here to avoid circular imports
+        from methodology.services.pip_service import PIPService
+        
+        result = PIPService.create_pip_from_protocol(protocol_file, pip_title)
+        
+        return Response(result)
 
 
 class ActivityViewSet(viewsets.ModelViewSet):
