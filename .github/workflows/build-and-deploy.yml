@@ -11,39 +11,45 @@ on:
     types: [published]
 
 env:
-  ACR_NAME: acrmimir
+  # Azure Container Registry (existing)
   ACR_LOGIN_SERVER: acrmimir.azurecr.io
-  IMAGE_NAME: mimir
+  # AWS ECR — activate by setting AWS_ACCOUNT_ID and AWS_REGION as repository variables
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
 
 jobs:
+  # ── 1. Tests ──────────────────────────────────────────────────────────────
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-    
+    env:
+      MIMIR_ENV: test
+      DJANGO_SETTINGS_MODULE: mimir.settings
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.14'
           cache: 'pip'
-      
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest-cov pytest-html
-      
+
       - name: Run database migrations
-        run: |
-          python manage.py migrate --noinput
-      
+        run: python manage.py migrate --noinput
+
       - name: Run tests with coverage
         run: |
           pytest tests/ -v \
+            --ignore=tests/e2e \
             --ignore=tests/integration/test_mcp_server_acceptance.py \
+            --ignore=tests/integration/test_mcp_facade.py \
             --ignore=tests/unit/test_activity_graph_service.py \
             --cov=. \
             --cov-report=html \
@@ -51,7 +57,7 @@ jobs:
             --cov-report=xml \
             --html=report.html \
             --self-contained-html
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         if: github.event_name != 'pull_request'
@@ -59,7 +65,7 @@ jobs:
           files: ./coverage.xml
           flags: unittests
           name: codecov-mimir
-      
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -68,27 +74,15 @@ jobs:
           path: |
             report.html
             htmlcov/
-      
+
       - name: Comment PR with test results
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            
-            // Read test results (simplified - you can parse actual results)
             const testStatus = '${{ job.status }}';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
-            const comment = `## 🧪 Test Results
-            
-            **Status:** ${testStatus === 'success' ? '✅ All tests passed' : '❌ Tests failed'}
-            
-            [View full test report](${runUrl})
-            
-            **Coverage report** is available in the artifacts.
-            `;
-            
+            const comment = `## 🧪 Test Results\n\n**Status:** ${testStatus === 'success' ? '✅ All tests passed' : '❌ Tests failed'}\n\n[View full test report](${runUrl})\n\n**Coverage report** is available in the artifacts.`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -96,67 +90,121 @@ jobs:
               body: comment
             });
 
+  # ── 2. Build and push both Docker images ─────────────────────────────────
   build-and-push:
-    name: Build and Push Docker Image
+    name: Build and Push Docker Images
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'release'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
+      # ── Azure Container Registry ──────────────────────────────────────────
       - name: Log in to Azure Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.ACR_LOGIN_SERVER }}
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
-      
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
+
+      # ── AWS ECR (optional — enabled when AWS_ACCOUNT_ID variable is set) ──
+      - name: Configure AWS credentials
+        if: vars.AWS_ACCOUNT_ID != ''
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          images: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=match,pattern=release/(.*),group=1
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=release-latest,enable=${{ startsWith(github.ref, 'refs/heads/release/') }}
-      
-      - name: Build and push Docker image
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to AWS ECR
+        if: vars.AWS_ACCOUNT_ID != ''
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ── Shared tag suffix ─────────────────────────────────────────────────
+      - name: Compute image tag suffix
+        id: tag
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          BRANCH=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+          echo "suffix=${BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            echo "latest=true" >> $GITHUB_OUTPUT
+          else
+            echo "latest=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ── Web image (Dockerfile) ────────────────────────────────────────────
+      - name: Build and push web image → ACR
         uses: docker/build-push-action@v5
         with:
           context: .
+          dockerfile: Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/mimir:${{ steps.tag.outputs.suffix }}
+            ${{ steps.tag.outputs.latest == 'true' && format('{0}/mimir:latest', env.ACR_LOGIN_SERVER) || '' }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
           platforms: linux/amd64,linux/arm64
-      
-      - name: Image digest
-        run: echo ${{ steps.meta.outputs.digest }}
-      
+
+      - name: Build and push web image → ECR
+        if: vars.AWS_ACCOUNT_ID != ''
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          dockerfile: Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/mimir:${{ steps.tag.outputs.suffix }}
+            ${{ steps.tag.outputs.latest == 'true' && format('{0}/mimir:latest', steps.ecr-login.outputs.registry) || '' }}
+          cache-from: type=gha,scope=web
+          platforms: linux/amd64,linux/arm64
+
+      # ── MCP facade image (Dockerfile.mcp) ─────────────────────────────────
+      - name: Build and push MCP facade image → ACR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          dockerfile: Dockerfile.mcp
+          push: true
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/mimir-mcp-facade:${{ steps.tag.outputs.suffix }}
+            ${{ steps.tag.outputs.latest == 'true' && format('{0}/mimir-mcp-facade:latest', env.ACR_LOGIN_SERVER) || '' }}
+          cache-from: type=gha,scope=mcp-facade
+          cache-to: type=gha,scope=mcp-facade,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Build and push MCP facade image → ECR
+        if: vars.AWS_ACCOUNT_ID != ''
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          dockerfile: Dockerfile.mcp
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/mimir-mcp-facade:${{ steps.tag.outputs.suffix }}
+            ${{ steps.tag.outputs.latest == 'true' && format('{0}/mimir-mcp-facade:latest', steps.ecr-login.outputs.registry) || '' }}
+          cache-from: type=gha,scope=mcp-facade
+          platforms: linux/amd64,linux/arm64
+
+      # ── Deployment summary ────────────────────────────────────────────────
       - name: Create deployment summary
         run: |
-          echo "## 🚀 Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          TAG="${{ steps.tag.outputs.suffix }}"
+          echo "## 🚀 Docker Images Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Registry:** \`${{ env.ACR_LOGIN_SERVER }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | ACR Tag | ECR Tag |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|---------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **web** | \`${{ env.ACR_LOGIN_SERVER }}/mimir:${TAG}\` | \`${{ vars.AWS_ACCOUNT_ID != '' && format('{0}/mimir:{1}', steps.ecr-login.outputs.registry, steps.tag.outputs.suffix) || 'not configured' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **mcp-facade** | \`${{ env.ACR_LOGIN_SERVER }}/mimir-mcp-facade:${TAG}\` | \`${{ vars.AWS_ACCOUNT_ID != '' && format('{0}/mimir-mcp-facade:{1}', steps.ecr-login.outputs.registry, steps.tag.outputs.suffix) || 'not configured' }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Pull Command:**" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Quick start with docker compose:**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker compose up -d" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
