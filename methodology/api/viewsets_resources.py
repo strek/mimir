@@ -184,7 +184,7 @@ class ArtifactInputViewSet(viewsets.ViewSet):
         
         artifact_input.delete()
         
-        return Response({'deleted': True}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'deleted': True})
 
 
 class PhaseViewSet(viewsets.ModelViewSet):

@@ -143,7 +143,7 @@ class PlaybookViewSet(viewsets.ModelViewSet):
         PlaybookService.delete_playbook(pk)
         
         logger.info(f'API: Deleted playbook "{playbook_name}" with {workflow_count} workflows')
-        return Response({'deleted': True, 'playbook_id': pk}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'deleted': True, 'playbook_id': pk})
     
     @action(detail=True, methods=['put'], url_path='phases/reorder')
     def reorder_phases(self, request, pk=None):
@@ -258,9 +258,14 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         
         # Get playbook and verify ownership
+        # DRF stores FK relation as source key ('playbook'), fall back to raw request data
+        if hasattr(serializer.validated_data.get('playbook'), 'id'):
+            playbook_id = serializer.validated_data['playbook'].id
+        else:
+            playbook_id = request.data.get('playbook_id')
         playbook = get_object_or_404(
             Playbook,
-            id=serializer.validated_data['playbook_id'],
+            id=playbook_id,
             author=request.user
         )
         
@@ -272,12 +277,11 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Create workflow using service
+        # Create workflow using service (takes playbook object, not playbook_id)
         workflow = WorkflowService.create_workflow(
-            playbook_id=playbook.id,
+            playbook=playbook,
             name=serializer.validated_data['name'],
             description=serializer.validated_data.get('description', ''),
-            abbreviation=serializer.validated_data.get('abbreviation')
         )
         
         # Increment parent version
@@ -430,9 +434,14 @@ class ActivityViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         
         # Get workflow and verify ownership
+        # Note: DRF stores FK as source key ('workflow'), so use request.data for the raw id
+        if hasattr(serializer.validated_data.get('workflow'), 'id'):
+            workflow_id = serializer.validated_data['workflow'].id
+        else:
+            workflow_id = request.data.get('workflow_id')
         workflow = get_object_or_404(
             Workflow,
-            id=serializer.validated_data['workflow_id'],
+            id=workflow_id,
             playbook__author=request.user
         )
         
@@ -444,9 +453,9 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Create activity using service
+        # Create activity using service (takes workflow object, not workflow_id)
         activity = ActivityService.create_activity(
-            workflow_id=workflow.id,
+            workflow=workflow,
             name=serializer.validated_data['name'],
             guidance=serializer.validated_data.get('guidance', ''),
             phase_id=serializer.validated_data.get('phase_id'),
@@ -497,105 +506,67 @@ class ActivityViewSet(viewsets.ModelViewSet):
         response_serializer = self.get_serializer(activity)
         return Response(response_serializer.data)
     
-    @action(detail=True, methods=['put'])
+    @action(detail=True, methods=['put', 'delete'])
     def skill(self, request, pk=None):
         """
-        Link skill to activity.
+        Link (PUT) or unlink (DELETE) skill from activity.
         
-        Maps to: link_skill_to_activity MCP tool
+        Maps to: link_skill_to_activity / unlink_skill_from_activity MCP tools
         """
-        logger.info(f'API: link_skill_to_activity called - activity_id={pk}')
-        
         activity = self.get_object()
-        skill_id = request.data.get('skill_id')
-        
-        if not skill_id:
-            return Response(
-                {'error': 'skill_id is required', 'code': 'VALIDATION_ERROR'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Verify skill exists and is in same playbook
-        skill = get_object_or_404(Skill, id=skill_id)
-        if skill.playbook_id != activity.workflow.playbook_id:
-            return Response(
-                {'error': 'Cannot link skill from different playbook', 'code': 'CROSS_PLAYBOOK'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        activity.skill = skill
-        activity.save()
-        
-        return Response({
-            'activity_id': activity.id,
-            'skill_id': skill.id,
-            'skill_title': skill.title
-        })
+        if request.method == 'PUT':
+            logger.info(f'API: link_skill_to_activity called - activity_id={pk}')
+            skill_id = request.data.get('skill_id')
+            if not skill_id:
+                return Response(
+                    {'error': 'skill_id is required', 'code': 'VALIDATION_ERROR'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            skill = get_object_or_404(Skill, id=skill_id)
+            if skill.playbook_id != activity.workflow.playbook_id:
+                return Response(
+                    {'error': 'Cannot link skill from different playbook', 'code': 'CROSS_PLAYBOOK'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            activity.skill = skill
+            activity.save()
+            return Response({'activity_id': activity.id, 'skill_id': skill.id, 'skill_title': skill.title})
+        else:  # DELETE
+            logger.info(f'API: unlink_skill_from_activity called - activity_id={pk}')
+            activity.skill = None
+            activity.save()
+            return Response({'activity_id': activity.id, 'skill_id': None})
     
-    @action(detail=True, methods=['delete'])
-    def skill(self, request, pk=None):
-        """
-        Unlink skill from activity.
-        
-        Maps to: unlink_skill_from_activity MCP tool
-        """
-        logger.info(f'API: unlink_skill_from_activity called - activity_id={pk}')
-        
-        activity = self.get_object()
-        activity.skill = None
-        activity.save()
-        
-        return Response({'activity_id': activity.id, 'skill_id': None})
-    
-    @action(detail=True, methods=['put'])
+    @action(detail=True, methods=['put', 'delete'])
     def agent(self, request, pk=None):
         """
-        Link agent to activity.
+        Link (PUT) or unlink (DELETE) agent from activity.
         
-        Maps to: link_agent_to_activity MCP tool
+        Maps to: link_agent_to_activity / unlink_agent_from_activity MCP tools
         """
-        logger.info(f'API: link_agent_to_activity called - activity_id={pk}')
-        
         activity = self.get_object()
-        agent_id = request.data.get('agent_id')
-        
-        if not agent_id:
-            return Response(
-                {'error': 'agent_id is required', 'code': 'VALIDATION_ERROR'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Verify agent exists and is in same playbook
-        agent = get_object_or_404(Agent, id=agent_id)
-        if agent.playbook_id != activity.workflow.playbook_id:
-            return Response(
-                {'error': 'Cannot link agent from different playbook', 'code': 'CROSS_PLAYBOOK'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        activity.agent = agent
-        activity.save()
-        
-        return Response({
-            'activity_id': activity.id,
-            'agent_id': agent.id,
-            'agent_name': agent.name
-        })
-    
-    @action(detail=True, methods=['delete'])
-    def agent(self, request, pk=None):
-        """
-        Unlink agent from activity.
-        
-        Maps to: unlink_agent_from_activity MCP tool
-        """
-        logger.info(f'API: unlink_agent_from_activity called - activity_id={pk}')
-        
-        activity = self.get_object()
-        activity.agent = None
-        activity.save()
-        
-        return Response({'activity_id': activity.id, 'agent_id': None})
+        if request.method == 'PUT':
+            logger.info(f'API: link_agent_to_activity called - activity_id={pk}')
+            agent_id = request.data.get('agent_id')
+            if not agent_id:
+                return Response(
+                    {'error': 'agent_id is required', 'code': 'VALIDATION_ERROR'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            agent = get_object_or_404(Agent, id=agent_id)
+            if agent.playbook_id != activity.workflow.playbook_id:
+                return Response(
+                    {'error': 'Cannot link agent from different playbook', 'code': 'CROSS_PLAYBOOK'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            activity.agent = agent
+            activity.save()
+            return Response({'activity_id': activity.id, 'agent_id': agent.id, 'agent_name': agent.name})
+        else:  # DELETE
+            logger.info(f'API: unlink_agent_from_activity called - activity_id={pk}')
+            activity.agent = None
+            activity.save()
+            return Response({'activity_id': activity.id, 'agent_id': None})
     
     @action(detail=True, methods=['put'])
     def rules(self, request, pk=None):

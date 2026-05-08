@@ -82,6 +82,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 class SkillSerializer(serializers.ModelSerializer):
     """Serializer for Skill model."""
     
+    playbook_id = serializers.IntegerField()
     activity_count = serializers.SerializerMethodField()
     
     class Meta:
@@ -90,7 +91,7 @@ class SkillSerializer(serializers.ModelSerializer):
             'id', 'playbook_id', 'title', 'content', 'capability_domain',
             'technology_stack', 'activity_count'
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'activity_count']
     
     def get_activity_count(self, obj):
         """Get count of activities using this skill."""
@@ -100,12 +101,13 @@ class SkillSerializer(serializers.ModelSerializer):
 class AgentSerializer(serializers.ModelSerializer):
     """Serializer for Agent model."""
     
+    playbook_id = serializers.IntegerField()
     activity_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Agent
         fields = ['id', 'playbook_id', 'name', 'description', 'activity_count']
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'activity_count']
     
     def get_activity_count(self, obj):
         """Get count of activities assigned to this agent."""
@@ -115,6 +117,8 @@ class AgentSerializer(serializers.ModelSerializer):
 class ArtifactSerializer(serializers.ModelSerializer):
     """Serializer for Artifact model."""
     
+    playbook_id = serializers.IntegerField()
+    produced_by_id = serializers.IntegerField()
     consumer_count = serializers.SerializerMethodField()
     
     class Meta:
@@ -123,7 +127,7 @@ class ArtifactSerializer(serializers.ModelSerializer):
             'id', 'playbook_id', 'produced_by_id', 'name', 'description',
             'type', 'is_required', 'consumer_count'
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'consumer_count']
     
     def get_consumer_count(self, obj):
         """Get count of activities consuming this artifact."""
@@ -142,12 +146,13 @@ class ArtifactInputSerializer(serializers.ModelSerializer):
 class PhaseSerializer(serializers.ModelSerializer):
     """Serializer for Phase model."""
     
+    playbook_id = serializers.IntegerField()
     activity_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Phase
         fields = ['id', 'playbook_id', 'name', 'description', 'order', 'activity_count']
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'activity_count']
     
     def get_activity_count(self, obj):
         """Get count of activities in this phase."""
@@ -156,6 +161,8 @@ class PhaseSerializer(serializers.ModelSerializer):
 
 class RuleSerializer(serializers.ModelSerializer):
     """Serializer for Rule model."""
+    
+    playbook_id = serializers.IntegerField()
     
     class Meta:
         model = Rule
