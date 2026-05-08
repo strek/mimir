@@ -48,11 +48,20 @@ class PlaybookViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """
-        Get playbooks owned by current user.
+        Get playbooks owned by current user OR shared via groups.
         
-        Phase 4: Will add group-based filtering for shared playbooks.
+        Phase 4: Returns playbooks where user is owner OR member of shared group.
         """
-        queryset = Playbook.objects.filter(author=self.request.user)
+        from django.db.models import Q
+        
+        user = self.request.user
+        
+        # Get playbooks where:
+        # 1. User is the author, OR
+        # 2. User is in one of the shared groups
+        queryset = Playbook.objects.filter(
+            Q(author=user) | Q(shared_with_groups__in=user.groups.all())
+        ).distinct()
         
         # Filter by status if provided
         status_filter = self.request.query_params.get('status')
@@ -87,7 +96,7 @@ class PlaybookViewSet(viewsets.ModelViewSet):
         response_serializer = self.get_serializer(playbook)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
     
-    def update(self, request, pk=None):
+    def update(self, request, pk=None, partial=False):
         """
         Update draft playbook (increments version).
         
@@ -98,7 +107,7 @@ class PlaybookViewSet(viewsets.ModelViewSet):
         playbook = self.get_object()
         
         # Permission check handled by IsDraftPlaybook permission class
-        serializer = self.get_serializer(playbook, data=request.data, partial=True)
+        serializer = self.get_serializer(playbook, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         
         # Track if any changes made
@@ -169,6 +178,48 @@ class PlaybookViewSet(viewsets.ModelViewSet):
         return Response({
             'reordered': True,
             'count': len(phase_order)
+        })
+    
+    @action(detail=True, methods=['put'], url_path='share')
+    def share_with_groups(self, request, pk=None):
+        """
+        Share playbook with groups.
+        
+        Only owner can share. Replaces existing group sharing.
+        """
+        logger.info(f'API: share_with_groups called - playbook_id={pk}')
+        
+        playbook = self.get_object()
+        
+        # Only owner can share
+        if playbook.author != request.user:
+            return Response(
+                {'error': 'Only the owner can share this playbook', 'code': 'PERMISSION_DENIED'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        group_ids = request.data.get('group_ids', [])
+        
+        # Import Group model
+        from django.contrib.auth.models import Group
+        
+        # Validate all groups exist
+        groups = Group.objects.filter(id__in=group_ids)
+        if len(groups) != len(group_ids):
+            return Response(
+                {'error': 'One or more group IDs are invalid', 'code': 'VALIDATION_ERROR'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Replace shared groups
+        playbook.shared_with_groups.set(groups)
+        
+        logger.info(f'API: Playbook {pk} shared with {len(group_ids)} groups')
+        
+        return Response({
+            'playbook_id': pk,
+            'shared_with_groups': [{'id': g.id, 'name': g.name} for g in groups],
+            'count': len(groups)
         })
 
 
