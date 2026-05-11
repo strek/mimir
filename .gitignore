@@ -227,3 +227,7 @@ tests.log
 # Application logs
 app.log
 tests.log
+
+# CDK
+infra/cdk.out/
+infra/.venv/
