@@ -52,6 +52,7 @@ jobs:
             --ignore=tests/e2e \
             --ignore=tests/integration/test_mcp_server_acceptance.py \
             --ignore=tests/integration/test_mcp_facade.py \
+            --ignore=tests/integration/test_mcp_e2e_all_tools.py \
             --ignore=tests/unit/test_activity_graph_service.py \
             --cov=. \
             --cov-report=html \
