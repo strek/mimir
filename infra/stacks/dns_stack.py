@@ -55,9 +55,7 @@ class MimirDns(Stack):
         distribution = self._create_distribution(cert)
         self._create_route53_record(hosted_zone, distribution)
 
-    def _create_distribution(
-        self, cert: acm.ICertificate
-    ) -> cloudfront.Distribution:
+    def _create_distribution(self, cert: acm.ICertificate) -> cloudfront.Distribution:
         """Create the CloudFront distribution for mimir.featurefactory.io."""
         hsts_policy = cloudfront.ResponseHeadersPolicy(
             self,
@@ -81,6 +79,9 @@ class MimirDns(Stack):
                     EB_ORIGIN_HOST,
                     protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY,
                     http_port=80,
+                    # Tell Django this connection is HTTPS so SECURE_SSL_REDIRECT
+                    # doesn't loop (Django checks SECURE_PROXY_SSL_HEADER).
+                    custom_headers={"X-Forwarded-Proto": "https"},
                 ),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                 # Disable caching — Django renders dynamic pages, DRF returns live data.
