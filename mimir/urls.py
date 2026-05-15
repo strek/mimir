@@ -59,4 +59,5 @@ urlpatterns = [
     path("rules/", rule_views.rule_list_global, name="rule_list"),  # Global rules view
     path("agents/", include("methodology.agent_urls")),  # Agent views (list, create, detail)
     path("artifacts/", artifact_views.artifact_list_global, name="artifact_list_global"),  # Global artifacts view
+    path("mockups/", include("mockups.urls")),  # UI mockups (design reference — no auth required)
 ]
