@@ -2,81 +2,107 @@
 
 ## Executive Summary
 
-Mimir is a two-part system for managing and evolving software development methodologies through AI-driven continuous improvement. It consists of:
-
-1. **HOMEBASE**: Centralized methodology repository with access control for distribution
-2. **FOB (Forward Operating Base)**: Django-based desktop application providing web UI and MCP interface for methodology consumption and evolution
+Mimir is a self-contained platform for managing and evolving software development methodologies through AI-driven continuous improvement. Everything lives in the **FOB (Forward Operating Base)** — a single Django application that provides both the Web UI for humans and an MCP server for AI assistants.
 
 **Key Design Decisions**:
-- **FastMCP Integration**: Services map directly to MCP tools via `@tool` decorators - zero protocol boilerplate
-- **Repository Pattern**: Storage-agnostic architecture (SQLite for FOB, Neo4j for HOMEBASE)
-- **Read-Only MCP**: All changes via Process Improvement Proposals (PIPs) - prevents sync conflicts
-- **Shared Services**: Same business logic serves both MCP and Web UI - DRY and type-safe
-- **HTMX + Graphviz for FOB**: Server-rendered UI with minimal JS - testable with standard Django tests, no browser automation needed
+- **FastMCP as API Wrapper**: FastMCP exposes MCP tools that call Mimir's own REST API endpoints — decoupled from the service layer, authenticated via token
+- **Repository Pattern**: Storage-agnostic architecture (SQLite for current FOB)
+- **Galdr AI Review**: All PIPs are pre-assessed by Galdr before human (Admin) review — reduces review burden and provides structured reasoning
+- **Structured PIPs**: Changes are typed (ADD / ALTER / DROP) per entity, enabling automated application upon approval
+- **Shared Services Layer**: Business logic lives in `services/` and is consumed two ways: (1) by Django views + templates for the Web UI, and (2) exposed as REST API endpoints consumed by FastMCP tools wrapped with `@tool`
+- **HTMX + Graphviz for FOB**: Server-rendered UI with minimal JS — testable with standard Django tests, no browser automation needed
 
 ## System Architecture
 
 ### High-Level Components
 
 ```
-┌─────────────────────────────────────────┐
-│   HOMEBASE (Methodology Repository)     │
-│                                         │
-│   ├─ Neo4J (graph database)            │
-│   ├─ Django + HTMX (web UI)           │
-│   ├─ Eventing → Neo4j                 │
-│   ├─ Access control (Family + Level)   │
-│   └─ Methodology distribution           │
-│       (e.g., SE/Basic → LITE version)   │
-└─────────────────────────────────────────┘
-              ↓ download/sync
-┌─────────────────────────────────────────┐
-│   FOB - Forward Operating Base (Django) │
-│                                         │
-│   Process 1: MCP Server (stdio)         │
-│   ├─ python manage.py mcp_server        │
-│   ├─ Standard MCP protocol              │
-│   ├─ Read-only methodology access       │
-│   └─ Creates PIPs (proposals)           │
-│                                         │
-│   Process 2: Web Server (HTTP)          │
-│   ├─ python manage.py runserver 8000    │
-│   ├─ Django views for UI                │
-│   ├─ PIP review & approval              │
-│   └─ Methodology editing/viewing        │
-│                                         │
-│   Shared Layer:                         │
-│   ├─ SQLite database                    │
-│   ├─ Repository pattern (abstraction)   │
-│   ├─ Services (business logic)          │
-│   └─ Models (Node, Edge, Version, PIP)  │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│   FOB — Forward Operating Base (Django 5)           │
+│                                                     │
+│   Process 1: Web Server (HTTP :8000)                │
+│   ├─ python manage.py runserver 8000                │
+│   ├─ Django views + HTMX UI                         │
+│   ├─ REST API endpoints  (/api/…)                   │
+│   ├─ Django Admin (PIP review, Galdr output)        │
+│   └─ Playbook authoring, PIP management             │
+│                                                     │
+│   Process 2: MCP Server (FastMCP → REST)            │
+│   ├─ FastMCP wraps /api/… endpoints                 │
+│   ├─ Config: BASE_URL + TOKEN                       │
+│   ├─ Authenticated via Authorization: Token <token> │
+│   ├─ Playbook/workflow/activity queries             │
+│   └─ PIP submission                                 │
+│                                                     │
+│   Process 3: Galdr AI (background worker)           │
+│   ├─ Triggered on PIP submission                    │
+│   ├─ Reads full Playbook context                    │
+│   ├─ Assesses each Change (ADD/ALTER/DROP)          │
+│   └─ Writes ACCEPT/REJECT + reasoning to PIP       │
+│                                                     │
+│   Shared Layer:                                     │
+│   ├─ SQLite database                                │
+│   ├─ Repository pattern (abstraction)               │
+│   ├─ Services (business logic)                      │
+│   └─ Models (Playbook, Workflow, Activity, …, PIP)  │
+└─────────────────────────────────────────────────────┘
+         ↑ MCP calls (FastMCP)
+┌────────────────────────────┐
+│   AI Assistant (IDE)       │
+│   Cursor / Windsurf / etc. │
+└────────────────────────────┘
 ```
+
+### Platform Components (Quick Reference)
+
+**FOB Web GUI** (`http://localhost:8000`)
+Custom Django application: full UI for Playbook authoring, Workflow/Activity/Skill/Agent management, PIP creation and tracking.
+
+**Mimir MCP Server** (FastMCP)
+A container that exposes Playbook context, guidance, and PIP submission to AI assistants. Makes authenticated REST calls to `BASE_URL/api/…` — no direct DB access from the MCP layer. **Requires a live FOB at all times**: `BASE_URL` points to either a local FOB (`http://localhost:8000`) or a hosted FOB (`https://mimir.featurefactory.io`). Configuration requires `BASE_URL` and `TOKEN` (user's FOB authentication token).
+
+**Galdr AI Engine**
+Background worker that processes each submitted PIP: reads the target Playbook in full, assesses each Change for consistency with Workflow goals and entity relationships, and writes a structured recommendation (`ACCEPT` / `REJECT` / `NEEDS_CLARIFICATION` + reasoning) per Change. Output is surfaced in Django Admin for the human Admin to review.
+
+**Django Admin**
+Used by Administrators (users with Accept/Reject PIP permissions) to review Galdr's recommendations and apply final Accept/Reject decisions per Change. Accepted Changes are applied atomically to the Playbook, publishing a new version.
+
+**External Integrations**
+Work item management is handled by external 3rd-party MCP servers (GitHub MCP, Jira MCP, GitLab MCP, etc.). Mimir MCP provides playbook context; external MCPs handle work item creation and tracking.
+
+### Domain Model
+
+**Core Entities**: Playbook, Workflow, Phase (optional), Activity, Artifact, Agent, Skill, **Rule** (playbook-scoped IDE rules; M2M with Activities; exported to `rules/*.mdc`)
+
+**Phase is OPTIONAL**: Workflows MAY contain Phases for grouping Activities, but a Workflow can organize Activities without Phase grouping.
+
+**Artifact** (formerly "Deliverable"):
+- **Producer/Consumer Model**: Each artifact is produced by exactly one Activity (output) and may be consumed by multiple downstream Activities (inputs)
+- **Flow Tracking**: Artifacts create dependencies between activities — an activity may require specific artifacts as inputs before it can execute
+- Example: "API Specification" (produced by "Design API" → consumed by "Implement API", "Test API", "Document API")
+
+**PIP (Playbook Improvement Proposal)**:
+A versioned request to alter one specific Playbook, containing an ordered list of Changes. Each Change is typed:
+- `ADD` — add a new Workflow / Activity / Skill / Agent / Artifact, appended or inserted after a named sibling
+- `ALTER` — replace/update an existing entity
+- `DROP` — remove an entity (with rationale)
+
+Lifecycle: `Draft` → `Submitted` → `Processing (Galdr)` → `Reviewed` → `Accepted` / `Rejected`
 
 ## Design Principles
 
-### 1. Two-Part Architecture
-
-**HOMEBASE (Methodology Repository)**
-Tried-and-true approaches accumulating most recent skills and experiences from the boots on the ground.
-
-- Centralized repository of methodologies
-- Access control based on:
-  - **Family**: Methodology category (e.g., "Software Engineering", "UX Design")
-  - **Access Level**: Determines version tier (Basic → LITE, Standard → FULL, Premium → EXTENDED)
-- Distribution point for methodology downloads
-- Aggregates Process Improvement Proposals (PIPs) from FOBs
-- Technology: Django + HTMX, eventing → Neo4j
+### 1. FOB-Centric Architecture
 
 **FOB (Forward Operating Base)**
-This is where skills are consumed, judged practical/impractical, refined, and expanded.
+This is where Playbooks are authored, consumed, judged practical/impractical, refined, and expanded through a structured PIP process with AI-assisted review.
 
-- Single-user desktop application
-- Downloads methodologies from HOMEBASE
-- Provides two interfaces:
-  - **Web UI**: For viewing methodologies, reviewing PIPs, editing local customizations
-  - **MCP Interface**: For AI assistants to query methodology and create work plans
-- Technology: Django + SQLite + MCP (stdio)
+- Single-user (or team) Django application — all data lives locally in SQLite
+- Provides three interfaces:
+  - **Web UI**: For authoring Playbooks, creating and tracking PIPs, team management
+  - **REST API** (`/api/…`): Serves the Web UI (HTMX), the MCP server, and future integrations
+  - **MCP Interface** (FastMCP → REST): For AI assistants (Cursor, Windsurf) to query Playbooks and submit PIPs
+- **Galdr AI**: Built-in AI engine that pre-processes PIPs and provides Change-level recommendations before human Admin review
+- Technology: Django 5 + SQLite + FastMCP (REST wrapper) + Galdr (background worker)
 
 ### 2. Hybrid MCP Access: Draft CRUD + Released PIP Workflow
 
@@ -1506,13 +1532,28 @@ class PIP(models.Model):
 
 ## MCP Interface (FastMCP)
 
-**Implementation**: Mimir uses [FastMCP](https://github.com/jlowin/fastmcp) for MCP server implementation. Services map directly to MCP tools via `@tool` decorators.
+**Implementation**: Mimir uses [FastMCP](https://github.com/jlowin/fastmcp) as a wrapper around Mimir's own REST API endpoints. MCP tools make authenticated HTTP calls to `BASE_URL/api/…` rather than importing services directly — this decouples the MCP layer from the Django ORM and allows the MCP server to run as a fully independent process.
+
+**Configuration** (in Cursor / Windsurf MCP settings):
+```json
+{
+  "mimir": {
+    "command": "python",
+    "args": ["-m", "mcp_integration.server"],
+    "env": {
+      "BASE_URL": "http://localhost:8000",
+      "TOKEN": "<your-FOB-auth-token>"
+    }
+  }
+}
+```
 
 **Architecture Benefits**:
-- Zero boilerplate - FastMCP handles protocol details
-- Type-safe - Python type hints → JSON Schema automatically
-- DRY - Services used by both MCP and Web UI
-- Testable - Pure business logic, easily mocked
+- No direct DB access from MCP — all reads/writes go through validated API endpoints
+- MCP server can run in any process without Django ORM setup
+- `BASE_URL` + `TOKEN` are the only configuration required
+- Type-safe — Python type hints → JSON Schema automatically via FastMCP
+- Testable — MCP tools tested against real API responses, not mocked services
 
 ### Tool 1: query_methodology
 

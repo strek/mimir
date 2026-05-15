@@ -2,8 +2,8 @@
 
 ## Personas
 
-**Mike Chen** - Homebase Administrator  
-Senior developer at a tech community. Maintains shared playbooks for common development patterns to help the community adopt best practices.
+**Mike Chen** - FOB Administrator  
+Senior developer at a tech community. Maintains shared playbooks for common development patterns. Has the **Administrator** role in FOB, which grants Accept/Reject PIP permissions — he reviews Galdr's recommendations and applies final decisions on proposed Playbook changes.
 
 **Maria Rodriguez** - UX Consultant  
 Runs an independent UX consulting practice. Needs to organize her personal workflows, collaborate with her team, and leverage community methodologies.
@@ -14,31 +14,7 @@ Runs an independent UX consulting practice. Needs to organize her personal workf
 
 ## System Architecture Note
 
-**Homebase (HB)**: Central server with two interfaces:
-- **HB Django Admin**: System administrator functions (approvals, user management) - uses standard Django Admin interface
-- **HB Web Interface**: Public-facing registration and information pages
-
-**FOB (Forward Operating Base)**: Local containerized application with:
-- **FOB Web GUI**: Custom Django application with full UI for playbook and family management
-- **Mimir MCP Server**: Provides playbook context, guidance, and PIP suggestions to AI assistants in Windsurf
-- **FOB Database**: Local PostgreSQL with playbook graph storage
-- **HB Connection**: Optional token-based authentication to sync with Homebase
-  - Can operate standalone (local-only) or connected to one HB
-  - Django DRF token issued upon HB registration
-  - Token can be added, changed, or removed in FOB Settings
-  - **Limitation**: Only one Homebase connection supported per FOB
-
-**External Integrations**:
-- **Work Item Management**: Handled by external 3rd party MCP servers (GitHub MCP, Jira MCP, GitLab MCP, etc.)
-- **Note**: Mimir MCP provides playbook context; external MCPs handle work item creation/tracking
-
-**Domain Model Notes**:
-- **Core Entities**: Playbook, Workflow, Phase, Activity, Artifact, Role, Skill, **Rule** (playbook-scoped IDE rules; M2M with Activities; exported with workflows to `rules/*.mdc`)
-- **Phase is OPTIONAL**: Workflows MAY contain Phases for grouping Activities, but Phase is not required. A Workflow can organize Activities with or without Phase grouping.
-- **Artifact**: Formerly called "Deliverable" in some contexts. Use "Artifact" consistently for outputs produced by Activities.
-  - **Producer/Consumer Model**: Each artifact is produced by exactly one activity (output) and can be consumed by multiple downstream activities (inputs)
-  - **Flow Tracking**: Artifacts create dependencies between activities - an activity may require specific artifacts as inputs before it can execute
-  - **Examples**: API Specification (produced by "Design API" → consumed by "Implement API", "Test API", "Document API")
+See [System Architecture Overview](../architecture/SAO.md) for full component details, domain model, MCP configuration, and design principles.
 
 ---
 
@@ -77,170 +53,136 @@ Runs an independent UX consulting practice. Needs to organize her personal workf
 
 ### Act 0: System Entry & Authentication
 
-**Context**: Users need to access the system. FOB and HB have separate authentication flows.
+**Context**: Users access Mimir entirely through the FOB web application at `http://localhost:8000`. There is no separate central server — everything lives in FOB.
 
-**Background**: Mike previously registered on Homebase and received his Django DRF authentication token (`mimir_x7k9m2...`). As a system administrator, he primarily works through the Django Admin interface on HB and doesn't need a FOB instance.
-
-#### Screen: HB Login Page
-Mike navigates to Homebase login at `https://homebase.mimir.io/login`:
+#### Screen: FOB Login Page
+Any user navigates to the FOB login page:
 - Email field
 - Password field
 - "Remember me" checkbox
 - "Forgot password?" link
-- "Sign up" link (→ Registration, generates token upon email verification)
+- "Sign up" link (→ Registration, covered in Act 1)
 - "Login" button
 
-Mike enters credentials and clicks Login.
+#### Screen: FOB Dashboard (Returning User)
+After login, the user lands on the FOB dashboard (see Act 1.5 for full layout). Maria sees her recent playbooks and quick actions.
 
-#### Screen: HB Django Admin Dashboard (System Admin View)
-Mike (system admin) sees standard Django Admin interface:
-- Django Admin navigation sidebar
-- Recent actions log
-- Quick links to models:
-  - Users
-  - Families
-  - Playbooks (pending approval)
+#### Screen: FOB Admin Dashboard (Administrator View)
+Mike (FOB Administrator) logs in and additionally sees:
+- **Admin** link in the top navigation → opens Django Admin
+- In Django Admin, Mike has access to:
+  - Users and roles
+  - Teams
+  - PIPs (pending Galdr review and pending Admin decision)
   - Notifications
-- System health indicators
+- MCP server status indicator: ✓ Running
 
-**Note**: This is Django's built-in admin interface, not custom UI.
+**Note**: Django Admin is the interface for Administrator-level operations (PIP Accept/Reject). Regular users do not see the Admin link.
 
-#### Screen: FOB Login/Startup
-Maria's FOB container starts automatically with her dev environment:
-- Container initialization screen
-- FOB authentication:
-  - If first time: Setup wizard (covered in Act 1)
-  - If returning: Automatic login with stored credentials
-- Database connection check
-- MCP server status: ✓ Running
-
-#### Error Path: FOB Connection Failed
-If FOB can't reach Homebase:
-- Error modal: "Cannot connect to Homebase"
-- Options:
-  - "Retry Connection"
-  - "Work Offline" (limited features)
-  - "Check Connection Settings"
+#### Error Path: FOB Startup Failed
+If the FOB web server is unreachable:
+- Browser shows connection error
+- User restarts the FOB process: `python manage.py runserver 8000`
+- MCP server restart: configured separately via FastMCP
 
 ---
 
 ### Act 0.1: The Foundation (Mike's Setup)
 
-**Context**: Mike wants to share his React development methodology with the community.
+**Context**: Mike wants to share his React development methodology with the community. He authors the playbook directly in FOB.
 
-#### Screen: HB Admin Dashboard
-Mike logs into the Homebase admin interface. He sees the main dashboard with playbook management tools and family administration.
+#### Screen: FOB Dashboard
+Mike logs into FOB. He sees the main dashboard with his playbooks and team management tools.
 
-#### Screen: HB Create Playbook Wizard
+#### Screen: FOB Create Playbook Wizard
 Mike clicks "Create New Playbook" and enters:
 - **Name**: "React Frontend Development"
 - **Description**: "Component architecture, state management, and testing patterns"
 - **Category**: Development
+- **Status**: Draft (starts at v0.1)
 
-#### Screen: HB Playbook Editor
-Mike uses the visual editor to structure his playbook:
+#### Screen: FOB Playbook Editor
+Mike structures his playbook using the FOB editor:
+- Adds Workflows: "Setup", "Component Development", "Testing"
 - Adds Activities: "Setup Project", "Create Components", "Implement State Management"
 - Adds Artifacts: "Component Library", "State Diagram", "Test Suite"
-- Links Activities with dependencies (upstream/downstream relationships)
+- Links Activities with upstream/downstream artifact relationships
 
-#### Screen: HB Family Assignment
-Mike assigns the playbook to the "Usability" family:
-- Selects "Usability" from family dropdown
-- Sets visibility to "Public" (anyone in family can access)
-- Clicks "Publish"
+#### Screen: FOB Team Assignment
+Mike assigns the playbook to the "Usability" team:
+- Selects "Usability" from the team dropdown in playbook settings
+- Sets visibility to "Public" (anyone in the team can access)
 
-#### Screen: HB Pending Approval
-After publishing, Mike sees:
-- Status: "Pending Admin Approval"
-- Message: "Your playbook has been submitted for review by Homebase administrators"
+#### Action: Release Playbook
+Mike is satisfied with the playbook and clicks **[Release]** on the playbook detail page:
+- Confirmation modal: "Release 'React Frontend Development' as v1.0?"
+- "Once released, direct edits are locked. Changes require a PIP."
+- Mike confirms → playbook status changes to **Released v1.0**
 
-#### Django Admin: HB Playbook Approval (System Administrator)
-Sarah, the Homebase system administrator, receives a notification in Django Admin:
-- Navigates to **Django Admin → Playbooks → Pending Approvals**
-- Sees list view with pending playbooks
-- Clicks on "React Frontend Development" playbook
-- Django Admin detail view shows:
-  - Playbook structure, description, target family
-  - Author information
-  - Submission timestamp
-- Actions dropdown: "Approve", "Reject", "Request Changes"
-- Selects "Approve" and saves
-
-#### Screen: HB Playbook Activated
-Mike receives notification:
-- "Your playbook 'React Frontend Development' has been approved"
-- Status: "Active in Usability family"
-
-**Result**: The playbook is now available to all members of the Usability family.
+**Result**: The playbook is now available to all members of the Usability team as a stable v1.0 reference. Future changes require PIPs reviewed by Galdr and approved by an Administrator.
 
 ---
 
 ### Act 1: Maria's Onboarding
 
-**Context**: Maria heard about Mimir and wants to try it for her UX practice.
+**Context**: Maria heard about Mimir and wants to try it for her UX practice. She registers directly in the FOB application.
 
-#### Screen: HB Registration Page
-Maria navigates to Mimir's registration page on Homebase and fills out the form:
+#### Screen: FOB Registration Page
+Maria navigates to the FOB registration page at `http://localhost:8000/register`:
 - Email: maria@uxconsulting.com
 - Password: (creates secure password)
 - Full Name: Maria Rodriguez
 - Clicks "Register"
 
-#### Screen: HB Email Verification
-Maria receives a verification email and clicks the confirmation link. She's redirected back to Homebase.
+#### Screen: FOB Email Verification
+Maria receives a verification email from FOB and clicks the confirmation link. She's redirected back to the FOB login page.
 
-#### Screen: HB Registration Success - Authentication Token
-After email verification, Maria sees her account details page:
+#### Screen: FOB Registration Success — Authentication Token
+After email verification, Maria sees her account details page in FOB:
 - **Congratulations!** Your Mimir account is active.
 - **Your Authentication Token** (copy button):
   ```
   Token: mimir_a8f3d9e2b1c4567890abcdef12345678
   ```
-- **Important**: Save this token securely. You'll need it to connect your FOB to Homebase.
-- **Homebase URL**: `https://homebase.mimir.io`
+- **Important**: Save this token securely. You'll need it to configure the Mimir MCP server in your IDE.
 - Options:
-  - "Download FOB Setup Guide" (PDF with token and URL)
+  - "Copy Token to Clipboard"
   - "Regenerate Token" (invalidates old token)
-  - "Continue to FOB Setup"
+  - "Go to Dashboard"
 
-**Note**: This Django DRF token authenticates FOB to HB for sync operations.
+**Note**: This token authenticates the FastMCP server to the FOB REST API. The MCP server is a container that talks to FOB via `BASE_URL/api/…` — it cannot work without a reachable FOB. Set `BASE_URL` to either your **local FOB** (`http://localhost:8000`) or a **hosted FOB** (`https://mimir.featurefactory.io`).
 
-#### Screen: HB/FOB Setup Wizard
-After saving her token, Maria is guided through FOB (local workspace) setup:
-- Downloads FOB container image (Docker-based Mimir container)
-- Container includes:
-  - Django web application (FOB GUI)
-  - PostgreSQL database (local playbook graph storage)
-  - Mimir MCP server (provides playbook context to AI assistants)
-- Maria configures the container in Windsurf as a dev container
-- Configures local storage volume mount
+#### Screen: FOB MCP Configuration Guide
+FOB shows a one-time guide for configuring the MCP server in the user's IDE.
 
-#### Screen: FOB First Launch - Homebase Connection (Optional)
-FOB starts and shows connection configuration:
-- **Connect to Homebase** (Optional)
-  - Homebase URL: [https://homebase.mimir.io]
-  - Authentication Token: [paste token here]
-  - "Test Connection" button
-- **Or skip this step**:
-  - "Skip - Work Locally" button
-  - Note: "You can always add Homebase connection later in Settings. Without HB connection, you won't be able to sync playbooks from families."
+**Important**: The MCP server is a container that calls FOB's REST API — it requires a live, reachable FOB at all times. Choose one:
+- **Local FOB** — FOB running on your machine or inside your network (default)
+- **Hosted FOB** — connect to `https://mimir.featurefactory.io` (no local install needed)
 
-Maria pastes her token and clicks "Test Connection":
-- ✓ Connection successful
-- Shows her account: maria@uxconsulting.com
-- "Continue" button
+```json
+{
+  "mimir": {
+    "command": "python",
+    "args": ["-m", "mcp_integration.server"],
+    "env": {
+      "BASE_URL": "http://localhost:8000",
+      "TOKEN": "mimir_a8f3d9e2b1c4567890abcdef12345678"
+    }
+  }
+}
+```
 
-#### Screen: FOB Sync Preferences
-After connecting to Homebase:
-- Sets sync preferences (manual vs. notification-based)
-- Configures auto-sync settings
+- `BASE_URL` is pre-filled with `http://localhost:8000` (local FOB). Change to `https://mimir.featurefactory.io` if using the hosted instance.
+- [Copy Config Snippet] button
+- "Paste this into your Cursor or Windsurf MCP settings"
+- [Go to Dashboard] button
 
 #### Screen: FOB External MCP Configuration
-Maria **separately configures external MCP servers in Windsurf**:
+Maria **separately configures external MCP servers in Windsurf/Cursor**:
 - GitHub MCP for work item management
 - (Optional: Jira MCP, GitLab MCP, etc.)
 
-**Result**: Maria now has a working FOB connected to Homebase with token-based authentication.
+**Result**: Maria now has a working FOB account with her MCP server configured to talk to FOB via `BASE_URL` + `TOKEN`.
 
 ---
 
@@ -252,28 +194,32 @@ Maria **separately configures external MCP servers in Windsurf**:
 Maria's FOB web GUI (http://localhost:8000) has a consistent layout:
 
 **Top Navigation Bar** (persistent across all screens):
-- **Logo**: "Mimir FOB" (links to Dashboard)
-- **Connection Status**: 
-  - If connected to HB: Green indicator "✓ Connected to Homebase"
-  - If local only: Gray indicator "⊝ Local FOB" with tooltip "Not connected to Homebase. Sync disabled."
-- **Search**: Global search bar (playbooks, families, activities)
+- **Logo**: "Mimir" (links to Dashboard)
+- **Search**: Global search bar (playbooks, teams, activities)
 - **Navigation Menu**:
   - Dashboard
   - Playbooks (with count badge)
-  - Families (with count badge)
-  - Sync (disabled if no HB connection)
+  - Teams (with count badge)
+  - PIPs (with **status-change count pill** — see below)
   - Settings
 - **Notifications**: Bell icon with badge count (unread notifications)
 - **User Menu**: Maria Rodriguez dropdown
   - My Profile
   - Account Settings
-  - Homebase Connection (manage token)
+  - My Token (view / regenerate MCP auth token)
   - Log Out
 
 **Left Sidebar** (contextual, shown on detail pages):
 - Quick links based on current context
 - Recently viewed playbooks
 - Active playbook indicator
+
+**PIPs Tab — Count Pill Behaviour**:
+The **PIPs** nav item shows an orange count pill (e.g., `PIPs 3`) whenever there are PIPs whose status changed since the user last:
+- Visited the FOB-PIP-LIST screen, **or**
+- Called the `list_pips` MCP tool
+
+The pill counts PIPs where `status_changed_since_last_view = true`. It resets to zero (pill disappears) as soon as the list is opened or `list_pips` is called. This applies per-user — Maria's pill tracks her own PIPs; Mike's Admin view tracks all PIPs.
 
 ---
 
@@ -323,19 +269,18 @@ Maria's FOB web GUI (http://localhost:8000) has a consistent layout:
     - Icon: fa-file-import
     - Tooltip: "Import playbook from JSON file (coming soon)"
     - Disabled state with gray styling
-  - [Sync with Homebase] → Sync feature (disabled if no HB connection)
-    - Icon: fa-sync
-    - Tooltip: "Download playbooks from Homebase families" (or "Connect to Homebase first" if no connection)
-    - Disabled if no HB connection configured
+  - [Browse Teams] → FOB-TEAMS-LIST
+    - Icon: fa-users
+    - Tooltip: "Browse teams and their shared playbooks"
 
 Maria uses this dashboard to quickly resume her work and navigate to frequently accessed items.
 
 #### Screen: FOB Notification Center
 Maria clicks the bell icon (badge shows "3"):
 - Dropdown panel appears:
-  - "New user wants to join UX family" (12 min ago) [View Request]
-  - "React Frontend Development v1.2 available" (2 hours ago) [Download]
-  - "Tom joined Usability family" (1 day ago) [Dismiss]
+  - "New user wants to join UX team" (12 min ago) [View Request]
+  - "Your PIP 'Add Accessibility Audit' has been reviewed" (2 hours ago) [View PIP]
+  - "Tom joined Usability team" (1 day ago) [Dismiss]
 - "Mark all as read" button
 - "View all notifications" link → Full notification page
 
@@ -344,7 +289,7 @@ Clicking "View all notifications" opens dedicated page:
 - Tabs: "All", "Pending Actions", "Updates", "Mentions"
 - Filterable list of all notifications
 - Each notification has:
-  - Icon (family, playbook, sync, error, etc.)
+  - Icon (team, playbook, sync, error, etc.)
   - Message
   - Timestamp
   - Action buttons (context-specific)
@@ -360,15 +305,15 @@ Maria types "React" in search bar:
     - Setup React Project
     - Create React Components
     - ...
-  - **Families** (0)
+  - **Teams** (0)
 - "See all results" link → Full search results page
 
 #### Screen: FOB Search Results
 Full search page with filters:
 - **Left sidebar filters**:
-  - Type: Playbooks, Activities, Artifacts, Goals, Families
+  - Type: Playbooks, Activities, Artifacts, Goals, Teams
   - Status: Active, Disabled, Archived
-  - Source: Local, Downloaded, Owned
+  - Source: Local, Owned
 - **Results list** with relevance ranking
 - **Empty state**: "No results found" with suggestions
 
@@ -389,7 +334,6 @@ Maria clicks "Playbooks" in the main navigation. The playbooks list page appears
 - **Top Actions**:
   - [Create New Playbook] button (primary action, bold blue)
   - [Import from JSON] button
-  - [Sync with Homebase] button (if connected)
 - **Search & Filter Section**:
   - Search box: "Find playbooks..." (searches name, description, author)
   - Filters: Status (Active/Disabled), Source (Local/Downloaded/Owned), Category dropdown
@@ -406,8 +350,8 @@ Maria clicks "Playbooks" in the main navigation. The playbooks list page appears
 - **Empty State** (if no playbooks):
   - Illustration: Empty bookshelf
   - "No playbooks yet"
-  - "Create your first playbook, download from Homebase, or import from JSON"
-  - [Create Playbook] [Browse Families] [Import JSON] buttons
+  - "Create your first playbook, import from JSON, or explore team playbooks"
+  - [Create Playbook] [Browse Teams] [Import JSON] buttons
 - **Pagination**: Shows 20 per page with page controls
 
 **Example Data**:
@@ -436,8 +380,7 @@ Maria clicks [Create New Playbook]. The creation wizard opens:
   - Example: "product management, discovery, validation, user research"
 - **Visibility**: Radio buttons
   - ○ Private (only me)
-  - ○ Family (select family from dropdown)
-  - ○ Local only (not uploaded to Homebase)
+  - ○ Team (select team from dropdown)
 - [Cancel] [Next: Add Workflows →] buttons
 
 **Wizard Step 2: Add Workflows** (optional first workflow)
@@ -545,7 +488,7 @@ Maria clicks [View] on "React Frontend Development" from the list. The detail vi
   - Playbook name: "React Frontend Development" (h1)
   - Version badge: v1.0 (or v0.3 if draft)
   - Status badge: Draft (yellow) / Released (blue) / Disabled (gray)
-  - Author: Mike Chen (Usability family)
+  - Author: Mike Chen (Usability team)
   - Last modified: 2 weeks ago
 - **Top Actions**:
   - [Edit] button (if draft and owned - disabled for released with tooltip: "Released playbooks require PIP")
@@ -565,14 +508,14 @@ Maria clicks [View] on "React Frontend Development" from the list. The detail vi
      - Phases: 8 (optional, may show "N/A" if workflow doesn't use phases)
      - Activities: 24
      - Artifacts: 12
-     - Roles: 5
+     - Agents: 5
      - Skills: 24
      - Goals: 6 (note: Goal deferred to v2.1, shows "Coming soon")
    - **Metadata**:
      - Category: Development
      - Tags: react, frontend, component-architecture
      - Created: 3 months ago
-     - Source: Downloaded from Usability family
+     - Source: Downloaded from Usability team
    - **Workflows Section**:
      - List of workflows in this playbook
      - Each workflow shows: Name, Description, Activity count
@@ -627,7 +570,7 @@ Maria clicks [Edit] on her "Product Discovery Framework" draft playbook (v0.3). 
   - Category: Pre-populated dropdown (triggers version increment)
   - Tags: Pre-populated multi-select (triggers version increment)
   - Visibility: Pre-populated radio buttons
-    - Note: "Changing visibility from Family to Private will recall from family members"
+    - Note: "Changing visibility from Team to Private will remove access for team members"
 
 - **Status Section**:
   - Current Version: v0.3 (read-only, shows current version)
@@ -639,11 +582,6 @@ Maria clicks [Edit] on her "Product Discovery Framework" draft playbook (v0.3). 
   - [Edit Workflow] [Remove Workflow] buttons per workflow
   - [Add New Workflow] button
   - Note: "Removing a workflow will delete all its phases, activities, and downstream entities"
-
-- **Conflict Detection**:
-  - If playbook was modified remotely (synced from HB):
-    - Warning banner: "Remote version v1.3 available. Your local version is v1.2."
-    - [Review Changes] [Override with Local] [Discard Local Changes] options
 
 **Validation**:
 - Same validation as CREATE
@@ -690,7 +628,7 @@ Maria clicks [Delete] on an old "Test Playbook 123" she no longer needs. A confi
 - ✗ 0 Phases (if phases exist, shows count)
 - ✗ 8 Activities
 - ✗ 5 Artifacts
-- ✗ 3 Roles
+- ✗ 3 Agents
 - ✗ 8 Skills
 - ✗ All version history
 
@@ -698,8 +636,8 @@ Maria clicks [Delete] on an old "Test Playbook 123" she no longer needs. A confi
 - "This action cannot be undone"
 - If playbook has external work items linked:
   - Warning: "This playbook has 3 GitHub issues linked. Work items will remain but lose playbook context."
-- If playbook is published to family:
-  - Warning: "This playbook is shared with UX family (12 members). Family members will lose access on next sync."
+- If playbook is shared with a team:
+  - Warning: "This playbook is shared with UX team (12 members). Team members will lose access."
 
 **Confirmation**:
 - Checkbox: ☐ "I understand this will permanently delete the playbook and all related content"
@@ -718,7 +656,7 @@ Maria clicks [Delete] on an old "Test Playbook 123" she no longer needs. A confi
 - Modal closes
 - Returns to FOB-PLAYBOOKS-LIST+FIND-1
 - Deleted playbook no longer in list
-- If was published: Notification sent to Homebase for family recall
+- If was shared with a team: Team members notified of deletion
 
 **Special Cases**:
 - **Cannot Delete Downloaded Playbooks**: Modal shows:
@@ -1439,7 +1377,7 @@ Confirmation modal:
 
 ### Act 5: ACTIVITIES - Complete CRUDLF
 
-**Context**: Activities are the core work units in a methodology. Each activity represents a specific task or action to be performed. Activities have dependencies, produce artifacts, are performed by roles, and have detailed skill guides.
+**Context**: Activities are the core work units in a methodology. Each activity represents a specific task or action to be performed. Activities have dependencies, produce artifacts, are performed by agents, and have detailed skill guides.
 
 **Pattern**: Standard CRUDLF. Activities are the heart of the workflow execution.
 
@@ -1458,11 +1396,11 @@ From FOB-WORKFLOWS-VIEW_WORKFLOW-1, Maria clicks [View Activities]:
   - [Bulk Edit Dependencies]
 - **Filters**:
   - By Phase (if workflow uses phases)
-  - By assigned Role
+  - By assigned Agent
   - By status (Has Skill, Has Artifacts, etc.)
   - By dependencies (Blocked, Ready, Completed)
 - **Activities Table**:
-  - Name | Description | Phase | Role | Artifacts | Upstream | Downstream | Actions
+  - Name | Description | Phase | Agent | Artifacts | Upstream | Downstream | Actions
 - **Row Actions**:
   - [View] → FOB-ACTIVITIES-VIEW_ACTIVITY
   - [Edit] → FOB-ACTIVITIES-EDIT_ACTIVITY
@@ -1475,8 +1413,8 @@ From FOB-WORKFLOWS-VIEW_WORKFLOW-1, Maria clicks [View Activities]:
   - Click nodes to view activity details
 
 **Example Data**:
-- "Setup Component Structure" | Phase: Foundation | Role: Developer | 1 Artifact | No upstream | 2 downstream
-- "Implement Base Components" | Phase: Implementation | Role: Developer | 3 Artifacts | 1 upstream | 1 downstream
+- "Setup Component Structure" | Phase: Foundation | Agent: Cautious Developer | 1 Artifact | No upstream | 2 downstream
+- "Implement Base Components" | Phase: Implementation | Agent: Cautious Developer | 3 Artifacts | 1 upstream | 1 downstream
 
 ---
 
@@ -1535,7 +1473,7 @@ Maria views activity details:
 - **Header**: Activity name with phase badge (if applicable)
 - **Metadata**:
   - Parent workflow link
-  - Assigned role
+  - Assigned agent
   - Phase (if applicable): "Foundation" with link
   - Created/Modified dates
 - **Tabs**:
@@ -1549,7 +1487,7 @@ Maria views activity details:
    - Order number in workflow
    - **Has Dependencies**: Info badge (documentation only)
    - Created/Updated timestamps
-   - **Note**: View Artifacts, Roles, Skills in separate tabs
+   - **Note**: View Artifacts, Agents, Skills in separate tabs
 
 2. **Dependencies Tab**: (Future Enhancement)
    - **Current State**: Only shows "Has Dependencies" flag
@@ -1589,7 +1527,7 @@ Edit activity:
   - Drag-and-drop dependency editor
   - Visual validation (highlights circular dependencies in red)
 - **Move to Different Phase**: Dropdown (if workflow uses phases)
-- **Reassign Role**: Dropdown
+- **Reassign Agent**: Dropdown
 - **Artifact Management**:
   - Add/remove artifact associations
   - [Create New Artifact] inline
@@ -1597,7 +1535,7 @@ Edit activity:
 **Validation**:
 - Cannot create circular dependencies
 - Warns if removing dependencies breaks workflow logic
-- Warns if reassigning role affects other activities
+- Warns if reassigning agent affects other activities
 
 **Actions**: [Cancel] [Save Changes]
 
@@ -1633,7 +1571,7 @@ Confirmation modal:
 
 **Act 5 Summary**: Maria manages activities:
 - ✅ **LIST+FIND**: Browse and filter activities with dependency visualization
-- ✅ **CREATE**: Create activities with dependencies, roles, and artifacts
+- ✅ **CREATE**: Create activities with dependencies, agents, and artifacts
 - ✅ **VIEW**: Explore activity details, dependencies, artifacts, and skills
 - ✅ **EDIT**: Update activity details and reorganize dependencies
 - ✅ **DELETE**: Remove activities with full dependency impact warnings
@@ -1772,98 +1710,95 @@ Confirmation modal:
 
 **Terminology Note**: Always use "Artifact", never "Deliverable".
 
-**Next**: Maria defines Roles who perform activities (ACT 7).
+**Next**: Maria defines Agents who perform activities (ACT 7).
 
 ---
 
-### Act 7: ROLES - Complete CRUDLF
+### Act 7: AGENTS - Complete CRUDLF
 
-**Context**: Roles define who performs activities. A role represents a person, team, or function responsible for executing work.
+**Context**: Agents are AI assistants defined at the playbook level. Each agent represents a named AI persona (e.g., "Cautious Developer (drdobbs-v2)") with a description of its capabilities and guidelines. Agents are assigned to Activities (M2M) to indicate which AI assistant should perform or assist with that activity.
 
-**Pattern**: Standard CRUDLF. Roles are assigned to activities.
+**Pattern**: Standard CRUDLF scoped to a Playbook. Agents are assigned to Activities from the Activity detail page.
 
-#### Screen: FOB-ROLES-LIST+FIND-1
+#### Screen: FOB-AGENTS-LIST+FIND-1
 
-Maria navigates to Roles management:
+Maria clicks the **Agents** tab inside a playbook's detail page.
 
 **Layout**:
-- **Header**: "Roles" with count
-- **Scope**: All playbooks or current playbook
+- **Breadcrumb**: Playbooks > React Frontend Development > Agents
+- **Header**: "Agents in React Frontend Development" with count badge
 - **Top Actions**:
-  - [Create New Role]
-  - [Import from Template]
-- **Roles Table**:
-  - Name | Description | Activities Assigned | Playbook | Actions
+  - [Create New Agent]
+- **Agents Table**:
+  - Name | Description | Activities | Actions
 - **Row Actions**: [View] [Edit] [Delete]
+- **Filter**: Search by name; filter by "Used in Activities" / "Unused"
+- **Empty state**: "No agents yet" + [Create First Agent] button
 
 **Example Data**:
-- "Frontend Developer" | "Implements UI components and interactions" | 12 Activities | React Frontend
-- "UX Researcher" | "Conducts user research and usability testing" | 8 Activities | UX Methodology
-- "Product Owner" | "Defines requirements and prioritizes work" | 5 Activities | Product Discovery
+- "Cautious Developer (drdobbs-v2)" | "Careful, test-driven frontend implementation" | 12 Activities
+- "UX Reviewer" | "Reviews screens against usability heuristics" | 8 Activities
+- "Deployment Bot" | "Runs CI/CD checks and deployment steps" | 5 Activities
 
 ---
 
-#### Screen: FOB-ROLES-CREATE_ROLE-1
+#### Screen: FOB-AGENTS-CREATE_AGENT-1
 
-Create role:
+Create agent:
 
 **Form**:
-- **Name**: Text input
-  - Example: "DevOps Engineer"
-- **Description**: Textarea
-  - Example: "Manages infrastructure, CI/CD, and deployment pipelines"
-- **Responsibilities**: Rich text
-  - Detailed list of role responsibilities
-  - Optional but recommended
-- **Skills Required**: Tags
-  - Example: "Docker, Kubernetes, AWS, CI/CD"
-- **Assign to Activities**: Multi-select
-  - Optional: Can assign now or later
-  - Shows activities in current playbook/workflow
+- **Name**: Text input (required)
+  - Example: "Cautious Developer (drdobbs-v2)"
+  - Tip: include the model/version slug for clarity
+- **Description**: Textarea (required)
+  - Example: "Careful, test-driven frontend implementation agent. Reviews code for regressions before committing."
 
-**Actions**: [Cancel] [Create Role]
+**Actions**: [Cancel] [Create Agent]
+
+**Success**: Redirects to FOB-AGENTS-VIEW_AGENT-1 for the new agent.
 
 ---
 
-#### Screen: FOB-ROLES-VIEW_ROLE-1
+#### Screen: FOB-AGENTS-VIEW_AGENT-1
 
-View role details:
+View agent details:
 
-**Tabs**:
-1. **Overview**: Description, responsibilities, skills
-2. **Activities**: All activities assigned to this role
-   - Grouped by workflow
-   - [View Activity] links
-3. **Workload**: Visual workload analysis
-   - Number of activities
-   - Estimated effort (if activities have effort estimates)
+**Header**: Agent name, parent playbook badge, timestamps
 
----
+**Sections**:
+1. **Description**: Full agent description
+2. **Used in Activities**: All activities that reference this agent
+   - Grouped by Workflow
+   - Each entry is a clickable link → Activity detail page
 
-#### Screen: FOB-ROLES-EDIT_ROLE-1
-
-Edit role: Update all fields, reassign activities
+**Actions**: [Edit Agent] [Delete Agent]
 
 ---
 
-#### Screen: FOB-ROLES-DELETE_ROLE-1
+#### Screen: FOB-AGENTS-EDIT_AGENT-1
 
-Confirmation:
+Edit agent: Update Name and Description fields. Same form as Create.
 
-**Impact**: "12 activities will lose role assignment"
+---
+
+#### Screen: FOB-AGENTS-DELETE_AGENT-1
+
+Confirmation modal:
+
+**Impact**: "This agent is assigned to 12 activities. Deleting it will remove the assignment from all of them."
 
 **Options**:
-- [Reassign Activities to Different Role] before deleting
-- [Delete and Leave Activities Unassigned]
+- [Delete Agent] — removes agent and all activity assignments
+- [Cancel]
 
 ---
 
-**Act 7 Summary**: Maria manages roles:
-- ✅ **LIST+FIND**: Browse all roles
-- ✅ **CREATE**: Define new roles with responsibilities
-- ✅ **VIEW**: See role details and assignments
-- ✅ **EDIT**: Update role information
-- ✅ **DELETE**: Remove roles with reassignment options
+**Act 7 Summary**: Maria manages agents:
+- ✅ **LIST+FIND**: Browse all agents in a playbook, filter by usage
+- ✅ **CREATE**: Define new agent personas with name and description
+- ✅ **VIEW**: See agent details and which activities use it
+- ✅ **EDIT**: Update agent name and description
+- ✅ **DELETE**: Remove agent with clear impact warning
 
 **Next**: Maria creates detailed Skill guides for activities (ACT 8).
 
@@ -1988,7 +1923,7 @@ Skills are linked to activities through the Activity edit form:
 
 ---
 
-**🎉 Acts 2-8 Complete!** All 7 core entities (Playbooks, Workflows, Phases, Activities, Artifacts, Roles, Skills) now have full CRUDLF coverage with narrative explanations.
+**🎉 Acts 2-8 Complete!** All 7 core entities (Playbooks, Workflows, Phases, Activities, Artifacts, Agents, Skills) now have full CRUDLF coverage with narrative explanations.
 
 **Demo Playbook Available**: A Feature-Driven Development (FDD) demo playbook with 10 activities showcasing rich Markdown guidance is available via `python manage.py create_demo_fdd`. This demonstrates:
 - Mermaid diagrams (class, sequence, flow)
@@ -2002,162 +1937,252 @@ Skills are linked to activities through the Activity edit form:
 
 ### Act 9: PIPs - Playbook Improvement Proposals
 
-**Context**: As Maria uses playbooks (whether her own or downloaded from others), she discovers opportunities for improvement. PIPs (Playbook Improvement Proposals) are the mechanism for suggesting, tracking, and applying changes to playbooks.
+**Context**: As Maria uses playbooks (whether her own or those shared in a team), she discovers opportunities for improvement. A **PIP (Playbook Improvement Proposal)** is a versioned request to alter one specific Released playbook, containing an ordered list of typed **Changes**.
 
 **Key Concepts**:
-- PIPs can be created manually by users or suggested by AI
-- Local PIPs: Applied immediately to local playbook versions
-- Submitted PIPs: Sent to original playbook author for review
-- PIPs create versioned changes (e.g., v1.0 → v1.1 local)
+- A PIP targets exactly one Released playbook
+- Each PIP contains one or more **Changes**, each typed as:
+  - `ADD` — add a new Workflow / Activity / Skill / Agent / Artifact, appended at the end of its container or inserted **after a named sibling** (e.g., "insert after BPE-01")
+  - `ALTER` — replace or update an existing entity's content
+  - `DROP` — remove an existing entity (with rationale)
+- After submission, **Galdr AI** automatically reviews each Change against the playbook context and writes a recommendation
+- An **Administrator** (e.g., Mike) reviews Galdr's recommendations in **Django Admin** and makes the final Accept/Reject decision per Change
+- Accepted Changes are applied atomically → playbook publishes a new major version
+- The PIP submitter receives an **email** summarising the outcome per Change
+
+---
 
 #### Creating a PIP
 
-**Trigger**: While using "React Frontend Development" playbook (authored by Mike), Maria notices it lacks accessibility considerations.
+**Trigger**: While using "React Frontend Development" (Released v1.0, authored by Mike), Maria notices it lacks accessibility considerations.
 
-**Via AI Assistant (Windsurf/MCP)**:
+**Via AI Assistant (Cursor/MCP)**:
 
 Maria asks her AI assistant:
 ```
-> mimir: This React playbook is great, but it doesn't mention accessibility testing. 
-  I think we should add an Activity for "Accessibility Audit" after testing setup. 
+> mimir: This React playbook is great, but it doesn't mention accessibility testing.
+  I want to add an Activity "Accessibility Audit" after "Component Testing".
   Can you help me create a PIP for this?
 ```
 
 AI responds:
 ```
-I'll help you create a Playbook Improvement Proposal (PIP).
+I'll create a PIP for React Frontend Development v1.0.
 
-Proposed PIP:
-- Type: Extension (new Activity)
-- Target Playbook: React Frontend Development v1.0 by Mike Chen
-- Change: Add new Activity "Accessibility Audit"
-- Position: After "Component Testing"  
-- Description: "Ensure React components meet WCAG 2.1 AA standards"
-- Includes:
-  • Install axe-core and jest-axe
-  • Add accessibility tests to component suite
-  • Configure automated a11y checks in CI/CD
+Proposed Change:
+  #1  ADD  Activity "Accessibility Audit"
+      Insert after: "Component Testing"
+      Guidance: "Ensure React components meet WCAG 2.1 AA standards.
+                 Install axe-core and jest-axe; add a11y tests to the
+                 component suite; configure automated checks in CI/CD."
 
-Shall I create this PIP in your local FOB?
+Shall I submit this PIP?
 ```
 
-Maria confirms: `> mimir: Yes, create the PIP`
+Maria confirms: `> mimir: Yes, submit it.`
 
-#### Screen: FOB-PIP-CREATE (via MCP or GUI)
+---
 
-System creates PIP:
-- **PIP ID**: PIP-42
-- **Title**: "Add Accessibility Audit Activity"
-- **Type**: Extension
-- **Target**: React Frontend Development v1.0
-- **Author**: Maria Rodriguez
-- **Status**: Draft (local only)
-- **Changes Preview**: Shows diff-style comparison
-  - Current structure (v1.0)
-  - Proposed structure (v1.1 with new activity)
+#### Screen: FOB-PIP-CREATE
 
-**Actions Available**:
-- [Apply Locally] - Creates local v1.1
-- [Submit to Author] - Sends PIP to Mike for review
-- [Edit PIP] - Modify proposal
-- [Discard] - Delete draft
+Whether created via MCP or the FOB UI, the PIP creation form contains:
 
-#### Action: Apply PIP Locally
+- **Target Playbook**: "React Frontend Development" v1.0 (locked — must be Released)
+- **PIP Title**: "Add Accessibility Audit Activity"
+- **Summary**: Brief rationale (required)
+- **Change List** (ordered, one row per change):
 
-Maria clicks [Apply Locally]:
-- Confirmation: "This will create React Frontend Development v1.1 (local)"
-- Playbook updated immediately
-- Success: "PIP-42 applied. Playbook updated to v1.1 (local)"
-- Version badge changes: "v1.1 (local)" indicates local modifications
+| # | Type | Entity Type | Name / Target | Position | Content / Rationale |
+|---|------|-------------|---------------|----------|---------------------|
+| 1 | ADD  | Activity    | "Accessibility Audit" | After "Component Testing" | Full guidance text |
 
-**Result**: Maria now has an enhanced version with accessibility considerations.
+- [+ Add Change] — opens an inline row builder:
+  - Type: ADD / ALTER / DROP
+  - Entity Type: Workflow / Activity / Skill / Agent / Artifact
+  - Name / Target: text field
+  - Position (for ADD): "append" or "after [sibling name]"
+  - Content / Rationale: Markdown textarea
+- [Preview Diff] — shows the cumulative diff applied to the playbook
+- [Save as Draft] — saves without submitting
+- [Submit for Review] — transitions status to `Submitted`, triggers Galdr processing
 
-#### Action: Submit PIP to Author
+---
 
-Later, Maria decides to share her improvement:
-- Opens PIP-42 details
-- Clicks [Submit to Author]
-- Modal: "Submit PIP to Mike Chen?"
-  - "This will send your proposal for review"
-  - "Mike can accept, request changes, or decline"
-  - Optional message to author
-- Maria adds: "Great playbook! I added a11y audit based on WCAG 2.1 AA standards"
-- Clicks [Submit]
+#### PIP Lifecycle
 
-**Notification Flow**:
-- PIP sent to Homebase
-- Mike receives notification: "Maria Rodriguez submitted PIP-42 to React Frontend Development"
-- Maria sees: "PIP-42 submitted for review"
+```
+Draft → Submitted → Processing (Galdr) → Reviewed → Accepted / Rejected (partial)
+```
 
-#### Screen: FOB-PIP-LIST (Manage PIPs)
+**Galdr Processing** (automated, runs immediately after submission):
 
-Maria can view all her PIPs:
-- **My Submitted PIPs**: 
-  - PIP-42: Accessibility Audit (Pending Review by Mike)
-  - PIP-38: State Management Patterns (Accepted - merged to v1.2)
-- **Received PIPs** (for her owned playbooks):
-  - PIP-55: Add Figma integration (from Alex - Pending Maria's review)
-- **Local PIPs** (applied but not submitted):
-  - PIP-40: Personal workflow tweaks (UX Research playbook)
+1. Galdr reads the target Playbook in full: all Workflows, Activities, goals, Skills, Agents, Artifacts
+2. For each Change:
+   - Assesses consistency with the parent Workflow goals
+   - Checks for upstream/downstream Activity impact
+   - Writes a recommendation: `ACCEPT` / `REJECT` / `NEEDS_CLARIFICATION`
+   - Attaches 1–3 sentence reasoning
+3. PIP status → `Reviewed`
+4. FOB notifies Administrators: "PIP-42 is ready for review"
 
-**Filters**: Status (Draft, Submitted, Accepted, Declined), Playbook, Author
+---
 
-#### Reviewing Received PIPs (Playbook Owner View)
+#### Screen: FOB-PIP-LIST
 
-When Mike reviews Maria's PIP-42:
+Maria navigates to **PIPs** in the top nav. The list page loads and immediately clears the count pill (marking all PIPs as "seen").
 
-**Screen: FOB-PIP-REVIEW**:
-- Shows complete PIP details
-- Side-by-side diff view
-- Comments/discussion thread
-- Actions for owner:
-  - [Accept & Merge] - Incorporates changes, publishes new version
-  - [Request Changes] - Sends feedback to Maria
-  - [Decline] - Rejects with reason
+**Layout**:
+- **Header**: "PIPs" with total count badge (e.g., "PIPs (7)")
+- **Tabs**:
+  - "My PIPs" (default) — PIPs submitted by Maria
+  - "All PIPs" (Administrators only) — every PIP in the system
+- **Filter Bar**:
+  - **Status** multi-select: ☐ Draft ☐ Submitted ☐ Processing (Galdr) ☐ Reviewed ☐ Accepted ☐ Rejected
+  - **Target Playbook** dropdown: (all playbooks or pick one)
+  - **Date range**: Submitted between [from] — [to]
+  - [Clear Filters] button
+- **Table columns**: PIP ID | Title | Target Playbook | Changes | Status | Submitted | Last Updated | Actions
+- **Row indicators**:
+  - 🔵 Blue dot on rows where status changed since last view (clears on row click / page load)
+  - Status badge colour: Draft=gray, Submitted=blue, Processing=yellow, Reviewed=purple, Accepted=green, Rejected=red
+- **Row actions** (dropdown per row):
+  - [View] → FOB-PIP-DETAIL
+  - [Edit] (Draft only)
+  - [Discard] (Draft only)
+- **Example rows** (with blue dot on PIP-42 since it just moved to Reviewed):
 
-Mike clicks [Accept & Merge]:
-- React Frontend Development updates to v1.2
-- All family members notified of new version
-- PIP-42 marked as "Accepted"
-- Maria's contribution credited in version history
+```
+● PIP-42 | Add Accessibility Audit        | React Frontend Dev | 1 | Reviewed  | 2026-05-14 | 2026-05-15
+  PIP-38 | State Management Patterns      | React Frontend Dev | 2 | Accepted  | 2026-04-20 | 2026-04-22
+  PIP-35 | Drop Legacy IE Support         | React Frontend Dev | 1 | Rejected  | 2026-04-10 | 2026-04-11
+  PIP-30 | Add Figma Integration Activity | UX Research        | 3 | Draft     | 2026-03-05 | 2026-03-05
+```
 
-**Result**: Collaborative playbook evolution through structured improvement proposals.
+- **Empty state** (no PIPs yet): "You haven't submitted any PIPs yet. Find a Released playbook you'd like to improve and click [Submit PIP]."
+- **Pagination**: 20 per page
+
+Opening the page resets the count pill to 0.
+
+---
+
+#### Screen: FOB-PIP-DETAIL
+
+Maria opens PIP-42:
+- **Header**: PIP ID, title, target playbook, submitter, status, timestamps
+- **Summary**: Maria's rationale
+- **Change List** — one card per change:
+
+```
+#1  [ ADD ] Activity "Accessibility Audit"  (after "Component Testing")
+    Content: "Ensure React components meet WCAG 2.1 AA standards..."
+    ──────────────────────────────────────────────────────────
+    Galdr:  ACCEPT
+    Reason: "Consistent with the Testing phase goal. No upstream
+             conflicts detected. The new activity has a clear
+             position in the workflow."
+```
+
+- **Status banner**: "Reviewed — awaiting Administrator decision"
+
+---
+
+#### Django Admin: Administrator Review (Mike)
+
+Mike opens **Django Admin → PIPs → PIP-42**. He sees the standard Django Admin change-view for the PIP, with a read-only inline section showing Galdr's output per Change, and an editable decision field:
+
+```
+PIP: Add Accessibility Audit  [status: Reviewed]
+
+Changes:
+  #1  [ ADD ] Activity "Accessibility Audit"  (after "Component Testing")
+      Galdr recommendation: ACCEPT
+      Reasoning: Consistent with the Testing phase goal; no upstream
+                 conflicts detected.
+      Admin decision:  [ACCEPT ▾]   ← pre-filled from Galdr, editable
+```
+
+**Admin actions**:
+- Override any Change decision: change `ACCEPT` → `REJECT` or vice versa
+- Add a human note to any Change (optional)
+- [Accept All & Apply] — applies all accepted Changes atomically
+- [Reject All] — rejects the PIP without changes
+
+**On submission**:
+- Accepted Changes are applied to the playbook → "React Frontend Development" publishes v2.0
+- Rejected Changes are discarded
+- PIP status → `Accepted` (or `Partially Accepted` if mixed, or `Rejected`)
+- Email sent to Maria (see Email Notification below)
+
+---
+
+#### Email Notification
+
+After Mike's decision, the system sends Maria an email:
+
+```
+Subject: Your PIP "Add Accessibility Audit" — Accepted ✓
+
+Hi Maria,
+
+Your change request for "React Frontend Development" has been reviewed.
+
+Change 1: ADD Activity "Accessibility Audit"  →  Accepted
+  Reasoning: Consistent with testing goals; no upstream conflicts.
+
+Overall: Accepted. Version 2.0 has been published with your changes.
+
+— Mimir FOB
+```
+
+If partially accepted:
+```
+Subject: Your PIP "Update Testing Workflow" — Partially Accepted
+
+Change 1: ADD Activity "Accessibility Audit"  →  Accepted
+  Reasoning: Consistent with the Testing phase goal.
+
+Change 2: ALTER Activity "Component Testing"  →  Rejected
+  Reasoning: The proposed wording removes the required Artifact link
+             to "Test Suite", breaking downstream dependencies.
+
+Overall: Partially accepted. Version 2.0 published with Change 1 applied.
+```
+
+---
 
 #### AI-Initiated PIPs
 
 **Context**: AI observes Maria's work patterns and proactively suggests improvements.
 
-**Scenario**: After Maria completes several components with accessibility features, AI notices the pattern:
+**Scenario**: After Maria completes several components with accessibility features, the AI notices the pattern:
 
 ```
 ✓ Components created: Button, Card, Modal (all with focus traps, ARIA labels)
 ✓ Accessibility tests added to each component
 
-I notice you're consistently adding accessibility features, but the playbook 
-doesn't explicitly call for focus trapping in modals. Based on your work patterns, 
-should we update the playbook to include:
-  - Focus trap implementation guidelines
-  - Keyboard navigation requirements  
-  - ARIA attribute checklist
+I notice you're consistently adding accessibility features, but the playbook
+doesn't call for focus trapping in modals. Should I propose a PIP to add:
+  - ADD Activity "Focus Trap Guidelines"  (after "Create Components")
+  - ALTER Activity "Component Testing" to reference a11y checklist
 
-Would you like me to create a PIP for these additions?
+Would you like me to create this PIP?
 ```
 
-Maria: `> mimir: Yes, great observation! Create the PIP`
+Maria: `> mimir: Yes, create the PIP`
 
-AI creates PIP-43 automatically, Maria reviews and applies/submits as needed.
+AI builds the Change list and calls `submit_pip` via MCP → standard Galdr review flow begins.
 
 ---
 
 **Act 9 Summary**: Maria can evolve playbooks through PIPs:
-- ✅ Create PIPs manually or via AI assistance
-- ✅ Apply PIPs locally for immediate use
-- ✅ Submit PIPs to original authors for community contribution
-- ✅ Review and merge PIPs received on owned playbooks
-- ✅ Track PIP status and version history
-- ✅ AI learns from patterns and suggests improvements
+- ✅ Create PIPs manually (GUI) or via AI (MCP)
+- ✅ Structure Changes as typed ADD / ALTER / DROP per entity
+- ✅ Insert new entities at a precise position within a container
+- ✅ Track PIP status through the Galdr processing + Admin review lifecycle
+- ✅ Receive per-Change email notification with reasoning
+- ✅ Administrators review Galdr recommendations in Django Admin and override as needed
 
-**Key Benefits**: Structured change management, version control, collaborative improvement, AI-assisted evolution.
+**Key Benefits**: Structured change control, AI-assisted pre-screening, transparent per-Change reasoning, automated application of accepted changes.
 
 **Next**: Maria manages import/export operations (ACT 10).
 
@@ -2165,7 +2190,7 @@ AI creates PIP-43 automatically, Maria reviews and applies/submits as needed.
 
 ### Act 10: IMPORT/EXPORT - Playbook Distribution
 
-**Context**: Maria needs to share playbooks outside the Homebase sync system - for backups, offline distribution, cross-instance transfer, or client delivery.
+**Context**: Maria needs to share playbooks outside FOB — for backups, offline distribution, cross-instance transfer, or client delivery.
 
 **Key Formats**:
 - **JSON**: Structured data format for programmatic use
@@ -2183,7 +2208,7 @@ Maria views her "UX Research Methodology" playbook and clicks **[Export]** from 
   - ○ Mimir Playbook Archive (.mpa) - Packaged with metadata
 - **Include Options** (checkboxes):
   - ☑ All workflows and activities
-  - ☑ Artifacts and roles
+  - ☑ Artifacts and agents
   - ☑ Skills (activity guides)
   - ☑ Version history
   - ☐ PIP history (optional)
@@ -2206,7 +2231,7 @@ Maria selects **JSON format**, leaves all options checked, clicks [Export]:
 
 **Scenario A: Offline Distribution for Workshop**
 
-Maria's colleague Alex needs the playbook for an offline workshop (no Homebase access):
+Maria's colleague Alex needs the playbook for an offline workshop (no FOB access):
 - Maria exports as `.mpa` with password protection
 - Emails file to Alex: `ux-research-v2.1.mpa`
 - Alex imports to his FOB (see Import section below)
@@ -2264,7 +2289,7 @@ Shows preview:
   - 3 Workflows
   - 15 Activities
   - 12 Artifacts
-  - 5 Roles
+  - 5 Agents
   - 8 Skills
 - **Conflict Check**: "No conflicts with existing playbooks"
 - Message: "This playbook will be added to your local FOB"
@@ -2279,7 +2304,7 @@ Maria clicks [Import Playbook]:
 
 Imported playbook appears:
 - **Design System Patterns** v1.5
-- Status: Local (not synced to Homebase)
+- Status: Imported (local)
 - Source: Imported from JSON
 - Actions: [View] [Edit] [Export] [Delete]
 
@@ -2325,7 +2350,7 @@ If wrong password: "Incorrect password. Please try again."
 - ✅ Import playbooks from files
 - ✅ Validate imported data
 - ✅ Handle conflicts and errors gracefully
-- ✅ Distribute offline without Homebase dependency
+- ✅ Distribute playbook files for offline reading (note: MCP always requires a live FOB — either local or hosted)
 
 **Use Cases Covered**:
 - Backups and version control
@@ -2334,240 +2359,103 @@ If wrong password: "Incorrect password. Please try again."
 - Client deliverables
 - Emergency recovery
 
-**Next**: Maria manages her community networks (ACT 11: Family Management).
+**Next**: Maria manages her community networks (ACT 11: Team Management).
 
 ---
 
-### Act 11: Building Her Network (Family Management)
+### Act 11: Building Her Network (Team Management)
 
-**Context**: Maria wants to organize her practice - a public family for UX community, a private one for her client work, and join existing communities.
+**Context**: Maria wants to organize her practice - a public team for UX community, a private one for her client work, and join existing communities.
 
 #### Screen: FOB Dashboard (First Login)
 Maria opens her FOB application and sees the welcome dashboard:
 - Empty playbook list (no playbooks yet)
-- "Browse Families" button
-- "Create Family" button
-- "Sync with Homebase" button
+- "Browse Teams" button
+- "Create Team" button
 
-#### Screen: FOB Create Family - UX Community
-Maria clicks "Create Family" and fills out the form:
-- **Family Name**: "UX"
+#### Screen: FOB Create Team - UX Community
+Maria clicks "Create Team" and fills out the form:
+- **Team Name**: "UX"
 - **Description**: "User Experience methodologies and best practices"
 - **Visibility**: Public (appears in browse)
 - **Join Policy**: Requires Approval (Maria will review requests)
 - **Category**: Design
-- Clicks "Create Family"
+- Clicks "Create Team"
 
-**Result**: Maria is now the admin of the "UX" family.
+**Result**: Maria is now the admin of the "UX" team.
 
-#### Screen: FOB Create Family - Client Work
-Maria creates a second family for her consulting clients:
-- **Family Name**: "Acme, INC"
+#### Screen: FOB Create Team - Client Work
+Maria creates a second team for her consulting clients:
+- **Team Name**: "Acme, INC"
 - **Description**: "UX Consulting services for Acme Corporation"
 - **Visibility**: Hidden (only visible to members she manually adds)
 - **Join Policy**: Invite Only
 - **Category**: Private
-- Clicks "Create Family"
+- Clicks "Create Team"
 
-**Result**: Maria now manages two families - one public, one hidden.
+**Result**: Maria now manages two teams - one public, one hidden.
 
-#### Screen: FOB Family Browser
-Maria clicks "Browse Families" to explore existing communities. She sees:
+#### Screen: FOB Team Browser
+Maria clicks "Browse Teams" to explore existing communities. She sees:
 - Search bar and category filters
-- List of public families with descriptions and member counts
-- "Usability" family catches her eye (Mike's community)
+- List of public teams with descriptions and member counts
+- "Usability" team catches her eye (Mike's community)
 
-#### Screen: FOB Family Details - Usability
+#### Screen: FOB Team Details - Usability
 Maria clicks on "Usability" to see details:
 - **Description**: "Best practices for usable software development"
 - **Members**: 127 members
 - **Playbooks**: 8 available playbooks (including Mike's React playbook)
 - **Join Policy**: Auto-approve
-- "Join Family" button
+- "Join Team" button
 
-#### Action: Join Family
-Maria clicks "Join Family". Because it's set to auto-approve:
-- She's immediately added to the Usability family
-- Notification: "You've joined the Usability family"
-- She can now see available playbooks from this family
+#### Action: Join Team
+Maria clicks "Join Team". Because it's set to auto-approve:
+- She's immediately added to the Usability team
+- Notification: "You've joined the Usability team"
+- She can now see available playbooks from this team
 
-**Result**: Maria is now a member of three families - two she created, one she joined.
+**Result**: Maria is now a member of three teams - two she created, one she joined.
 
 **Act 11 Summary**: Maria manages her professional network:
-- ✅ Create families (public and hidden)
-- ✅ Browse and join existing families
+- ✅ Create teams (public and hidden)
+- ✅ Browse and join existing teams
 - ✅ Review and approve/reject join requests
-- ✅ Manage family playbook submissions
-- ✅ Transfer family admin rights
+- ✅ Manage team playbook submissions
+- ✅ Transfer team admin rights
 - ✅ Remove members (with knowledge loss consequences)
 
-**Next**: Maria syncs playbooks with Homebase (ACT 12).
+**Next**: Maria uses Mimir MCP for AI-assisted methodology execution (ACT 12).
 
 ---
 
-### Act 12: SYNC SCENARIOS - Discovering & Sharing Playbooks
+### Act 12: MCP INTEGRATION - AI-Assisted Methodology Execution
 
-**Context**: Maria downloads community playbooks from Homebase and uploads her improvements back. Sync handles clean downloads, uploads, conflicts, and version management.
-
-#### Scenario A: Clean Download - Discovering Mike's Playbook
-
-**Screen: FOB Sync Dashboard**
-
-Maria clicks [Sync with Homebase] from dashboard:
-- FOB connects using authentication token
-- Status: "Checking for updates..."
-- Lists available playbooks from her families
-
-**Screen: FOB Available Playbooks**
-
-Maria sees entitled playbooks:
-- "React Frontend Development" (Usability family) v1.0 by Mike Chen
-- 7 other playbooks from families
-- Status badges: Downloaded / Not Downloaded
-
-**Screen: FOB Playbook Preview**
-
-Maria clicks "React Frontend Development":
-- Shows structure preview (workflows, activities, artifacts)
-- Author: Mike Chen
-- Version history
-- [Download to FOB] button
-
-**Action: Download Playbook**
-
-Maria clicks [Download to FOB]:
-- Progress indicator
-- Playbook added to local database
-- Success: "React Frontend Development v1.0 downloaded"
-- Now available offline with full CRUDLF access (Acts 2-8)
-
----
-
-#### Scenario B: Upload with PIP - Contributing Back
-
-**Context**: Maria applied PIP-42 locally (Act 9), enhancing React playbook with accessibility audit. She wants to contribute back.
-
-**Screen: FOB Sync Dashboard**
-
-Maria clicks [Sync with Homebase]:
-- Analyzes local changes
-- Detects: "React Frontend Development v1.1 (local) differs from v1.0 (remote)"
-
-**Screen: FOB Sync Analysis**
-
-Shows diff:
-- Local: v1.1 with Accessibility Audit activity (PIP-42 applied)
-- Remote: v1.0 (unchanged)
-- Recommendation: "Upload improvements as PIP to author"
-- [Generate PIP for Homebase] button
-
-**Action: Upload PIP**
-
-Maria clicks [Generate PIP for Homebase]:
-- Creates PIP package with her changes
-- Preview: "PIP-42: Add Accessibility Audit to React Frontend Development"  
-- [Submit to Homebase] button
-
-Maria submits:
-- PIP uploaded to Homebase
-- Notification sent to Mike (author) and family admins
-- Maria sees: "PIP-42 submitted for review by Mike Chen"
-
-Mike reviews and accepts:
-- React Frontend Development updates to v1.2 on Homebase
-- All family members notified
-- Maria's contribution credited
-
----
-
-#### Scenario C: Download Update - Conflict Resolution
-
-**Context**: Mike accepted PIP-42 and published v1.2. Maria still has local v1.1. She syncs again.
-
-**Screen: FOB Sync Dashboard**
-
-Maria clicks [Sync with Homebase]:
-- Detects: "React Frontend Development v1.2 available (your local: v1.1)"
-
-**Screen: FOB Conflict Resolution**
-
-Shows 3-way comparison:
-- **Your Local v1.1**: Has PIP-42 changes
-- **Remote v1.2**: Has PIP-42 merged + Mike's additional tweaks
-- **Conflict Status**: No conflicts (your changes are superset of remote)
-
-**Resolution Options**:
-- ○ **Download v1.2** (recommended): Replaces local with official version
-- ○ **Keep Local v1.1**: Stay on your version, opt out of updates
-- ○ **Merge**: Combine local + remote changes (advanced)
-
-Maria selects **Download v1.2**:
-- Downloads official version
-- Local v1.1 archived to version history
-- Success: "Updated to React Frontend Development v1.2"
-
----
-
-#### Scenario D: True Conflict - Divergent Changes
-
-**Context**: Maria modified Activity 2 locally. Mike also changed Activity 2 in v1.3. Changes conflict.
-
-**Screen: FOB Conflict Resolution (Conflict Detected)**
-
-Shows conflicts:
-- **Activity 2**: "Create Components"
-  - Your change: Added accessibility checklist
-  - Remote change: Restructured component architecture
-  - Status: ⚠️ **CONFLICT**
-
-**Resolution Options**:
-- ○ **Accept Remote**: Use Mike's v1.3 (lose your changes)
-- ○ **Keep Local**: Stay on v1.2 with your changes
-- ○ **Manual Merge**: Open editor to combine both
-
-**Actions**:
-- [View Diff] - See line-by-line changes
-- [Accept Remote] - Take Mike's version
-- [Keep Local] - Keep your version
-- [Contact Author] - Message Mike about conflict
-
-Maria chooses [Accept Remote] (trusts Mike's architecture):
-- Downloads v1.3
-- Her local changes archived
-- Can create new PIP later if needed
-
----
-
-**Act 12 Summary**: Maria syncs playbooks with Homebase:
-- ✅ Download community playbooks from families
-- ✅ Preview before downloading
-- ✅ Upload PIPs to contribute improvements
-- ✅ Handle version updates and conflicts
-- ✅ Resolve conflicts (accept, keep, merge)
-- ✅ Offline resilience (downloaded playbooks work without connection)
-
-**Key Points**:
-- Sync requires Homebase connection and authentication
-- Downloaded playbooks available offline with full CRUDLF
-- PIPs enable structured contribution workflow
-- Version control prevents data loss
-- Conflict resolution preserves user choice
-
-**Next**: Maria uses playbooks via MCP in her IDE (ACT 13).
-
----
-
-### Act 13: MCP INTEGRATION - AI-Assisted Methodology Execution
-
-**Context**: Maria works in Windsurf IDE with Mimir MCP server providing playbook context. External MCPs (GitHub, Jira) handle work items.
+**Context**: Maria works in Cursor (or Windsurf) with Mimir MCP providing playbook context via FastMCP → FOB REST API. External MCPs (GitHub, Jira) handle work items.
 
 #### Setup: MCP Configuration
 
-Maria's Windsurf has two MCP servers configured:
-1. **Mimir MCP** (localhost:5000): Provides playbook context, activities, artifacts
+Maria's Cursor has two MCP servers configured:
+1. **Mimir MCP** (FastMCP → `http://localhost:8000/api/`): Provides playbook context, activities, artifacts, PIP submission
 2. **GitHub MCP** (external): Creates/tracks GitHub issues
 
-FOB container runs Mimir MCP server, exposing playbook data via Model Context Protocol.
+**Important**: The MCP server (FastMCP container) requires a live FOB to function — it has no data of its own. `BASE_URL` points to either a **local FOB** (`http://localhost:8000`) or a **hosted FOB** (`https://mimir.featurefactory.io`). Without a reachable FOB, MCP tools will fail.
+
+**Mimir MCP config** (in Cursor's MCP settings or `~/.cursor/mcp.json`):
+```json
+{
+  "mimir": {
+    "command": "python",
+    "args": ["-m", "mcp_integration.server"],
+    "env": {
+      "BASE_URL": "http://localhost:8000",
+      "TOKEN": "mimir_a8f3d9e2b1c4567890abcdef12345678"
+    }
+  }
+}
+```
+
+FastMCP translates each MCP tool call into an authenticated REST request: `GET/POST BASE_URL/api/…` with `Authorization: Token TOKEN`. There is no direct database access from the MCP layer — all reads and writes go through FOB's validated API endpoints.
 
 ---
 
@@ -2663,7 +2551,7 @@ Maria: `> mimir: Open playbook in browser`
 
 ---
 
-**Act 13 Summary**: Maria uses Mimir MCP for AI-assisted methodology execution:
+**Act 12 Summary**: Maria uses Mimir MCP for AI-assisted methodology execution:
 - ✅ Activate playbooks in FOB
 - ✅ Query playbook context via AI (Windsurf/MCP)
 - ✅ Get activity-specific guidance
@@ -2672,9 +2560,9 @@ Maria: `> mimir: Open playbook in browser`
 - ✅ Auto-open playbook details in browser
 
 **Integration Architecture**:
-- **Mimir MCP**: Playbook context, activities, artifacts (localhost:5000)
+- **Mimir MCP** (FastMCP → REST): Playbook context, activities, artifacts, PIP submission — calls `BASE_URL/api/…` with `TOKEN`
 - **External MCPs**: Work item management (GitHub, Jira, GitLab, etc.)
-- **AI Coordination**: Windsurf AI coordinates between MCPs for seamless workflow
+- **AI Coordination**: Cursor/Windsurf AI coordinates between MCPs for seamless workflow
 
 **Key Benefits**:
 - Playbook guidance embedded in development workflow
@@ -2682,11 +2570,11 @@ Maria: `> mimir: Open playbook in browser`
 - Automated work item creation with playbook context
 - Dependency tracking and progress visibility
 
-**Next**: Maria configures FOB settings (ACT 14).
+**Next**: Maria configures FOB settings (ACT 13).
 
 ---
 
-### Act 14: Settings & Preferences
+### Act 13: Settings & Preferences
 
 **Context**: Maria needs to configure her FOB and account settings.
 
@@ -2694,7 +2582,6 @@ Maria: `> mimir: Open playbook in browser`
 Maria clicks **Settings** in navigation menu:
 - **Sidebar navigation**:
   - Account
-  - Sync & Connection
   - Storage
   - MCP Configuration
   - Notifications
@@ -2706,47 +2593,11 @@ Maria clicks **Settings** in navigation menu:
   - Full name: Maria Rodriguez
   - [Change Password] button
   - [Two-Factor Authentication] toggle
-  - [Delete Account] (danger zone)
-
-#### Screen: FOB Settings - Sync & Connection
-Maria clicks **Sync & Connection**:
-
-- **Homebase Connection**:
-  - **Status**: ✓ Connected to homebase.mimir.io
-  - **Account**: maria@uxconsulting.com
-  - **Last sync**: 5 minutes ago
-  - **Connection Details**:
-    - Homebase URL: `https://homebase.mimir.io` [Edit]
-    - Authentication Token: `mimir_a8f3...45678` [Show] [Copy]
+  - **Authentication Token** (for MCP):
+    - Token: `mimir_a8f3...45678` [Show] [Copy]
     - Token created: Nov 15, 2024
-  - **Actions**:
-    - [Test Connection] button
-    - [Regenerate Token] button (requires re-entering password)
-    - [Disconnect from Homebase] button (danger action)
-  
-  **Note**: Only one Homebase connection is supported.
-
-- **If Not Connected** (alternative view when disconnected):
-  - **Status**: ⊝ Not connected to Homebase
-  - **You are working in local-only mode**
-    - You can create and manage playbooks locally
-    - You cannot sync playbooks from families
-    - You cannot publish playbooks to families
-  - **Connect to Homebase**:
-    - Homebase URL: [https://homebase.mimir.io]
-    - Authentication Token: [paste your token here]
-    - [Get Token from Homebase] link (opens homebase.mimir.io/account)
-    - [Test Connection] button
-    - [Save Connection] button
-
-- **Sync Preferences** (only when connected to HB):
-  - Auto-sync: [On/Off] toggle
-  - Sync frequency: Dropdown (Manual, Every 15min, Hourly, Daily)
-  - Sync on startup: [On/Off]
-  - Notification for available updates: [On/Off]
-
-- **Conflict Resolution** (only when connected to HB):
-  - Default action: Dropdown (Ask me, Prefer remote, Prefer local)
+    - [Regenerate Token] button (invalidates old token, requires re-entering password)
+  - [Delete Account] (danger zone)
 
 #### Screen: FOB Settings - Storage
 Maria clicks **Storage**:
@@ -2764,29 +2615,42 @@ Maria clicks **Storage**:
 
 #### Screen: FOB Settings - MCP Configuration
 Maria clicks **MCP Configuration**:
-- **Mimir MCP Server Status**: ✓ Running on port 5000
-- **Windsurf Integration**:
-  - Connection string: `localhost:5000`
-  - API key: `mcp_***********` [Show] [Regenerate]
+- **FastMCP Server**: Mimir MCP is a FastMCP process that wraps the FOB REST API
+- **Configuration snippet** (copy into Cursor/Windsurf MCP settings):
+  ```json
+  {
+    "mimir": {
+      "command": "python",
+      "args": ["-m", "mcp_integration.server"],
+      "env": {
+        "BASE_URL": "http://localhost:8000",
+        "TOKEN": "mimir_a8f3d9e2b1c4567890abcdef12345678"
+      }
+    }
+  }
+  ```
+  - `BASE_URL`: FOB server URL [Edit] — `http://localhost:8000` (local) or `https://mimir.featurefactory.io` (hosted)
+  - `TOKEN`: Your FOB authentication token [Show] [Regenerate]
+  - **Note**: MCP requires a live FOB — the FastMCP container calls `BASE_URL/api/…` and cannot operate without it
+  - [Copy Config Snippet] button
   - [Test MCP Connection] button
 - **Mimir MCP Features**:
   - Enable playbook context: [On/Off]
-  - Enable PIP suggestions: [On/Off]
+  - Enable PIP submission via MCP: [On/Off]
   - Enable AI-initiated PIPs: [On/Off]
-- **External MCP Servers** (configured separately in Windsurf):
+- **External MCP Servers** (configured separately in Cursor/Windsurf):
   - GitHub MCP (for work item management)
   - Jira MCP (optional)
   - GitLab MCP (optional)
   - Note: "Work item creation/tracking handled by external MCPs, not Mimir MCP"
-- **Restart Mimir MCP Server** button
 
 #### Screen: FOB Settings - Notifications
 Maria clicks **Notifications**:
 - **Notification Preferences**:
-  - Family join requests: [On/Off]
+  - Team join requests: [On/Off]
   - Playbook updates available: [On/Off]
   - PIP submissions: [On/Off]
-  - Sync conflicts: [On/Off]
+  - PIP decisions (email + in-app): [On/Off]
   - System errors: [On/Off] (cannot be disabled)
 - **Notification Method**:
   - In-app notifications: [On/Off]
@@ -2797,55 +2661,28 @@ Maria clicks **Notifications**:
   - From: 22:00
   - To: 08:00
 
-**Act 14 Summary**: Maria configures FOB:
-- ✅ Account settings (profile, password, 2FA)
-- ✅ Homebase connection and sync preferences
+**Act 13 Summary**: Maria configures FOB:
+- ✅ Account settings (profile, password, 2FA, MCP authentication token)
 - ✅ Storage management and cleanup
-- ✅ MCP server configuration
-- ✅ Notification preferences
+- ✅ FastMCP configuration (BASE_URL + TOKEN snippet)
+- ✅ Notification preferences (including PIP decision emails)
 - ✅ Privacy and advanced settings
 
-**Next**: Maria handles errors and edge cases (ACT 15).
+**Next**: Maria handles errors and edge cases (ACT 14).
 
 ---
 
-### Act 15: Error Recovery & Edge Cases
+### Act 14: Error Recovery & Edge Cases
 
 **Context**: Maria encounters various error scenarios and learns how to recover.
 
-#### Error Scenario 1: Sync Failure
-
-##### Screen: FOB Sync Dashboard - Error
-Maria clicks "Sync with Homebase" but network is down:
-- Error banner appears: ⚠️ "Sync failed: Cannot connect to Homebase"
-- **Error Details** dropdown:
-  - Error type: Network error
-  - Homebase URL: https://homebase.mimir.io
-  - Error code: CONNECTION_TIMEOUT
-  - Timestamp: 2024-11-20 14:32:15
-- **Recovery Actions**:
-  - [Retry Sync] button
-  - [Check Connection Settings] link → Settings
-  - [Work Offline] button
-  - [View Error Log] link
-
-##### Action: Work Offline
-Maria clicks [Work Offline]:
-- Modal: "Working offline - limited functionality"
-- "You can continue using local playbooks and MCP features"
-- "Sync operations, downloads, and uploads are disabled until connection is restored"
-- "FOB will automatically attempt reconnection"
-- [Continue Offline] [Cancel]
-
-**Result**: Maria continues working with local playbooks while offline.
-
-#### Error Scenario 2: Permission Denied
+#### Error Scenario 1: Permission Denied
 
 ##### Screen: FOB Playbook Editor - Permission Error
 Maria tries to edit Mike's React playbook:
 - Error modal: 🚫 "Permission Denied"
 - "You don't have permission to edit this playbook"
-- **Reason**: "This playbook is owned by Mike Chen (Usability family)"
+- **Reason**: "This playbook is owned by Mike Chen (Usability team)"
 - **Options**:
   - "You can create a local copy and modify it"
   - "Submit a PIP to suggest changes"
@@ -2858,24 +2695,7 @@ Maria clicks [Submit PIP] which opens PIP creation flow.
 
 **Result**: Clear error messaging with actionable recovery paths.
 
-#### Error Scenario 3: Upload Failed
-
-##### Screen: FOB Upload to Homebase - Failed
-Maria tries to upload a large playbook but it fails:
-- Error toast notification: "Upload failed: File size exceeds limit"
-- **Error Details**:
-  - Playbook: "UX Comprehensive Guide"
-  - Size: 125 MB (limit: 100 MB)
-  - Reason: Embedded images too large
-- **Recovery Actions**:
-  - [Compress Images] button (auto-optimize)
-  - [Remove Large Artifacts] button (review what to remove)
-  - [Split into Multiple Playbooks] suggestion
-  - [Contact Support] link
-
-**Result**: Helpful error messages with clear resolution paths.
-
-#### Error Scenario 4: Corrupted Playbook
+#### Error Scenario 2: Corrupted Playbook
 
 ##### Screen: FOB Dashboard - Playbook Error
 A playbook shows error icon:
@@ -2884,10 +2704,10 @@ A playbook shows error icon:
 - **Details**:
   - Corrupted activities: 2 of 8
   - Last successful load: 3 days ago
-  - Cause: Unknown (possibly interrupted sync)
+  - Cause: Unknown (possibly interrupted write)
 - **Recovery Actions**:
-  - [Restore from Homebase] button (if available)
   - [Restore from Local Backup] button
+  - [Import from Exported File] button (if previously exported)
   - [Delete Corrupted Data] button
   - [Export Salvageable Content] button
 
@@ -2899,31 +2719,29 @@ A playbook shows error icon:
 When Maria first starts (empty state):
 - Illustration: Empty box graphic
 - Heading: "No playbooks yet"
-- Subtext: "Get started by creating a playbook, downloading from Homebase, or importing from a file"
+- Subtext: "Get started by creating a playbook, exploring team playbooks, or importing from a file"
 - **Actions**:
   - [Create Your First Playbook] button (primary)
-  - [Browse Families] button
+  - [Browse Teams] button
   - [Import from File] button
   - [Watch Tutorial] link
 
-##### Screen: FOB Family Browser - No Results
-Maria searches for non-existent family:
+##### Screen: FOB Team Browser - No Results
+Maria searches for non-existent team:
 - Illustration: Magnifying glass
-- Heading: "No families found matching 'blockchain'"
-- Subtext: "Try adjusting your search or browse all families"
+- Heading: "No teams found matching 'blockchain'"
+- Subtext: "Try adjusting your search or browse all teams"
 - **Suggestions**:
-  - Similar families: (list of related results)
+  - Similar teams: (list of related results)
   - [Clear Filters] button
-  - [Create New Family] button
+  - [Create New Team] button
 
 **Result**: Every empty or error state provides clear guidance and next steps.
 
 ---
 
-**Act 15 Summary**: Maria handles errors gracefully:
-- ✅ Network failures with offline mode
-- ✅ Permission errors with clear alternatives
-- ✅ Upload failures with recovery options
+**Act 14 Summary**: Maria handles errors gracefully:
+- ✅ Permission errors with clear alternatives (local copy or PIP)
 - ✅ Data corruption with backup/restore
 - ✅ Empty states with helpful guidance
 
@@ -2933,25 +2751,24 @@ Maria searches for non-existent family:
 
 ## Journey Complete
 
-Maria's journey through Acts 0-15 demonstrates the complete Mimir MVP experience:
+Maria's journey through Acts 0-14 demonstrates the complete Mimir MVP experience:
 
 **Core CRUDLF Entities (Acts 2-8):**
-- ✅ **Playbooks**: Top-level methodologies with versioning and family publishing
+- ✅ **Playbooks**: Top-level methodologies with versioning and team publishing
 - ✅ **Workflows**: Execution sequences with optional phase organization  
 - ✅ **Phases**: Optional activity groupings (clearly marked as optional)
-- ✅ **Activities**: Core work units with dependencies, roles, and artifacts
+- ✅ **Activities**: Core work units with dependencies, agents, and artifacts
 - ✅ **Artifacts**: Outputs produced by activities (no more "Deliverable")
-- ✅ **Roles**: Definitions of who performs activities
+- ✅ **Agents**: AI assistant personas assigned to activities
 - ✅ **Skills**: Step-by-step activity guides (1:1 with activities)
 
-**Supporting Features (Acts 9-15):**
-- ✅ **PIPs**: Collaborative improvement proposals with versioning
+**Supporting Features (Acts 9-14):**
+- ✅ **PIPs**: Structured improvement proposals (ADD/ALTER/DROP Changes) with Galdr AI review and Admin decision
 - ✅ **Import/Export**: Offline distribution via JSON/MPA files
-- ✅ **Family Management**: Public/private communities with admin workflows
-- ✅ **Sync**: Download, upload, conflict resolution with version control
-- ✅ **MCP Integration**: AI-assisted methodology execution in Windsurf
-- ✅ **Settings**: Full configuration of FOB, Homebase sync, and MCP
-- ✅ **Error Recovery**: Graceful handling of all failure scenarios
+- ✅ **Team Management**: Public/private communities with admin workflows
+- ✅ **MCP Integration**: AI-assisted methodology execution via FastMCP → REST API (BASE_URL + TOKEN)
+- ✅ **Settings**: Account, token management, FastMCP config, notifications
+- ✅ **Error Recovery**: Graceful handling of failure scenarios
 
 **Key Achievements:**
 - All 7 core entities have complete CRUDLF with LIST+FIND entry points
@@ -2959,8 +2776,8 @@ Maria's journey through Acts 0-15 demonstrates the complete Mimir MVP experience
 - Phase explicitly marked as OPTIONAL throughout
 - "Artifact" terminology (not "Deliverable")
 - Detailed screen specifications ready for BDD feature files
-- Full sync workflow with conflict resolution
-- MCP integration architecture documented
+- Structured PIP workflow with Galdr AI pre-screening + Admin decision + email notification
+- FastMCP as API wrapper (no direct DB access from MCP layer)
 - Error recovery paths for all scenarios
 
-Maria now has a complete, production-ready methodology management system with collaborative features, AI assistance, and offline resilience.
+Maria now has a complete, production-ready methodology management system with team collaboration, Galdr-assisted PIP review, and AI integration via FastMCP.
