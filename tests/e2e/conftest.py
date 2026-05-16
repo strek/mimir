@@ -6,9 +6,15 @@ lazy initialization - Playwright is only started when first accessed in a test,
 after Django setup is complete.
 """
 
-import pytest
+from __future__ import annotations
+
 import os
-from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page
+from collections.abc import Generator
+
+import pytest
+from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
+from pytest_django import live_server_helper
+from pytest_django.lazy_django import skip_if_no_django
 
 
 # Allow Django to run in async context for E2E tests only
@@ -24,8 +30,7 @@ def django_db_setup(django_db_setup, django_db_blocker):
     test data needed for E2E scenarios.
     """
     from django.core.management import call_command
-    import os
-    
+
     # Get absolute path to fixture file
     fixture_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../fixtures/e2e_seed.json'))
     
@@ -99,6 +104,34 @@ def page(context: BrowserContext):
     page = context.new_page()
     yield page
     page.close()
+
+
+@pytest.fixture(scope="function")
+def live_server(
+    request: pytest.FixtureRequest,
+) -> Generator[live_server_helper.LiveServer, None, None]:
+    """Start/stop Django ``live_server`` for each E2E test.
+
+    pytest-django ships a *session-scoped* ``live_server`` so the WSGI thread
+    keeps the same sqlite connection handles it captured at first start.
+    After hundreds of ``TransactionTestCase``-style integration tests, HTTP
+    handlers can hit a connection whose schema no longer includes newer
+    migrations (e.g. Act 9 ``UserPIPListVisit``), producing ``no such table``.
+
+    Scoping per test matches :class:`django.test.LiveServerTestCase` lifecycle
+    and ensures ``live_server_helper`` re-reads ``connections`` after
+    ``transactional_db`` setup (see pytest-django ``_live_server_helper``).
+    """
+    skip_if_no_django()
+
+    addr = (
+        request.config.getvalue("liveserver")
+        or os.getenv("DJANGO_LIVE_TEST_SERVER_ADDRESS")
+        or "localhost"
+    )
+    server = live_server_helper.LiveServer(addr)
+    yield server
+    server.stop()
 
 
 @pytest.fixture(scope="function")

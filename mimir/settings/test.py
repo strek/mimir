@@ -1,7 +1,10 @@
 """
 Test settings for mimir project.
 
-Optimized for fast in-memory SQLite execution.
+Fast SQLite in-memory for pytest. E2E compatibility with the threaded
+``live_server`` relies on **function-scoped** ``live_server`` in
+``tests/e2e/conftest.py`` (pytest-django's default ``live_server`` is
+session-scoped and can go stale after many integration tests).
 """
 
 from .base import *  # noqa: F401, F403
@@ -40,11 +43,10 @@ DEFAULT_FROM_EMAIL = "noreply@test.mimir"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# In-memory SQLite for fast tests
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
     }
 }
 
