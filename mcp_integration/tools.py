@@ -2535,6 +2535,255 @@ async def reorder_phases(playbook_id: int, phase_order: list[int]) -> dict:
     return result
 
 
+
+
+# ============================================================================
+# PROCESS IMPROVEMENT PROPOSALS (PIP) — Act 9
+# ============================================================================
+
+
+def _serialize_pip_change(ch) -> dict:
+    """Map :class:`~methodology.models.PipChange` to JSON-friendly dict."""
+
+    return {
+        "id": ch.id,
+        "order": ch.order,
+        "change_type": ch.change_type,
+        "entity_type": ch.entity_type,
+        "name": ch.name or "",
+        "target_id": ch.target_id,
+        "target_name_snapshot": ch.target_name_snapshot or "",
+        "content": ch.content or "",
+        "parent_workflow_id": ch.parent_workflow_id,
+        "insert_after_activity_id": ch.insert_after_activity_id,
+        "append_to_playbook_end": bool(ch.append_to_playbook_end),
+        "galdr_recommendation": ch.galdr_recommendation or "",
+        "galdr_reasoning": ch.galdr_reasoning or "",
+        "admin_decision": ch.admin_decision or "",
+        "admin_note": ch.admin_note or "",
+    }
+
+
+def _serialize_pip_summary(pip) -> dict:
+    """Shallow playbook improvement proposal row."""
+
+    return {
+        "id": pip.id,
+        "title": pip.title,
+        "summary": pip.summary or "",
+        "status": pip.status,
+        "playbook_id": pip.playbook_id,
+        "submitted_by_username": getattr(pip.created_by, "username", "") or "",
+        "submitted_at": pip.submitted_at.isoformat()
+        if pip.submitted_at
+        else "",
+        "status_changed_at": pip.status_changed_at.isoformat()
+        if pip.status_changed_at
+        else "",
+        "changes_count": getattr(pip, "change_count", None)
+        if hasattr(pip, "change_count")
+        else pip.changes.count(),
+    }
+
+
+async def list_pips(
+    scope: str = "mine",
+    status_codes: Optional[str] = None,
+    playbook_id: Optional[int] = None,
+) -> list[dict]:
+    """
+    List PIPs for the current user (staff may request ``scope=all``).
+
+    :param status_codes: comma-separated statuses (draft,reviewed,…); empty=all
+    """
+
+    logger.info(f"MCP Tool: list_pips scope={scope} status_codes={status_codes}")
+    user = await sync_to_async(get_current_user)()
+    status_list = []
+    if status_codes and str(status_codes).strip():
+        status_list = [s.strip() for s in str(status_codes).split(",") if s.strip()]
+
+    from methodology.services.pip_service import PIPService
+
+    def _inner():
+        qs = PIPService.list_queryset_for_user(
+            actor=user,
+            scope=scope,
+            status_filters=status_list or None,
+            playbook_id=playbook_id,
+        )
+        rows = list(qs)
+        PIPService.mark_list_viewed(user)
+        return rows
+
+    try:
+        rows = await sync_to_async(_inner)()
+    except PermissionError as exc:
+        raise ValueError(str(exc)) from exc
+    payload = [_serialize_pip_summary(p) for p in rows]
+    logger.info(f"MCP Tool: list_pips returned={len(payload)}")
+    return payload
+
+
+async def get_pip(pip_id: int) -> dict:
+    """Return a single proposal with nested change rows."""
+
+    user = await sync_to_async(get_current_user)()
+
+    def _fetch():
+        from methodology.models import ProcessImprovementProposal as Pipo
+        from methodology.services.pip_service import PIPService
+
+        try:
+            return PIPService.get_pip_with_changes(int(pip_id), user)
+        except Pipo.DoesNotExist as exc:
+            raise ValueError(f"PIP {pip_id} not found") from exc
+        except PermissionError as exc:
+            raise ValueError(str(exc)) from exc
+
+    pip = await sync_to_async(_fetch)()
+    summary = _serialize_pip_summary(pip)
+    summary["changes"] = [
+        _serialize_pip_change(c) for c in pip.changes.order_by("order", "pk")
+    ]
+    return summary
+
+
+async def create_pip(playbook_id: int, title: str, summary: str = "") -> dict:
+    """Create a Draft PIP on a Released playbook."""
+
+    user = await sync_to_async(get_current_user)()
+
+    def _mk():
+        from methodology.services.pip_service import PIPService
+
+        return PIPService.create_draft_for_playbook(
+            actor=user,
+            playbook_id=int(playbook_id),
+            title=title,
+            summary=summary or "",
+        )
+
+
+    try:
+        pip = await sync_to_async(_mk)()
+    except ValidationError as e:
+        _handle_validation_error(e, "create_pip")
+
+    def _reload():
+        from methodology.services.pip_service import PIPService
+
+        return PIPService.get_pip(pip.pk, user)
+
+    refreshed = await sync_to_async(_reload)()
+    return {"pip": _serialize_pip_summary(refreshed)}
+
+
+async def add_pip_change(
+    pip_id: int,
+    change_type: str,
+    entity_type: str,
+    name: str = "",
+    content: str = "",
+    target_id: Optional[int] = None,
+    parent_workflow_id: Optional[int] = None,
+    insert_after_activity_id: Optional[int] = None,
+    append_to_playbook_end: bool = False,
+) -> dict:
+    """Attach a typed change row to an editable draft."""
+
+    user = await sync_to_async(get_current_user)()
+
+    def _run():
+        from methodology.services.pip_service import PIPService
+
+        pip = PIPService.get_pip(pip_id, user)
+        try:
+            return PIPService.add_change(
+                actor=user,
+                pip=pip,
+                change_type=change_type,
+                entity_type=entity_type,
+                name=name or "",
+                content=content or "",
+                target_id=target_id,
+                parent_workflow_id=parent_workflow_id,
+                insert_after_activity_id=insert_after_activity_id,
+                append_to_playbook_end=append_to_playbook_end,
+            )
+        except ValidationError as e:
+            _handle_validation_error(e, "add_pip_change")
+
+    ch = await sync_to_async(_run)()
+    return {"change_id": ch.pk}
+
+
+async def remove_pip_change(pip_id: int, change_id: int) -> dict:
+    """Remove change while draft."""
+
+    user = await sync_to_async(get_current_user)()
+    from methodology.services.pip_service import PIPService
+
+    pip = await sync_to_async(PIPService.get_pip)(pip_id, user)
+
+    try:
+        await sync_to_async(PIPService.remove_change)(
+            actor=user, pip=pip, change_id=int(change_id)
+        )
+    except ValidationError as e:
+        _handle_validation_error(e, "remove_pip_change")
+    return {"removed": True, "change_id": int(change_id)}
+
+
+async def submit_pip(pip_id: int) -> dict:
+    """Queue Galdr evaluation for Draft or retry row."""
+
+    user = await sync_to_async(get_current_user)()
+    from methodology.services.pip_service import PIPService
+
+    pip = await sync_to_async(PIPService.get_pip)(pip_id, user)
+
+    try:
+        await sync_to_async(PIPService.submit_for_review)(actor=user, pip=pip)
+    except ValidationError as e:
+        _handle_validation_error(e, "submit_pip")
+    updated = await sync_to_async(PIPService.get_pip)(pip_id, user)
+    return {"pip": _serialize_pip_summary(updated)}
+
+
+async def cancel_pip(pip_id: int) -> dict:
+    """Withdraw / delete an in-flight PIP owned by caller."""
+
+    user = await sync_to_async(get_current_user)()
+
+    def _withdraw():
+        from methodology.services.pip_service import PIPService
+
+        pip = PIPService.get_pip(pip_id, user)
+        try:
+            PIPService.cancel_pip(pip, user)
+        except ValidationError as e:
+            _handle_validation_error(e, "cancel_pip")
+
+    await sync_to_async(_withdraw)()
+    return {"cancelled": True, "pip_id": int(pip_id)}
+
+
+async def preview_pip_diff(pip_id: int) -> dict:
+    """Return human-readable preview rows for diff-style inspection."""
+
+    user = await sync_to_async(get_current_user)()
+
+    def _preview():
+        from methodology.services.pip_service import PIPService
+
+        pip = PIPService.get_pip(pip_id, user)
+        rows = PIPService.summarize_preview_rows(pip)
+        return {"pip_id": int(pip_id), "rows": rows}
+
+    return await sync_to_async(_preview)()
+
+
 def _parse_required_filter(value: str):
     """
     Parse required_filter string to bool or None.
@@ -2581,11 +2830,11 @@ def initialize_mcp():
     Initialize and return the FastMCP instance.
 
     Called by mcp_server management command.
-    Registers all 41 tools with FastMCP.
+    Registers MCP tools including PIP lifecycle helpers.
 
     :returns: FastMCP instance ready to run
     """
-    logger.info('MCP: Initializing FastMCP server with 41 tools')
+    logger.info("MCP: Initializing FastMCP server with 49 tools")
 
     # Register playbook tools
     mcp.tool()(create_playbook)
@@ -2614,6 +2863,16 @@ def initialize_mcp():
     mcp.tool()(import_workflow_from_local)
     mcp.tool()(apply_upload_protocol)
     mcp.tool()(create_pip_from_protocol)
+
+    # PIP lifecycle tools (structured proposals)
+    mcp.tool()(list_pips)
+    mcp.tool()(get_pip)
+    mcp.tool()(create_pip)
+    mcp.tool()(add_pip_change)
+    mcp.tool()(remove_pip_change)
+    mcp.tool()(submit_pip)
+    mcp.tool()(cancel_pip)
+    mcp.tool()(preview_pip_diff)
 
     # Register skill tools
     mcp.tool()(create_skill)
@@ -2658,6 +2917,6 @@ def initialize_mcp():
     mcp.tool()(delete_phase)
     mcp.tool()(reorder_phases)
 
-    logger.info('MCP: All tools registered (includes rule CRUDLF + set_activity_rules)')
+    logger.info("MCP: All tools registered (49 tools incl. PIPs + rule CRUDLF)")
     return mcp
 
