@@ -149,10 +149,16 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link disabled" href="#" data-testid="nav-pips"
+                        <a class="nav-link {% if '/pips/' in request.path %}active{% endif %}"
+                           href="{% url 'pip_list' %}"
+                           data-testid="nav-pips"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
-                           title="Coming soon: Global PIPs list (currently accessed via Playbook tabs)">
+                           title="Playbook Improvement Proposals"
+                           {% if '/pips/' in request.path %}aria-current="page"{% endif %}>
                             <i class="fas fa-lightbulb"></i> PIPs
+                            {% if user.is_authenticated and pip_nav_unread_count %}
+                            <span class="badge bg-primary ms-1" data-testid="nav-pips-count">{{ pip_nav_unread_count }}</span>
+                            {% endif %}
                         </a>
                     </li>
                 </ul>

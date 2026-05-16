@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Edit PIP — Mimir{% endblock %}
+{% block content %}
+<div class="container mt-4" data-testid="pip-edit-placeholder">
+    <h1 class="h4">Edit PIP #{{ pk }}</h1>
+    <p class="text-muted">Draft editing UI will be available in the create/edit slice.</p>
+    <a href="{% url 'pip_list' %}" class="btn btn-outline-secondary">Back to PIPs</a>
+</div>
+{% endblock %}

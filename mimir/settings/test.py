@@ -1,10 +1,9 @@
 """
 Test settings for mimir project.
 
-Optimized for fast test execution with in-memory SQLite.
+Optimized for fast in-memory SQLite execution.
 """
 
-import os
 from .base import *  # noqa: F401, F403
 
 # Environment identifier
@@ -25,6 +24,17 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'http://127.0.0.1',
 ]
+
+
+# Disable live Claude in pytest — StubGaldrClient path.
+GALDR_USE_ANTHROPIC = False
+
+# Galdr: synchronous in tests keeps ProcessImprovementProposal rows visible during assertions.
+GALDR_EAGER = True
+
+# Capture notification emails during tests.
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+DEFAULT_FROM_EMAIL = "noreply@test.mimir"
 
 
 # Database

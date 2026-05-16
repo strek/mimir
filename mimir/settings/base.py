@@ -54,6 +54,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "methodology.context_processors.pip_nav",
             ],
         },
     },
@@ -104,6 +105,15 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Galdr AI review worker
+GALDR_MODEL = os.environ.get("GALDR_MODEL", "claude-sonnet-4-20250514")
+GALDR_USE_ANTHROPIC = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@mimir.local")
+
+# Galdr MVP: use synchronous assessments in tests only (sqlite + threads are flaky).
+GALDR_EAGER = False
 
 # Authentication settings
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth

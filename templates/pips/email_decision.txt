@@ -1,0 +1,16 @@
+Hi {{ pip.created_by.get_full_name|default:pip.created_by.username }},
+
+Your PIP "{{ pip.title }}" has been reviewed.
+
+{% for change in changes %}
+Change {{ forloop.counter }}: {{ change.change_type }} {{ change.entity_type }} "{{ change.name|default:change.target_name_snapshot|default:'(unnamed)' }}"
+  Decision: {% if change.admin_decision %}{{ change.admin_decision }}{% else %}—{% endif %}
+{% if change.admin_note %}
+  Admin note: {{ change.admin_note }}
+{% endif %}
+{% if change.galdr_reasoning %}
+  Galdr: {{ change.galdr_reasoning }}
+{% endif %}
+
+{% endfor %}
+Overall: {{ verdict }}. {% if version_bump and new_version %}{{ pip.playbook.name }} is now v{{ new_version }}.{% endif %}

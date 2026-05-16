@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}PIP-{{ pip.pk }} preview{% endblock %}
+{% block content %}
+<div class="container mt-4" data-testid="pip-preview-page">
+    <h1 class="h4">Preview — PIP-{{ pip.pk }}</h1>
+    <p class="text-muted">{{ pip.title }}</p>
+    <table class="table table-sm">
+        <thead><tr><th>Section</th><th>Change</th><th>Snippet</th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.section }}</td>
+            <td>{{ row.change_type }}</td>
+            <td class="small"><pre class="mb-0">{{ row.snippet }}</pre></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-muted">No changes yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <a href="{% url 'pip_edit' pip.pk %}" class="btn btn-outline-secondary">Back to editor</a>
+</div>
+{% endblock %}

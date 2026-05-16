@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}PIPs — Mimir{% endblock %}
+{% block content %}
+<div class="container mt-4" data-testid="pip-list-page">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">PIPs</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="h3" data-testid="pip-list-heading">
+                <i class="fas fa-lightbulb"></i> PIPs
+                <span class="badge bg-secondary ms-1" data-testid="pip-list-count">PIPs ({{ pip_count }})</span>
+            </h2>
+            <p class="text-muted mb-0">Playbook Improvement Proposals for Released playbooks.</p>
+        </div>
+        <a href="{% url 'pip_create' %}" class="btn btn-primary" data-testid="pip-new-btn">
+            <i class="fas fa-plus"></i> New PIP
+        </a>
+    </div>
+
+    <div class="card mb-4" data-testid="pip-filter-bar">
+        <div class="card-body">
+            <form method="get" action="{% url 'pip_list' %}" id="pip-filter-form">
+                <input type="hidden" name="scope" value="{{ list_scope }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-lg-5">
+                        <span class="form-label small fw-semibold d-block">Status</span>
+                        <div class="d-flex flex-wrap gap-2" data-testid="filter-status-group">
+                            {% for val, label in pip_status_choices %}
+                            <label class="form-check form-check-inline small mb-0">
+                                <input class="form-check-input" type="checkbox" name="status" value="{{ val }}"
+                                       {% if val in status_filters %}checked{% endif %}
+                                       data-testid="filter-status-{{ val }}">
+                                <span class="form-check-label">{{ label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label small fw-semibold" for="filter-playbook">Target playbook</label>
+                        <select class="form-select form-select-sm" name="playbook" id="filter-playbook"
+                                data-testid="filter-playbook">
+                            <option value="">All playbooks</option>
+                            {% for pb in filter_playbooks %}
+                            <option value="{{ pb.pk }}" {% if selected_playbook == pb.pk %}selected{% endif %}>
+                                {{ pb.name }} (id={{ pb.pk }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-lg-3 text-lg-end">
+                        <button type="submit" class="btn btn-outline-primary btn-sm me-1" data-testid="filter-apply">
+                            <i class="fas fa-filter"></i> Apply
+                        </button>
+                        <a href="{% url 'pip_list' %}?scope={{ list_scope }}" class="btn btn-outline-secondary btn-sm"
+                           data-testid="filter-clear">Clear filters</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs" role="tablist" data-testid="pip-tabs">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if list_scope == 'mine' %}active{% endif %}"
+               href="{% url 'pip_list' %}?scope=mine"
+               data-testid="tab-my-pips"
+               {% if list_scope == 'mine' %}aria-current="page"{% endif %}>My PIPs</a>
+        </li>
+        {% if user.is_staff %}
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if list_scope == 'all' %}active{% endif %}"
+               href="{% url 'pip_list' %}?scope=all"
+               data-testid="tab-all-pips"
+               {% if list_scope == 'all' %}aria-current="page"{% endif %}>All PIPs</a>
+        </li>
+        {% endif %}
+    </ul>
+
+    <div class="card border-top-0 rounded-top-0">
+        <div class="card-body p-0">
+            {% if pip_count == 0 %}
+            <div class="p-5 text-center text-muted" data-testid="pip-empty-state">
+                {% if status_filters or selected_playbook %}
+                <p class="mb-2">No PIPs match the selected filters.</p>
+                <a href="{% url 'pip_list' %}?scope={{ list_scope }}" class="btn btn-sm btn-outline-secondary"
+                   data-testid="pip-empty-clear">Clear filters</a>
+                {% else %}
+                <p class="mb-2">You haven't submitted any PIPs yet.</p>
+                <p class="small">Find a Released playbook you'd like to improve and click <strong>Submit PIP</strong>.</p>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" data-testid="pip-table">
+                    <thead class="table-light">
+                    <tr>
+                        {% if list_scope == 'all' %}
+                        <th>Submitted by</th>
+                        {% endif %}
+                        <th>PIP</th>
+                        <th>Title</th>
+                        <th>Target playbook</th>
+                        <th class="text-center">Changes</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Updated</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in pip_rows %}
+                    {% with pip=row.pip %}
+                    <tr data-testid="pip-row-{{ pip.pk }}">
+                        {% if list_scope == 'all' %}
+                        <td class="small">
+                            {% if pip.created_by %}{{ pip.created_by.get_full_name|default:pip.created_by.username }}{% else %}—{% endif %}
+                        </td>
+                        {% endif %}
+                        <td class="text-nowrap small font-monospace text-muted">
+                            {% if row.unread_dot %}
+                            <span class="text-primary me-1" title="Status changed since your last visit"
+                                  data-testid="pip-unread-dot-{{ pip.pk }}">●</span>
+                            {% endif %}
+                            PIP-{{ pip.pk }}
+                        </td>
+                        <td><strong>{{ pip.title }}</strong></td>
+                        <td class="small">{{ pip.playbook.name }} <span class="text-muted">(v{{ pip.playbook.version }})</span></td>
+                        <td class="text-center">{{ pip.change_count|default:0 }}</td>
+                        <td>
+                            <span class="badge rounded-pill {{ pip.status_bootstrap_class }}"
+                                  data-testid="pip-status-badge-{{ pip.pk }}">{{ pip.get_status_display }}</span>
+                        </td>
+                        <td class="small text-muted">
+                            {% if pip.submitted_at %}{{ pip.submitted_at|date:"Y-m-d" }}{% else %}—{% endif %}
+                        </td>
+                        <td class="small text-muted">{{ pip.updated_at|date:"Y-m-d H:i" }}</td>
+                        <td class="text-end">
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                        data-bs-toggle="dropdown" data-testid="pip-actions-{{ pip.pk }}"
+                                        aria-expanded="false">Actions</button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'pip_detail' pip.pk %}"
+                                           data-testid="pip-action-view-{{ pip.pk }}">View</a>
+                                    </li>
+                                    {% if pip.status == 'draft' %}
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'pip_edit' pip.pk %}"
+                                           data-testid="pip-action-edit-{{ pip.pk }}">Edit</a>
+                                    </li>
+                                    {% endif %}
+                                    {% if pip.status == 'draft' or pip.status == 'submitted' or pip.status == 'processing_galdr' %}
+                                    <li>
+                                        <form method="post" action="{% url 'pip_withdraw' pip.pk %}" class="m-0 p-0">
+                                            {% csrf_token %}
+                                            <button type="submit" class="dropdown-item text-danger btn btn-link py-1 text-start w-100 border-0 rounded-0"
+                                                    data-testid="pip-action-withdraw-{{ pip.pk }}">Withdraw</button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script>
+  console.log('PIP list loaded', {count: {{ pip_count }}, scope: "{{ list_scope|escapejs }}"});
+</script>
+{% endblock %}

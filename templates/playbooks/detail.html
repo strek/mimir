@@ -67,8 +67,9 @@
                         <i class="fa-solid fa-rocket"></i> Next major
                     </button>
                     <!-- Submit PIP button for released playbooks -->
-                    <a href="#"
+                    <a href="{% url 'pip_create' %}?playbook={{ playbook.pk }}"
                        class="btn btn-primary"
+                       data-testid="playbook-submit-pip"
                        data-bs-toggle="tooltip"
                        title="Submit a Process Improvement Proposal to change this playbook">
                         <i class="fa-solid fa-lightbulb"></i> Submit PIP

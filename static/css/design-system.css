@@ -7,3 +7,9 @@
         "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif;
     --bs-body-font-family: var(--bs-font-sans-serif);
 }
+
+/* Act 9 — PIP status badges (Reviewed = purple) */
+.pip-status-reviewed {
+    background-color: #6f42c1;
+    color: #fff;
+}
