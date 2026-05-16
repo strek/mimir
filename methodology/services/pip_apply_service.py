@@ -16,6 +16,10 @@ from methodology.models import PlaybookVersion, ProcessImprovementProposal, Vers
 
 logger = logging.getLogger(__name__)
 
+_LEGACY_PIP_APPLY_STATUSES = frozenset(
+    {"approved", ProcessImprovementProposal.STATUS_ACCEPTED}
+)
+
 
 @transaction.atomic
 def apply_approved_pip_aggregate(
@@ -42,8 +46,10 @@ def apply_approved_pip_aggregate(
         raise PermissionError("You don't have permission to apply this PIP.")
     if playbook.status != "released":
         raise ValidationError("PIP apply is only valid for released playbooks.")
-    if pip.status != "approved":
-        raise ValidationError(f"PIP must be approved (current status: {pip.status}).")
+    if pip.status not in _LEGACY_PIP_APPLY_STATUSES:
+        raise ValidationError(
+            f"PIP must be accepted (or legacy approved) — current status: {pip.status}"
+        )
 
     apply_mutations()
 
@@ -69,7 +75,7 @@ def apply_approved_pip_aggregate(
         created_by=actor,
     )
 
-    pip.status = "implemented"
+    pip.status = ProcessImprovementProposal.STATUS_ACCEPTED
     pip.save(update_fields=["status"])
 
     logger.info(
