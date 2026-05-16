@@ -1,5 +1,7 @@
 from .playbook import Playbook
 from .process_improvement_proposal import ProcessImprovementProposal
+from .pip_change import PipChange
+from .user_pip_list_visit import UserPIPListVisit
 from .playbook_version import PlaybookVersion, VersionSource
 from .workflow import Workflow
 from .phase import Phase
@@ -15,6 +17,8 @@ __all__ = [
     'PlaybookVersion',
     'VersionSource',
     'ProcessImprovementProposal',
+    'PipChange',
+    'UserPIPListVisit',
     'Workflow',
     'Phase',
     'Activity',
