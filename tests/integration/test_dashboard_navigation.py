@@ -37,15 +37,35 @@ class TestDashboardNavigation:
         # Link should go to playbook_create (FOB-PLAYBOOKS-CREATE_PLAYBOOK-1 entry point)
         create_url = reverse("playbook_create")
         assert create_url in content
-        
-        # Verify disabled buttons are present in header
+
+        # Verify disabled import placeholder in header dropdown
         assert 'data-testid="quick-action-import-playbook-header"' in content
-        assert 'data-testid="quick-action-sync-homebase-header"' in content
         assert "Import Playbook" in content
-        assert "Sync with Homebase" in content
-        
-        # Verify Settings button is present
-        assert 'data-testid="dashboard-settings-button"' in content
-        
+
+        # Settings opens Django admin and is shown only to staff
+        assert 'data-testid="dashboard-settings-button"' not in content
+
         # Verify Dashboard button is NOT present on dashboard
+        assert 'Dashboard</button>' not in content or content.count('Dashboard</button>') == 0
+
+    def test_dashboard_staff_shows_admin_settings_link(self):
+        """Staff users see Settings linking to Django admin."""
+        client = Client()
+        user = User.objects.create_user(
+            username="staff_maria",
+            email="staff@example.com",
+            password="SecurePass123",
+            is_staff=True,
+        )
+        client.force_login(user)
+
+        response = client.get(reverse("dashboard"))
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+
+        admin_url = reverse("admin:index")
+        assert admin_url in content
+        assert 'data-testid="dashboard-settings-button"' in content
+        assert "Settings" in content
+
         assert 'Dashboard</button>' not in content or content.count('Dashboard</button>') == 0
