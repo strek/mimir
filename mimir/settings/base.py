@@ -5,30 +5,54 @@ Common settings shared across all environments (dev, test, prod).
 Environment-specific overrides in dev.py, test.py, prod.py.
 """
 
+import logging
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-# Application definition
+def _installed_apps() -> list[str]:
+    """Return INSTALLED_APPS; register django_ses only if the package is present."""
 
-INSTALLED_APPS = [
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    # Third-party apps
-    "rest_framework",
-    "rest_framework.authtoken",
-    # Mimir apps
-    "accounts",
-    "methodology",
-    "mcp_integration",
-]
+    third_party = [
+        "rest_framework",
+        "rest_framework.authtoken",
+    ]
+    try:
+        import django_ses  # noqa: F401
+    except ImportError:
+        logger.warning(
+            "django_ses is not installed; SES email backend is unavailable. "
+            "Run: pip install -r requirements.txt"
+        )
+    else:
+        third_party.append("django_ses")
+
+    return (
+        [
+            "django.contrib.admin",
+            "django.contrib.auth",
+            "django.contrib.contenttypes",
+            "django.contrib.sessions",
+            "django.contrib.messages",
+            "django.contrib.staticfiles",
+        ]
+        + third_party
+        + [
+            # Mimir apps
+            "accounts",
+            "methodology",
+            "mcp_integration",
+        ]
+    )
+
+
+# Application definition
+INSTALLED_APPS = _installed_apps()
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
