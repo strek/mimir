@@ -1,60 +1,68 @@
 """
-Email service using AWS SES.
+Transactional email for accounts — uses Django ``EMAIL_BACKEND``.
 
-Sends transactional emails for user registration, password reset, etc.
+In development: console backend prints to stdout.
+In production: ``django_ses.SESBackend`` (see ``mimir.settings.prod``).
+Tests: ``locmem`` backend and ``django.core.mail.outbox``.
 """
 
+from __future__ import annotations
+
 import logging
-import os
+from typing import TYPE_CHECKING
+
 from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractBaseUser
 
 logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """
-    Service for sending emails via AWS SES.
-    
-    Uses boto3 to send emails through Amazon Simple Email Service.
-    Requires AWS credentials and verified domain in SES.
-    """
-    
+    """Send multipart (text + HTML) email via Django's mail API."""
+
     @staticmethod
-    def _get_ses_client():
+    def _send_multipart(
+        subject: str,
+        text_body: str,
+        html_body: str,
+        to_addresses: list[str],
+    ) -> None:
+        """Send one email with plain-text and HTML alternatives.
+
+        :param subject: Email subject line.
+        :param text_body: Plain-text body.
+        :param html_body: HTML body.
+        :param to_addresses: Recipient list (not logged — privacy).
+        :raises Exception: Re-raises any failure from Django's mail layer.
         """
-        Get boto3 SES client.
-        
-        :return: boto3 SES client or None if not configured
-        """
-        try:
-            import boto3
-            
-            # Use environment variables for AWS credentials
-            # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION
-            return boto3.client('ses')
-        except Exception as e:
-            logger.warning(f'Failed to create SES client: {e}')
-            return None
-    
+        sender = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@mimir.local")
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=sender,
+            to=to_addresses,
+        )
+        msg.attach_alternative(html_body, "text/html")
+        msg.send()
+        logger.info(
+            "[EMAIL] Sent subject=%r to_n=%d from_backend=%s",
+            subject,
+            len(to_addresses),
+            settings.EMAIL_BACKEND,
+        )
+
     @staticmethod
-    def send_welcome_email(user):
+    def send_welcome_email(user: AbstractBaseUser) -> None:
+        """Send welcome email to new user.
+
+        :param user: Django user with ``email`` set.
+        :raises Exception: If delivery fails.
         """
-        Send welcome email to new user.
-        
-        :param user: User instance
-        :raises Exception: If email fails to send
-        """
-        ses_client = EmailService._get_ses_client()
-        
-        if not ses_client:
-            logger.warning('SES not configured, skipping welcome email')
-            return
-        
-        # Get sender email from settings
-        sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@featurefactory.io')
-        
-        # Email content
-        subject = 'Welcome to Mimir!'
+        subject = "Welcome to Mimir!"
         body_text = f"""
 Hello {user.first_name or user.username},
 
@@ -70,7 +78,6 @@ If you have any questions, please don't hesitate to reach out.
 Best regards,
 The Mimir Team
 """
-        
         body_html = f"""
 <html>
 <head></head>
@@ -89,48 +96,19 @@ The Mimir Team
 </body>
 </html>
 """
-        
-        try:
-            response = ses_client.send_email(
-                Source=sender,
-                Destination={'ToAddresses': [user.email]},
-                Message={
-                    'Subject': {'Data': subject, 'Charset': 'UTF-8'},
-                    'Body': {
-                        'Text': {'Data': body_text, 'Charset': 'UTF-8'},
-                        'Html': {'Data': body_html, 'Charset': 'UTF-8'}
-                    }
-                }
-            )
-            
-            logger.info(f'Sent welcome email to {user.email}, MessageId: {response["MessageId"]}')
-            
-        except Exception as e:
-            logger.error(f'Failed to send welcome email to {user.email}: {e}')
-            raise
-    
+        EmailService._send_multipart(subject, body_text, body_html, [user.email])
+
     @staticmethod
-    def send_password_reset_email(user, reset_token):
+    def send_password_reset_email(user: AbstractBaseUser, reset_token: str) -> None:
+        """Send password reset email with token link.
+
+        :param user: Django user.
+        :param reset_token: Opaque reset token from Django's auth framework.
+        :raises Exception: If delivery fails.
         """
-        Send password reset email.
-        
-        :param user: User instance
-        :param reset_token: Password reset token
-        :raises Exception: If email fails to send
-        """
-        ses_client = EmailService._get_ses_client()
-        
-        if not ses_client:
-            logger.warning('SES not configured, skipping password reset email')
-            return
-        
-        sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@featurefactory.io')
-        
-        # Get base URL from settings
-        base_url = getattr(settings, 'FRONTEND_URL', 'https://mimir.featurefactory.io')
-        reset_url = f'{base_url}/reset-password?token={reset_token}'
-        
-        subject = 'Password Reset Request'
+        base_url = getattr(settings, "FRONTEND_URL", "https://mimir.featurefactory.io")
+        reset_url = f"{base_url.rstrip('/')}/reset-password?token={reset_token}"
+        subject = "Password Reset Request"
         body_text = f"""
 Hello {user.first_name or user.username},
 
@@ -146,7 +124,6 @@ If you didn't request this, please ignore this email.
 Best regards,
 The Mimir Team
 """
-        
         body_html = f"""
 <html>
 <head></head>
@@ -161,22 +138,26 @@ The Mimir Team
 </body>
 </html>
 """
-        
-        try:
-            response = ses_client.send_email(
-                Source=sender,
-                Destination={'ToAddresses': [user.email]},
-                Message={
-                    'Subject': {'Data': subject, 'Charset': 'UTF-8'},
-                    'Body': {
-                        'Text': {'Data': body_text, 'Charset': 'UTF-8'},
-                        'Html': {'Data': body_html, 'Charset': 'UTF-8'}
-                    }
-                }
-            )
-            
-            logger.info(f'Sent password reset email to {user.email}, MessageId: {response["MessageId"]}')
-            
-        except Exception as e:
-            logger.error(f'Failed to send password reset email to {user.email}: {e}')
-            raise
+        EmailService._send_multipart(subject, body_text, body_html, [user.email])
+
+    @staticmethod
+    def send_verification_email(
+        user: AbstractBaseUser,
+        token: str,
+        *,
+        base_url: str | None = None,
+    ) -> None:
+        """Send email with one-click verification link.
+
+        :param user: Django user; mail goes to ``user.email``.
+        :param token: URL-safe verification token.
+        :param base_url: Site origin (default: ``settings.FRONTEND_URL``).
+        :raises Exception: If delivery fails.
+        """
+        root = (base_url or getattr(settings, "FRONTEND_URL", "")).rstrip("/")
+        verify_url = f"{root}/auth/user/verify-email/{token}/"
+        ctx = {"user": user, "verify_url": verify_url}
+        text_body = render_to_string("accounts/email_verify.txt", ctx)
+        html_body = render_to_string("accounts/email_verify.html", ctx)
+        subject = "Verify your Mimir email address"
+        EmailService._send_multipart(subject, text_body, html_body, [user.email])

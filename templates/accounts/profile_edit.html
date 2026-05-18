@@ -86,6 +86,14 @@
                                     {{ errors.email|join:", " }}
                                 </div>
                                 {% endif %}
+                                <div id="email-change-warning-box"
+                                     class="alert alert-warning py-2 px-3 mt-2 mb-0 small d-none"
+                                     data-testid="email-change-warning">
+                                    <i class="fas fa-triangle-exclamation me-1"></i>
+                                    <strong>Changing your email will require re-verification.</strong>
+                                    You will be logged out and your API token invalidated
+                                    until the new address is verified.
+                                </div>
                             </div>
                         </div>
 
@@ -121,4 +129,26 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var inp = document.getElementById('id_email');
+    var box = document.getElementById('email-change-warning-box');
+    if (!inp || !box) {
+        console.log('[profile-edit] email-change-warning: skip (elements missing)');
+        return;
+    }
+    var original = (inp.value || '').trim();
+    function sync() {
+        var changed = (inp.value || '').trim() !== original;
+        box.classList.toggle('d-none', !changed);
+        console.log('[profile-edit] email field changed from original:', changed);
+    }
+    inp.addEventListener('input', sync);
+    inp.addEventListener('change', sync);
+    sync();
+})();
+</script>
 {% endblock %}

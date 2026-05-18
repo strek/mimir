@@ -14,43 +14,41 @@ from django.urls import reverse
 class TestUserRegistration:
     """Test AUTH-03: First-time user registration."""
     
-    def test_register_new_user_redirects_to_onboarding(self):
+    def test_register_new_user_redirects_to_login_without_auto_login(self):
         """
-        Test successful registration redirects to onboarding.
-        
-        Scenario: AUTH-03 First-time user registration
-        Given: Maria is on the FOB registration page
-        When: she enters username, email, and password
-        And: she clicks [Create Account]
-        Then: account is created
-        And: she is auto-logged in
-        And: she is redirected to FOB-ONBOARDING-1
+        Successful registration creates the account, records ToS, sends verify email,
+        and redirects to login without establishing a session (no auto-login).
         """
-        # Arrange
         client = Client()
         register_url = reverse('register')
-        
-        # Act
-        response = client.post(register_url, {
-            'username': 'maria',
-            'email': 'maria@example.com',
-            'password': 'SecurePass123',
-            'password_confirm': 'SecurePass123',
-        }, follow=False)
-        
-        # Assert - Should redirect to onboarding
-        assert response.status_code == 302, f"Expected 302 redirect, got {response.status_code}"
-        assert response.url == '/auth/user/onboarding/', f"Expected redirect to onboarding, got {response.url}"
-        
-        # Assert - User should be created
-        assert User.objects.filter(username='maria').exists(), "User should be created in database"
+
+        response = client.post(
+            register_url,
+            {
+                'first_name': 'Maria',
+                'last_name': 'Example',
+                'username': 'maria',
+                'email': 'maria@example.com',
+                'password': 'SecurePass123',
+                'password_confirm': 'SecurePass123',
+                'accepted_tos': 'on',
+            },
+            follow=False,
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse('login')
+
+        assert User.objects.filter(username='maria').exists()
         user = User.objects.get(username='maria')
-        assert user.email == 'maria@example.com', "Email should be saved"
-        
-        # Assert - User should be auto-logged in
-        response_after = client.get('/auth/user/onboarding/')
-        assert response_after.wsgi_request.user.is_authenticated, "User should be auto-logged in"
-        assert response_after.wsgi_request.user.username == 'maria', "Logged in user should be maria"
+        assert user.email == 'maria@example.com'
+        assert user.first_name == 'Maria'
+        assert user.last_name == 'Example'
+
+        assert '_auth_user_id' not in client.session
+
+        onboarding_probe = client.get('/auth/user/onboarding/')
+        assert not onboarding_probe.wsgi_request.user.is_authenticated
     
     def test_register_with_duplicate_username_shows_error(self):
         """
@@ -67,12 +65,18 @@ class TestUserRegistration:
         register_url = reverse('register')
         
         # Act
-        response = client.post(register_url, {
-            'username': 'maria',
-            'email': 'new@example.com',
-            'password': 'NewPass123',
-            'password_confirm': 'NewPass123',
-        })
+        response = client.post(
+            register_url,
+            {
+                'first_name': 'Maria',
+                'last_name': 'Dup',
+                'username': 'maria',
+                'email': 'new@example.com',
+                'password': 'NewPass123',
+                'password_confirm': 'NewPass123',
+                'accepted_tos': 'on',
+            },
+        )
         
         # Assert - Should stay on page
         assert response.status_code == 200
@@ -103,12 +107,18 @@ class TestUserRegistration:
         register_url = reverse('register')
         
         # Act
-        response = client.post(register_url, {
-            'username': 'newuser',
-            'email': 'maria@example.com',
-            'password': 'NewPass123',
-            'password_confirm': 'NewPass123',
-        })
+        response = client.post(
+            register_url,
+            {
+                'first_name': 'New',
+                'last_name': 'User',
+                'username': 'newuser',
+                'email': 'maria@example.com',
+                'password': 'NewPass123',
+                'password_confirm': 'NewPass123',
+                'accepted_tos': 'on',
+            },
+        )
         
         # Assert
         assert response.status_code == 200
@@ -129,12 +139,18 @@ class TestUserRegistration:
         register_url = reverse('register')
         
         # Act
-        response = client.post(register_url, {
-            'username': 'maria',
-            'email': 'maria@example.com',
-            'password': 'Password123',
-            'password_confirm': 'DifferentPass123',
-        })
+        response = client.post(
+            register_url,
+            {
+                'first_name': 'Maria',
+                'last_name': 'Miss',
+                'username': 'maria',
+                'email': 'maria@example.com',
+                'password': 'Password123',
+                'password_confirm': 'DifferentPass123',
+                'accepted_tos': 'on',
+            },
+        )
         
         # Assert
         assert response.status_code == 200
@@ -158,12 +174,18 @@ class TestUserRegistration:
         register_url = reverse('register')
         
         # Act
-        response = client.post(register_url, {
-            'username': 'maria',
-            'email': 'maria@example.com',
-            'password': 'short',
-            'password_confirm': 'short',
-        })
+        response = client.post(
+            register_url,
+            {
+                'first_name': 'Maria',
+                'last_name': 'Short',
+                'username': 'maria',
+                'email': 'maria@example.com',
+                'password': 'short',
+                'password_confirm': 'short',
+                'accepted_tos': 'on',
+            },
+        )
         
         # Assert
         assert response.status_code == 200
@@ -187,12 +209,18 @@ class TestUserRegistration:
         register_url = reverse('register')
         
         # Act
-        response = client.post(register_url, {
-            'username': 'maria',
-            'email': 'invalid-email',
-            'password': 'SecurePass123',
-            'password_confirm': 'SecurePass123',
-        })
+        response = client.post(
+            register_url,
+            {
+                'first_name': 'Maria',
+                'last_name': 'Bad',
+                'username': 'maria',
+                'email': 'invalid-email',
+                'password': 'SecurePass123',
+                'password_confirm': 'SecurePass123',
+                'accepted_tos': 'on',
+            },
+        )
         
         # Assert
         assert response.status_code == 200
@@ -213,12 +241,18 @@ class TestUserRegistration:
         register_url = reverse('register')
         
         # Act
-        response = client.post(register_url, {
-            'username': 'ab',
-            'email': 'maria@example.com',
-            'password': 'SecurePass123',
-            'password_confirm': 'SecurePass123',
-        })
+        response = client.post(
+            register_url,
+            {
+                'first_name': 'Maria',
+                'last_name': 'Shortname',
+                'username': 'ab',
+                'email': 'maria@example.com',
+                'password': 'SecurePass123',
+                'password_confirm': 'SecurePass123',
+                'accepted_tos': 'on',
+            },
+        )
         
         # Assert
         assert response.status_code == 200

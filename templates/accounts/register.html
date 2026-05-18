@@ -5,12 +5,15 @@
 {% block content %}
 <div class="row justify-content-center mt-5">
     <div class="col-md-6 col-lg-5">
-        <div class="card shadow">
-            <div class="card-body">
-                <h2 class="card-title text-center mb-4">
-                    <i class="fa-solid fa-user-plus"></i> Create Account
-                </h2>
-                
+        <div class="text-center mb-4">
+            <h1 class="h3 mb-1"><i class="fa-solid fa-user-plus me-2"></i>Create your Mimir account</h1>
+            <p class="text-muted small">Already have an account?
+                <a href="{% url 'login' %}">Sign in</a>
+            </p>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
                 {% if errors.non_field_errors %}
                 <div class="alert alert-danger alert-dismissible fade show" role="alert" data-testid="register-error-message">
                     <i class="fa-solid fa-triangle-exclamation me-2"></i>
@@ -18,108 +21,144 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
                 {% endif %}
-                
+
                 <form method="post" data-testid="register-form">
                     {% csrf_token %}
-                    
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <label for="id_first_name" class="form-label">First name <span class="text-danger">*</span></label>
+                            <input type="text" name="first_name" id="id_first_name"
+                                   class="form-control {% if errors.first_name %}is-invalid{% endif %}"
+                                   data-testid="register-first-name"
+                                   value="{{ first_name }}" maxlength="150" required>
+                            {% if errors.first_name %}
+                            <div class="invalid-feedback d-block" data-testid="first-name-field-error">
+                                <i class="fa-solid fa-circle-exclamation me-1"></i>{{ errors.first_name.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="id_last_name" class="form-label">Last name <span class="text-danger">*</span></label>
+                            <input type="text" name="last_name" id="id_last_name"
+                                   class="form-control {% if errors.last_name %}is-invalid{% endif %}"
+                                   data-testid="register-last-name"
+                                   value="{{ last_name }}" maxlength="150" required>
+                            {% if errors.last_name %}
+                            <div class="invalid-feedback d-block" data-testid="last-name-field-error">
+                                <i class="fa-solid fa-circle-exclamation me-1"></i>{{ errors.last_name.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="id_username" class="form-label">Username <span class="text-danger">*</span></label>
-                        <input 
-                            type="text" 
-                            name="username" 
-                            id="id_username"
-                            class="form-control {% if errors.username %}is-invalid{% endif %}"
-                            data-testid="register-username-input"
-                            value="{{ username }}"
-                            minlength="3"
-                            maxlength="30"
-                            required
-                            autofocus>
-                        <div class="form-text">3-30 characters. Letters, numbers, and @/./+/-/_ only.</div>
+                        <input type="text" name="username" id="id_username"
+                               class="form-control {% if errors.username %}is-invalid{% endif %}"
+                               data-testid="register-username-input"
+                               value="{{ username }}" minlength="3" maxlength="30" required>
+                        <div class="form-text">3–30 characters. Used to sign in.</div>
                         {% if errors.username %}
                         <div class="invalid-feedback d-block" data-testid="username-field-error">
-                            <i class="fa-solid fa-circle-exclamation me-1"></i>
-                            {{ errors.username.0 }}
+                            <i class="fa-solid fa-circle-exclamation me-1"></i>{{ errors.username.0 }}
                         </div>
                         {% endif %}
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label for="id_email" class="form-label">Email <span class="text-danger">*</span></label>
-                        <input 
-                            type="email" 
-                            name="email" 
-                            id="id_email"
-                            class="form-control {% if errors.email %}is-invalid{% endif %}"
-                            data-testid="register-email-input"
-                            value="{{ email }}"
-                            required>
+                        <label for="id_email" class="form-label">Email address <span class="text-danger">*</span></label>
+                        <input type="email" name="email" id="id_email"
+                               class="form-control {% if errors.email %}is-invalid{% endif %}"
+                               data-testid="register-email-input"
+                               value="{{ email }}" maxlength="254" required>
                         {% if errors.email %}
                         <div class="invalid-feedback d-block" data-testid="email-field-error">
-                            <i class="fa-solid fa-circle-exclamation me-1"></i>
-                            {{ errors.email.0 }}
+                            <i class="fa-solid fa-circle-exclamation me-1"></i>{{ errors.email.0 }}
                         </div>
                         {% endif %}
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="id_password" class="form-label">Password <span class="text-danger">*</span></label>
-                        <input 
-                            type="password" 
-                            name="password" 
-                            id="id_password"
-                            class="form-control {% if errors.password %}is-invalid{% endif %}"
-                            data-testid="register-password-input"
-                            minlength="8"
-                            required>
+                        <div class="input-group">
+                            <input type="password" name="password" id="id_password"
+                                   class="form-control {% if errors.password %}is-invalid{% endif %}"
+                                   data-testid="register-password-input"
+                                   minlength="8" required>
+                            <button class="btn btn-outline-secondary" type="button" id="reg-password-toggle" title="Show / hide password">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                         <div class="form-text">Minimum 8 characters.</div>
                         {% if errors.password %}
                         <div class="invalid-feedback d-block" data-testid="password-field-error">
-                            <i class="fa-solid fa-circle-exclamation me-1"></i>
-                            {{ errors.password.0 }}
+                            <i class="fa-solid fa-circle-exclamation me-1"></i>{{ errors.password.0 }}
                         </div>
                         {% endif %}
                     </div>
-                    
-                    <div class="mb-4">
-                        <label for="id_password_confirm" class="form-label">Confirm Password <span class="text-danger">*</span></label>
-                        <input 
-                            type="password" 
-                            name="password_confirm" 
-                            id="id_password_confirm"
-                            class="form-control {% if errors.password_confirm %}is-invalid{% endif %}"
-                            data-testid="register-password-confirm-input"
-                            minlength="8"
-                            required>
+
+                    <div class="mb-3">
+                        <label for="id_password_confirm" class="form-label">Confirm password <span class="text-danger">*</span></label>
+                        <input type="password" name="password_confirm" id="id_password_confirm"
+                               class="form-control {% if errors.password_confirm %}is-invalid{% endif %}"
+                               data-testid="register-password-confirm-input"
+                               minlength="8" required>
                         {% if errors.password_confirm %}
                         <div class="invalid-feedback d-block" data-testid="password-confirm-field-error">
-                            <i class="fa-solid fa-circle-exclamation me-1"></i>
-                            {{ errors.password_confirm.0 }}
+                            <i class="fa-solid fa-circle-exclamation me-1"></i>{{ errors.password_confirm.0 }}
                         </div>
                         {% endif %}
                     </div>
-                    
-                    <button 
-                        type="submit" 
-                        class="btn btn-success w-100"
-                        data-testid="register-submit-button"
-                        data-bs-toggle="tooltip" 
-                        data-bs-placement="top"
-                        title="Create your account and start onboarding">
-                        <i class="fa-solid fa-user-plus"></i> Create Account
+
+                    <hr class="my-3">
+
+                    <div class="mb-4">
+                        <div class="form-check" data-testid="register-tos-row">
+                            <input class="form-check-input" type="checkbox" name="accepted_tos" value="on"
+                                   id="id_tos" data-testid="register-tos-checkbox">
+                            <label class="form-check-label" for="id_tos">
+                                I agree to the
+                                <a href="#" target="_blank" rel="noopener noreferrer" data-testid="register-tos-link">Terms of Service</a>
+                                and
+                                <a href="#" target="_blank" rel="noopener noreferrer" data-testid="register-privacy-link">Privacy Policy</a>
+                                <span class="text-danger">*</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100" id="register-submit-button"
+                            disabled data-testid="register-submit-button">
+                        <i class="fa-solid fa-user-plus"></i> Create account
                     </button>
                 </form>
             </div>
         </div>
-        
-        <div class="text-center mt-3">
-            <p class="text-muted">
-                Already have an account? 
-                <a href="{% url 'login' %}" class="text-decoration-none">
-                    <i class="fa-solid fa-sign-in-alt"></i> Sign In
-                </a>
-            </p>
-        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var tos = document.getElementById('id_tos');
+    var btn = document.getElementById('register-submit-button');
+    var pw = document.getElementById('id_password');
+    var pwc = document.getElementById('id_password_confirm');
+    var toggle = document.getElementById('reg-password-toggle');
+    function sync() {
+        btn.disabled = !tos.checked;
+    }
+    tos.addEventListener('change', sync);
+    sync();
+    if (toggle && pw && pwc) {
+        toggle.addEventListener('click', function () {
+            var t = pw.type === 'password' ? 'text' : 'password';
+            pw.type = t;
+            pwc.type = t;
+            toggle.querySelector('i').className = t === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
+    }
+})();
+</script>
 {% endblock %}

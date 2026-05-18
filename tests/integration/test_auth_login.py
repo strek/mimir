@@ -10,6 +10,8 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
+from accounts.models import mark_email_verified
+
 
 @pytest.mark.django_db
 class TestLoginValidCredentials:
@@ -33,6 +35,7 @@ class TestLoginValidCredentials:
             email='maria@example.com',
             password='ValidPass123'
         )
+        mark_email_verified(user)
         login_url = reverse('login')
         
         # Act
@@ -67,6 +70,7 @@ class TestLoginValidCredentials:
             username='maria',
             password='ValidPass123'
         )
+        mark_email_verified(user)
         login_url = reverse('login')
         
         # Act
@@ -96,6 +100,7 @@ class TestLoginValidCredentials:
             username='maria',
             password='ValidPass123'
         )
+        mark_email_verified(user)
         login_url = reverse('login')
         
         # Act - No remember_me in POST data

@@ -8,9 +8,11 @@ from .views import (
     profile_regenerate_token,
     onboarding, 
     register,
+    resend_verification,
     password_reset_request,
     password_reset_confirm,
     skip_onboarding,
+    verify_email,
 )
 
 # URL convention: /auth/user/{action}/
@@ -18,6 +20,8 @@ urlpatterns = [
     path('user/login/', login_view, name='login'),
     path('user/logout/', custom_logout_view, name='logout'),
     path('user/register/', register, name='register'),
+    path('user/verify-email/resend/', resend_verification, name='resend_verification'),
+    path('user/verify-email/<str:token>/', verify_email, name='verify_email'),
     path('user/profile/', profile_view, name='profile'),
     path('user/profile/edit/', profile_edit_view, name='profile_edit'),
     path(

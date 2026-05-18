@@ -9,6 +9,8 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
+from accounts.models import mark_email_verified
+
 
 @pytest.mark.django_db
 class TestLogout:
@@ -31,6 +33,7 @@ class TestLogout:
             username='maria',
             password='TestPass123'
         )
+        mark_email_verified(user)
         
         # Login first
         login_url = reverse('login')
@@ -99,6 +102,7 @@ class TestLogout:
             username='maria',
             password='TestPass123'
         )
+        mark_email_verified(user)
         
         # Login
         login_url = reverse('login')
@@ -134,6 +138,7 @@ class TestLogout:
             username='maria',
             password='TestPass123'
         )
+        mark_email_verified(user)
         
         # Login with remember me
         login_url = reverse('login')
@@ -167,6 +172,7 @@ class TestLogout:
             username='maria',
             password='TestPass123'
         )
+        mark_email_verified(user)
         
         # Login
         login_url = reverse('login')

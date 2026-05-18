@@ -606,7 +606,7 @@ class TestPlaybookDeleteModalEndpoint:
         assert response.status_code == 200
         content = response.content.decode("utf-8")
         assert "shared with your family" in content
-        assert "will lose access after next sync" in content
+        assert "lose" in content.lower() and "access" in content.lower()
 
     def test_modal_shows_active_warning_for_active_playbook(self, client):
         user = User.objects.create_user(

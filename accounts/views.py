@@ -1,15 +1,29 @@
 """Authentication views for user login and logout."""
 import logging
+from django.conf import settings
 from django.contrib.auth import authenticate, login as auth_login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from urllib.parse import quote
+
+from django.http import Http404
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from rest_framework.authtoken.models import Token
 
-from accounts.models import mark_onboarding_completed
+from accounts.models import (
+    UserEmailVerification,
+    generate_verification_token,
+    get_or_create_email_verification,
+    get_or_create_onboarding_state,
+    is_email_verification_token_expired,
+    mark_email_verified,
+    mark_onboarding_completed,
+)
+from accounts.services.email_service import EmailService
 from methodology.models import Playbook, ProcessImprovementProposal
 
 logger = logging.getLogger(__name__)
@@ -91,6 +105,56 @@ def _handle_remember_me(request, remember_me):
         logger.info(f"User {request.user.username} logged in without remember me (2 weeks session)")
 
 
+def _user_bypasses_email_verification_gate(user: User) -> bool:
+    """Staff and superusers may sign in without an email verification check."""
+    return bool(user.is_staff or user.is_superuser)
+
+
+def _email_verification_login_block(request, user: User, username: str):
+    """Return a response that blocks login when email is not verified, or ``None`` to allow.
+
+    :param request: HTTP request.
+    :param user: Authenticated user instance.
+    :param username: Submitted username (preserved in the form).
+    :return: Rendered login page for unverified users, or ``None``.
+    """
+    if _user_bypasses_email_verification_gate(user):
+        return None
+    verification = get_or_create_email_verification(user)
+    if verification.is_verified:
+        return None
+    logger.info("[LOGIN] Blocked unverified user_id=%s username=%s", user.pk, username)
+    return render(
+        request,
+        "accounts/login.html",
+        {
+            "errors": {},
+            "username": username,
+            "show_resend": True,
+            "resend_email": user.email or "",
+            "resend_success": False,
+        },
+    )
+
+
+def _login_page_context(
+    *,
+    errors=None,
+    username: str = "",
+    show_resend: bool = False,
+    resend_email: str = "",
+    resend_success: bool = False,
+):
+    """Build standard context dict for ``accounts/login.html``."""
+    return {
+        "errors": errors or {},
+        "username": username,
+        "show_resend": show_resend,
+        "resend_email": resend_email,
+        "resend_success": resend_success,
+    }
+
+
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     """
@@ -111,10 +175,18 @@ def login_view(request):
     # GET request - display form
     if request.method == 'GET':
         logger.info("Displaying login form")
-        return render(request, 'accounts/login.html', {
-            'errors': {},
-            'username': ''
-        })
+        resent = request.GET.get("resent") == "1"
+        email_changed = request.GET.get("email_changed") == "1"
+        pending_resend = (request.GET.get("resend_email") or "").strip()
+        return render(
+            request,
+            "accounts/login.html",
+            _login_page_context(
+                resend_success=resent,
+                show_resend=email_changed and bool(pending_resend),
+                resend_email=pending_resend,
+            ),
+        )
     
     # POST request - handle login
     username = request.POST.get('username', '').strip()
@@ -127,22 +199,27 @@ def login_view(request):
     errors = _validate_login_data(username, password)
     if errors:
         logger.warning(f"Login validation failed for username: {username}, errors: {list(errors.keys())}")
-        return render(request, 'accounts/login.html', {
-            'errors': errors,
-            'username': username
-        })
+        return render(
+            request,
+            "accounts/login.html",
+            _login_page_context(errors=errors, username=username),
+        )
     
     # Authenticate
     user = authenticate(request, username=username, password=password)
     
     if user is not None:
-        # Successful authentication
+        block = _email_verification_login_block(request, user, username)
+        if block is not None:
+            return block
+
         auth_login(request, user)
+        Token.objects.get_or_create(user=user)
         logger.info(f"User {username} authenticated successfully")
-        
+
         # Handle remember me
         _handle_remember_me(request, remember_me)
-        
+
         # Redirect to dashboard
         logger.info(f"Redirecting user {username} to dashboard")
         return redirect('/dashboard/')
@@ -152,10 +229,11 @@ def login_view(request):
         errors = {
             'non_field_errors': ['Invalid username or password. Please try again.']
         }
-        return render(request, 'accounts/login.html', {
-            'errors': errors,
-            'username': username
-        })
+        return render(
+            request,
+            "accounts/login.html",
+            _login_page_context(errors=errors, username=username),
+        )
 
 
 def custom_logout_view(request):
@@ -211,16 +289,38 @@ def _validate_profile_edit(first_name, last_name, email, current_user):
         errors["email"] = ["Email is required."]
     elif "@" not in email or "." not in email.split("@")[-1]:
         errors["email"] = ["Enter a valid email address."]
-    elif (
-        current_user.model.__name__ if hasattr(current_user, "model") else
-        current_user.__class__.__name__
-    ) and (
-        current_user.__class__.objects.filter(email=email)
-        .exclude(pk=current_user.pk)
-        .exists()
-    ):
+    elif User.objects.filter(email__iexact=email).exclude(pk=current_user.pk).exists():
         errors["email"] = ["That email is already used by another account."]
     return errors
+
+
+def _profile_email_changed(old_email: str, new_email: str) -> bool:
+    """Return True when the normalized email value differs from the prior one."""
+    prior = (old_email or "").strip().lower()
+    candidate = (new_email or "").strip().lower()
+    return prior != candidate
+
+
+def _complete_email_change_reverification(request, user: User):
+    """Invalidate API token, send verification to new address, end session."""
+    logger.info("[PROFILE-EDIT] Email change lockout user_id=%s", user.pk)
+    token = generate_verification_token(user)
+    EmailService.send_verification_email(
+        user,
+        token,
+        base_url=_registration_public_base_url(request),
+    )
+    Token.objects.filter(user=user).delete()
+    messages.warning(
+        request,
+        "Email updated. Please verify your new address before logging in again.",
+    )
+    logout(request)
+    login_url = (
+        f"{reverse('login')}?email_changed=1"
+        f"&resend_email={quote(user.email)}"
+    )
+    return redirect(login_url)
 
 
 @login_required
@@ -254,11 +354,28 @@ def profile_edit_view(request):
             "errors": errors,
         })
 
+    old_email = user.email
+    email_changed = _profile_email_changed(old_email, email)
+
     user.first_name = first_name
     user.last_name = last_name
     user.email = email
     user.save(update_fields=["first_name", "last_name", "email"])
-    logger.info("[PROFILE-EDIT] saved user_id=%s email=%s", user.pk, email)
+    logger.info(
+        "[PROFILE-EDIT] saved user_id=%s email=%s changed=%s",
+        user.pk,
+        email,
+        email_changed,
+    )
+
+    if email_changed and _user_bypasses_email_verification_gate(user):
+        mark_email_verified(user)
+        messages.success(request, "Profile updated.")
+        return redirect(reverse("profile"))
+
+    if email_changed:
+        return _complete_email_change_reverification(request, user)
+
     messages.success(request, "Profile updated.")
     return redirect(reverse("profile"))
 
@@ -354,54 +471,170 @@ def skip_onboarding(request):
     return redirect('/dashboard/')
 
 
-def _validate_registration_data(username, email, password, password_confirm):
+def _registration_public_base_url(request):
+    """Return absolute site origin for links inside outbound email.
+
+    Prefer ``settings.FRONTEND_URL`` when set; otherwise derive from request.
+
+    :param request: Current HTTP request.
+    :return: Base URL without trailing slash.
+    """
+    explicit = getattr(settings, "FRONTEND_URL", "").strip()
+    if explicit:
+        return explicit.rstrip("/")
+    return request.build_absolute_uri("/").rstrip("/")
+
+
+def _email_verification_row_for_token_or_404(token: str) -> UserEmailVerification:
+    """Load ``UserEmailVerification`` for a non-blank token or raise 404.
+
+    :param token: Verification token from the emailed URL segment.
+    :return: Row with related ``user`` (via select_related).
+    :raises Http404: When the token is missing or unknown.
+    """
+    trimmed = (token or "").strip()
+    if not trimmed:
+        logger.warning("[VERIFY_EMAIL] Empty verification token in URL")
+        raise Http404("Invalid verification link.")
+    try:
+        return UserEmailVerification.objects.select_related("user").get(
+            verification_token=trimmed
+        )
+    except UserEmailVerification.DoesNotExist:
+        logger.warning("[VERIFY_EMAIL] Unknown token (prefix=%s)", trimmed[:8])
+        raise Http404("Invalid verification link.")
+
+
+def _resend_verification_if_needed(request, user: User | None) -> None:
+    """Send a fresh verification email when *user* exists and still requires it.
+
+    Staff/superuser and already-verified users are skipped. Unknown *user* is a no-op.
+
+    :param request: Current HTTP request (for building email base URL).
+    :param user: Target user or ``None``.
+    """
+    if user is None:
+        logger.info("[RESEND_VERIFY] No user match; skipping send")
+        return
+    if user.is_staff or user.is_superuser:
+        logger.info("[RESEND_VERIFY] Staff/superuser skip user_id=%s", user.pk)
+        return
+    ev = get_or_create_email_verification(user)
+    if ev.is_verified:
+        logger.info("[RESEND_VERIFY] Already verified skip user_id=%s", user.pk)
+        return
+    token = generate_verification_token(user)
+    EmailService.send_verification_email(
+        user,
+        token,
+        base_url=_registration_public_base_url(request),
+    )
+    logger.info("[RESEND_VERIFY] Emailed user_id=%s", user.pk)
+
+
+@require_http_methods(["GET"])
+def verify_email(request, token: str):
+    """Validate emailed token: verify, expire, or already-verified outcomes."""
+    logger.info("[VERIFY_EMAIL] GET token_prefix=%s", (token or "")[:8])
+    row = _email_verification_row_for_token_or_404(token)
+    user = row.user
+    if row.is_verified:
+        messages.info(
+            request,
+            "Your email is already verified. You can sign in.",
+        )
+        logger.info("[VERIFY_EMAIL] Already verified user_id=%s", user.pk)
+        return redirect(reverse("login"))
+    if is_email_verification_token_expired(row):
+        logger.info("[VERIFY_EMAIL] Expired user_id=%s", user.pk)
+        return render(
+            request,
+            "accounts/verify_email_result.html",
+            {
+                "verify_state": "expired",
+                "resend_email": user.email,
+            },
+        )
+    mark_email_verified(user)
+    messages.success(
+        request,
+        "Your email has been verified. You can sign in now.",
+    )
+    logger.info("[VERIFY_EMAIL] Marked verified user_id=%s", user.pk)
+    return redirect(reverse("login"))
+
+
+@require_http_methods(["POST"])
+def resend_verification(request):
+    """POST-only resend of verification email; response is always non-enumerating."""
+    raw_email = request.POST.get("email", "")
+    email = (raw_email or "").strip()
+    logger.info("[RESEND_VERIFY] POST received email=%s", email or "(empty)")
+    user = User.objects.filter(email__iexact=email).first() if email else None
+    _resend_verification_if_needed(request, user)
+    messages.info(
+        request,
+        "If an account exists with that email and it still needs verification, "
+        "we sent a new verification link.",
+    )
+    return redirect(f"{reverse('login')}?resent=1")
+
+
+def _validate_registration_data(
+    first_name,
+    last_name,
+    username,
+    email,
+    password,
+    password_confirm,
+    accepted_tos_raw,
+):
     """
     Validate registration form data.
-    
-    Internal helper for register view.
-    
-    :param username: str - Username from form. Example: "maria"
-    :param email: str - Email from form. Example: "maria@example.com"
-    :param password: str - Password from form. Example: "SecurePass123"
-    :param password_confirm: str - Password confirmation. Example: "SecurePass123"
-    :return: dict - Validation errors. Example: {"password": ["Passwords do not match."]}
-    
-    Validation Rules:
-        - Username: Required, non-empty, 3-30 chars, unique
-        - Email: Required, valid format, unique
-        - Password: Required, min 8 chars
-        - Password confirmation: Must match password
+
+    :param accepted_tos_raw: Value of ``accepted_tos`` POST field (``'on'`` or absent).
+    :return: dict of field errors; includes ``non_field_errors`` for ToS.
     """
     errors = {}
-    
-    # Username validation
+
+    if accepted_tos_raw != "on":
+        errors.setdefault("non_field_errors", []).append(
+            "You must accept the Terms of Service to register."
+        )
+
+    fn = (first_name or "").strip()
+    ln = (last_name or "").strip()
+    if not fn:
+        errors["first_name"] = ["This field is required."]
+    if not ln:
+        errors["last_name"] = ["This field is required."]
+
+    username = (username or "").strip()
     if not username:
-        errors['username'] = ['This field is required.']
+        errors["username"] = ["This field is required."]
     elif len(username) < 3 or len(username) > 30:
-        errors['username'] = ['Username must be between 3 and 30 characters.']
+        errors["username"] = ["Username must be between 3 and 30 characters."]
     elif User.objects.filter(username=username).exists():
-        errors['username'] = ['This username is already taken.']
-    
-    # Email validation
+        errors["username"] = ["That username is already taken."]
+
+    email = (email or "").strip()
     if not email:
-        errors['email'] = ['This field is required.']
-    elif '@' not in email or '.' not in email.split('@')[-1]:
-        errors['email'] = ['Enter a valid email address.']
+        errors["email"] = ["This field is required."]
+    elif "@" not in email or "." not in email.split("@")[-1]:
+        errors["email"] = ["Enter a valid email address."]
     elif User.objects.filter(email=email).exists():
-        errors['email'] = ['This email is already registered.']
-    
-    # Password validation
+        errors["email"] = ["That email is already registered."]
+
     if not password:
-        errors['password'] = ['This field is required.']
+        errors["password"] = ["This field is required."]
     elif len(password) < 8:
-        errors['password'] = ['Password must be at least 8 characters long.']
-    
-    # Password confirmation
+        errors["password"] = ["Password must be at least 8 characters long."]
+
     if not password_confirm:
-        errors['password_confirm'] = ['This field is required.']
+        errors["password_confirm"] = ["This field is required."]
     elif password and password_confirm and password != password_confirm:
-        errors['password_confirm'] = ['Passwords do not match.']
-    
+        errors["password_confirm"] = ["Passwords do not match."]
+
     return errors
 
 
@@ -409,73 +642,106 @@ def _validate_registration_data(username, email, password, password_confirm):
 def register(request):
     """
     Display registration form and handle user registration.
-    
+
     Custom implementation without Django Forms per SAO.md architecture.
-    
-    Template: accounts/register.html
-    Context:
-        errors: dict - Field-specific and non-field errors
-        username: str - Preserved username on error
-        email: str - Preserved email on error
-    
-    :param request: Django request object
-    :return: Rendered registration template or redirect to onboarding
+
+    On success: user is created, ToS timestamp recorded, verification email sent,
+    no auto-login — redirect to login with an info message.
     """
-    logger.info(f"Registration page accessed via {request.method}")
-    
-    # GET request - display form
-    if request.method == 'GET':
+    logger.info("Registration page accessed via %s", request.method)
+
+    empty_ctx = {
+        "errors": {},
+        "first_name": "",
+        "last_name": "",
+        "username": "",
+        "email": "",
+    }
+
+    if request.method == "GET":
         logger.info("Displaying registration form")
-        return render(request, 'accounts/register.html', {
-            'errors': {},
-            'username': '',
-            'email': ''
-        })
-    
-    # POST request - handle registration
-    username = request.POST.get('username', '').strip()
-    email = request.POST.get('email', '').strip()
-    password = request.POST.get('password', '')
-    password_confirm = request.POST.get('password_confirm', '')
-    
-    logger.info(f"Registration attempt for username: {username}, email: {email}")
-    
-    # Validate input
-    errors = _validate_registration_data(username, email, password, password_confirm)
+        return render(request, "accounts/register.html", empty_ctx)
+
+    first_name = request.POST.get("first_name", "")
+    last_name = request.POST.get("last_name", "")
+    username = request.POST.get("username", "").strip()
+    email = request.POST.get("email", "").strip()
+    password = request.POST.get("password", "")
+    password_confirm = request.POST.get("password_confirm", "")
+    accepted_tos = request.POST.get("accepted_tos")
+
+    logger.info("Registration attempt for username=%s email=%s", username, email)
+
+    errors = _validate_registration_data(
+        first_name,
+        last_name,
+        username,
+        email,
+        password,
+        password_confirm,
+        accepted_tos,
+    )
     if errors:
-        logger.warning(f"Registration validation failed for username: {username}, errors: {list(errors.keys())}")
-        return render(request, 'accounts/register.html', {
-            'errors': errors,
-            'username': username,
-            'email': email
-        })
-    
-    # Create user
+        logger.warning(
+            "Registration validation failed username=%s keys=%s",
+            username,
+            list(errors.keys()),
+        )
+        return render(
+            request,
+            "accounts/register.html",
+            {
+                "errors": errors,
+                "first_name": first_name,
+                "last_name": last_name,
+                "username": username,
+                "email": email,
+            },
+        )
+
     try:
         user = User.objects.create_user(
             username=username,
             email=email,
-            password=password
+            password=password,
+            first_name=(first_name or "").strip(),
+            last_name=(last_name or "").strip(),
         )
-        logger.info(f"User {username} created successfully")
-        
-        # Auto-login
-        auth_login(request, user)
-        logger.info(f"User {username} auto-logged in after registration")
-        
-        # Redirect to onboarding
-        logger.info(f"Redirecting user {username} to onboarding")
-        return redirect('/auth/user/onboarding/')
+        logger.info("User %s created successfully id=%s", username, user.pk)
+
+        ob = get_or_create_onboarding_state(user)
+        ob.accepted_tos_at = timezone.now()
+        ob.save(update_fields=["accepted_tos_at"])
+
+        token = generate_verification_token(user)
+        EmailService.send_verification_email(
+            user,
+            token,
+            base_url=_registration_public_base_url(request),
+        )
+
+        messages.info(
+            request,
+            "Account created. Please check your inbox and verify your email before logging in.",
+        )
+        return redirect(reverse("login"))
     except Exception as e:
-        logger.error(f"Error creating user {username}: {str(e)}")
-        errors = {
-            'non_field_errors': ['An error occurred during registration. Please try again.']
-        }
-        return render(request, 'accounts/register.html', {
-            'errors': errors,
-            'username': username,
-            'email': email
-        })
+        logger.exception("Error creating user %s: %s", username, e)
+        return render(
+            request,
+            "accounts/register.html",
+            {
+                "errors": {
+                    "non_field_errors": [
+                        "An error occurred during registration. Please try again."
+                    ]
+                },
+                "first_name": first_name,
+                "last_name": last_name,
+                "username": username,
+                "email": email,
+            },
+        )
 
 
 @require_http_methods(["GET", "POST"])
@@ -645,6 +911,9 @@ def password_reset_confirm(request, uidb64, token):
     # Set new password
     user.set_password(password)
     user.save()
+
+    mark_email_verified(user)
+    logger.info("[PASSWORD_RESET] Marked email verified user_id=%s", user.pk)
     
     # Clear session token
     del request.session[f'password_reset_{uidb64}']

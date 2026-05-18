@@ -1,0 +1,10 @@
+Hello {{ user.first_name|default:user.username }},
+
+Please verify your Mimir email address by clicking the link below (valid for 24 hours):
+
+{{ verify_url }}
+
+If you did not create a Mimir account, you can ignore this email.
+
+Best regards,
+The Mimir Team

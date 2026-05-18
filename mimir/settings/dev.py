@@ -157,15 +157,37 @@ LOGGING = {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Email — dev default: console. Set USE_SES_IN_DEV=1 + AWS_* vars to test
-# live SES delivery without deploying.
+# Email — dev default: console (stdout only, NOT delivered to real inboxes).
+# For real delivery (e.g. dp2580@nyu.edu): USE_SES_IN_DEV=1 + AWS credentials.
+# Requires botocore[crt] if you use `aws login` (see requirements.txt).
 # ─────────────────────────────────────────────────────────────────────────────
-if os.getenv("USE_SES_IN_DEV", "").strip():
+import logging as _logging
+
+_email_log = _logging.getLogger("mimir.settings.dev")
+
+_USE_SES_IN_DEV = os.getenv("USE_SES_IN_DEV", "").strip()
+
+if _USE_SES_IN_DEV:
     EMAIL_BACKEND = "django_ses.SESBackend"
     AWS_SES_REGION_NAME = os.getenv("AWS_SES_REGION_NAME", "us-east-1")
     AWS_SES_REGION_ENDPOINT = f"email.{AWS_SES_REGION_NAME}.amazonaws.com"
+    DEFAULT_FROM_EMAIL = os.getenv(
+        "DEFAULT_FROM_EMAIL",
+        "noreply@featurefactory.io",
+    )
+    _email_log.info(
+        "[EMAIL] Dev SES enabled: backend=%s from=%s region=%s",
+        EMAIL_BACKEND,
+        DEFAULT_FROM_EMAIL,
+        AWS_SES_REGION_NAME,
+    )
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@mimir.local")
+    _email_log.warning(
+        "[EMAIL] Console backend active — verification emails are printed to the "
+        "runserver terminal only, not sent to Gmail/nyu.edu. Set USE_SES_IN_DEV=1 "
+        "and restart runserver to deliver via AWS SES."
+    )
 
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@mimir.local")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8000")

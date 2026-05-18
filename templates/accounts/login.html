@@ -10,6 +10,32 @@
                 <h2 class="card-title text-center mb-4">
                     <i class="fas fa-sign-in-alt"></i> Login
                 </h2>
+
+                {% if resend_success %}
+                <div class="text-success small mb-3" data-testid="login-resend-success">
+                    <i class="fas fa-circle-check me-1"></i>
+                    A new verification email has been sent.
+                </div>
+                {% endif %}
+
+                {% if show_resend %}
+                <div class="alert alert-warning d-flex gap-2 align-items-start mb-3"
+                     role="alert" data-testid="login-unverified-banner">
+                    <i class="fas fa-triangle-exclamation mt-1 flex-shrink-0"></i>
+                    <div>
+                        <strong>Please verify your email address before logging in.</strong>
+                        <br>Check your inbox for a verification link.
+                        <form method="post" action="{% url 'resend_verification' %}" class="mt-2 mb-0">
+                            {% csrf_token %}
+                            <input type="hidden" name="email" value="{{ resend_email }}">
+                            <button type="submit" class="btn btn-sm btn-warning"
+                                    data-testid="login-resend-btn">
+                                <i class="fas fa-paper-plane me-1"></i>Re-send verification email
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
                 
                 {% if errors.non_field_errors %}
                 <div class="alert alert-danger alert-dismissible fade show" role="alert" data-testid="login-error-message">

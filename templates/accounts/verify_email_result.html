@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Verify email — Mimir{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                {% if verify_state == "expired" %}
+                <div class="alert alert-warning d-flex gap-2 align-items-start" role="alert"
+                     data-testid="verify-email-expired-alert">
+                    <i class="fas fa-triangle-exclamation mt-1 flex-shrink-0"></i>
+                    <div>
+                        <strong>This verification link has expired.</strong>
+                        <br>You can request a new verification email below.
+                    </div>
+                </div>
+
+                <form method="post" action="{% url 'resend_verification' %}" data-testid="verify-email-resend-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_resend_email" class="form-label">Email address</label>
+                        <input type="email" name="email" id="id_resend_email"
+                               class="form-control"
+                               data-testid="verify-email-resend-input"
+                               value="{{ resend_email|default:'' }}"
+                               required>
+                    </div>
+                    <button type="submit" class="btn btn-warning"
+                            data-testid="verify-email-resend-submit">
+                        <i class="fas fa-paper-plane me-1"></i>Re-send verification email
+                    </button>
+                    <a href="{% url 'login' %}" class="btn btn-link">Back to sign in</a>
+                </form>
+                {% else %}
+                <p class="text-muted mb-0" data-testid="verify-email-unknown-state">
+                    No verification state to display.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
