@@ -9,14 +9,31 @@
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
             <h2><i class="fa-solid fa-bars-progress me-2"></i>Phases</h2>
-            <p class="text-muted">Workflow phases across all playbooks</p>
+            <p class="text-muted">Lifecycle phases across your playbooks</p>
         </div>
     </div>
+
+    {% if filter_playbook %}
+    <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4"
+         data-testid="phase-global-playbook-filter">
+        <span>
+            <i class="fa-solid fa-book-sparkles me-2"></i>
+            Showing phases for playbook <strong>{{ filter_playbook.name }}</strong>
+        </span>
+        <a href="{% url 'phase_list_global' %}{% if query %}?q={{ query|urlencode }}{% endif %}"
+           class="btn btn-sm btn-outline-secondary">
+            <i class="fa-solid fa-filter-circle-xmark me-1"></i>Show all playbooks
+        </a>
+    </div>
+    {% endif %}
 
     <!-- Search -->
     <div class="card mb-4">
         <div class="card-body">
             <form method="get" action="{% url 'phase_list_global' %}" role="search">
+                {% if filter_playbook %}
+                <input type="hidden" name="playbook" value="{{ filter_playbook.pk }}">
+                {% endif %}
                 <div class="input-group">
                     <input type="text"
                            class="form-control"
@@ -28,7 +45,7 @@
                         <i class="fa-solid fa-magnifying-glass me-2"></i>Search
                     </button>
                     {% if query %}
-                    <a href="{% url 'phase_list_global' %}" class="btn btn-outline-danger">
+                    <a href="{% url 'phase_list_global' %}{% if filter_playbook %}?playbook={{ filter_playbook.pk }}{% endif %}" class="btn btn-outline-danger">
                         <i class="fa-solid fa-times me-2"></i>Clear
                     </a>
                     {% endif %}
@@ -95,7 +112,7 @@
             <h4 class="text-muted">No phases yet</h4>
             {% if query %}
             <p class="text-muted">No phases match "<strong>{{ query }}</strong>".</p>
-            <a href="{% url 'phase_list_global' %}" class="btn btn-outline-secondary mt-2">
+            <a href="{% url 'phase_list_global' %}{% if filter_playbook %}?playbook={{ filter_playbook.pk }}{% endif %}" class="btn btn-outline-secondary mt-2">
                 <i class="fa-solid fa-times me-2"></i>Clear search
             </a>
             {% else %}

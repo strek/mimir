@@ -97,7 +97,7 @@ class TestActivityList:
         # Check columns exist
         assert b'Name' in response.content
         assert b'Guidance' in response.content
-        assert b'Dependencies' in response.content
+        assert b'Abbrev.' in response.content
         assert b'Actions' in response.content
     
     def test_act_list_03_navigate_to_create(self):

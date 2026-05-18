@@ -55,16 +55,19 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-auto ms-auto">
-                        <button class="btn btn-outline-secondary btn-sm" type="submit"
-                                data-bs-toggle="tooltip" title="Apply filters">
-                            <i class="fa-solid fa-filter me-1"></i> Filter
-                        </button>
-                        <a href="{% url 'mockup_pip_list' %}" class="btn btn-outline-secondary btn-sm ms-1"
-                           data-testid="filter-clear"
-                           data-bs-toggle="tooltip" title="Clear all filters">
-                            <i class="fa-solid fa-xmark me-1"></i> Clear
-                        </a>
+                    <div class="col-12 col-lg-auto ms-lg-auto">
+                        <label class="form-label small fw-semibold d-lg-block d-none">&nbsp;</label>
+                        <div class="d-flex justify-content-lg-end justify-content-start gap-2 flex-wrap">
+                            <a href="{% url 'mockup_pip_list' %}" class="btn btn-outline-secondary btn-sm"
+                               data-testid="filter-clear"
+                               data-bs-toggle="tooltip" title="Clear all filters">
+                                <i class="fa-solid fa-xmark me-1"></i> Clear
+                            </a>
+                            <button class="btn btn-outline-primary btn-sm" type="submit"
+                                    data-bs-toggle="tooltip" title="Apply filters">
+                                <i class="fa-solid fa-filter me-1"></i> Filter
+                            </button>
+                        </div>
                     </div>
                 </div>
             </form>

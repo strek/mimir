@@ -34,7 +34,7 @@
             </p>
         </div>
         {% if pip.status == "Draft" %}
-        <div class="btn-group" data-testid="pip-draft-actions">
+        <div class="d-flex flex-wrap gap-2 justify-content-end flex-shrink-0" data-testid="pip-draft-actions">
             <button type="button" class="btn btn-outline-danger"
                     data-testid="pip-cancel-btn"
                     data-bs-toggle="tooltip" title="Cancel and delete this draft">
@@ -51,7 +51,7 @@
             </button>
         </div>
         {% elif pip.status == "Submitted" %}
-        <div class="btn-group" data-testid="pip-submitted-actions">
+        <div class="d-flex flex-wrap gap-2 justify-content-end flex-shrink-0" data-testid="pip-submitted-actions">
             <button type="button" class="btn btn-outline-secondary"
                     data-testid="pip-cancel-btn"
                     data-bs-toggle="tooltip" title="Withdraw this PIP before Galdr processes it">

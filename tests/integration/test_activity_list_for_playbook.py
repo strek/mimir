@@ -31,6 +31,8 @@ def activity_list_playbook_setup(db):
         author=owner,
     )
     wf_a = Workflow.objects.create(playbook=pb_a, name='WF A', description='d', order=1)
+    wf_a.abbreviation = 'ESM'
+    wf_a.save(update_fields=['abbreviation'])
     wf_b = Workflow.objects.create(playbook=pb_b, name='WF B', description='d', order=1)
     Activity.objects.create(workflow=wf_a, name='A1', guidance='g', order=1)
     Activity.objects.create(workflow=wf_a, name='A2', guidance='g', order=2)
@@ -57,6 +59,9 @@ class TestActivityListForPlaybook:
         body = response.content.decode()
         assert 'A1' in body and 'A2' in body
         assert 'B1' not in body
+        assert '>Abbrev.<' in body
+        assert 'ESM-1' in body
+        assert 'ESM-2' in body
 
     def test_non_owner_blocked(self, activity_list_playbook_setup):
         client = Client()

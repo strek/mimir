@@ -4,7 +4,7 @@
 {% block title %}{{ workflow.name }} - {{ playbook.name }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4" data-testid="workflow-detail-page">
     <!-- Breadcrumbs -->
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -28,22 +28,40 @@
             </p>
         </div>
 
-        {% if can_edit %}
-        <div class="btn-group" role="group">
-            <a href="{% url 'workflow_edit' playbook.pk workflow.pk %}" 
-               class="btn btn-outline-primary"
-               data-bs-toggle="tooltip"
-               title="Edit workflow details">
-                <i class="fa-solid fa-edit"></i> Edit
-            </a>
-            <a href="{% url 'workflow_delete' playbook.pk workflow.pk %}" 
+        <div class="btn-group flex-shrink-0" role="group" aria-label="Workflow actions"
+             data-testid="workflow-header-actions">
+            {% if can_edit %}
+            <a href="{% url 'workflow_delete' playbook.pk workflow.pk %}"
                class="btn btn-outline-danger"
                data-bs-toggle="tooltip"
+               data-testid="workflow-delete-btn"
                title="Delete this workflow">
                 <i class="fa-solid fa-trash"></i> Delete
             </a>
+            <a href="{% url 'workflow_edit' playbook.pk workflow.pk %}"
+               class="btn btn-outline-primary"
+               data-bs-toggle="tooltip"
+               data-testid="workflow-edit-btn"
+               title="Edit workflow details">
+                <i class="fa-solid fa-edit"></i> Edit
+            </a>
+            {% elif can_submit_pip %}
+            <a href="{% url 'pip_create' %}?playbook={{ playbook.pk }}&workflow={{ workflow.pk }}"
+               class="btn btn-primary"
+               data-testid="workflow-submit-pip"
+               data-bs-toggle="tooltip"
+               title="Propose changes to this Released playbook (context: this workflow)">
+                <i class="fa-solid fa-lightbulb"></i> Submit PIP
+            </a>
+            {% endif %}
+            <a href="{% url 'workflow_list' playbook.pk %}"
+               class="btn btn-outline-secondary"
+               data-testid="workflow-back-btn"
+               data-bs-toggle="tooltip"
+               title="Back to workflows for this playbook">
+                <i class="fa-solid fa-arrow-left"></i> Back
+            </a>
         </div>
-        {% endif %}
     </div>
 
     <!-- Description -->
@@ -107,18 +125,6 @@
             {% endif %}
         </div>
     </div>
-
-    <!-- Phases Section (Placeholder) -->
-    {% if workflow.get_phase_count > 0 %}
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">Phases ({{ workflow.get_phase_count }})</h5>
-        </div>
-        <div class="card-body">
-            <p class="text-muted">Phases will be displayed here when Phase model is implemented.</p>
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <style>

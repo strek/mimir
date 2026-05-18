@@ -79,6 +79,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "methodology.context_processors.pip_nav",
+                "methodology.context_processors.primary_nav_section",
             ],
         },
     },
@@ -129,6 +130,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Static HTML mockups under /mockups/ (design reference). Disabled by default;
+# enabled in mimir.settings.dev only — see mimir.urls.
+ENABLE_UI_MOCKUPS = False
 
 # Galdr AI review worker
 GALDR_MODEL = os.environ.get("GALDR_MODEL", "claude-sonnet-4-20250514")

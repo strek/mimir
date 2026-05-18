@@ -11,7 +11,8 @@
     <h1 class="h3">Edit draft</h1>
     <p class="text-muted">Target: <strong>{{ pip.playbook.name }}</strong> v{{ pip.playbook.version }}</p>
 
-    <form method="post" class="card card-body mb-4" data-testid="pip-header-form">
+    <form method="post" class="card card-body mb-4" data-testid="pip-header-form"
+          action="{% url 'pip_edit' pip.pk %}{{ pip_edit_query_suffix }}">
         {% csrf_token %}
         <input type="hidden" name="action" value="save_header"/>
         <div class="mb-2">
@@ -22,7 +23,9 @@
             <label class="form-label" for="hdr_summary">Summary</label>
             <textarea class="form-control" id="hdr_summary" name="summary" rows="3">{{ pip.summary }}</textarea>
         </div>
-        <button type="submit" class="btn btn-outline-primary btn-sm" data-testid="pip-save-header">Save header</button>
+        <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-outline-primary btn-sm" data-testid="pip-save-header"><i class="fas fa-floppy-disk me-1"></i>Save header</button>
+        </div>
     </form>
 
     <h2 class="h5">Changes</h2>
@@ -39,9 +42,9 @@
                 {% if ch.content %}<span class="text-muted d-block">{{ ch.content|truncatewords:24 }}</span>{% endif %}
             </td>
             <td>
-                <form method="post" action="{% url 'pip_remove_change' pip.pk ch.pk %}">
+                <form method="post" action="{% url 'pip_remove_change' pip.pk ch.pk %}{{ pip_edit_query_suffix }}">
                     {% csrf_token %}
-                    <button class="btn btn-link text-danger btn-sm p-0" type="submit" data-testid="pip-remove-{{ ch.pk }}">Remove</button>
+                    <button class="btn btn-link text-danger btn-sm p-0" type="submit" data-testid="pip-remove-{{ ch.pk }}"><i class="fas fa-trash me-1"></i>Remove</button>
                 </form>
             </td>
         </tr>
@@ -54,7 +57,7 @@
     <div class="card mb-4">
         <div class="card-header">Add change</div>
         <div class="card-body">
-            <form method="post" action="{% url 'pip_add_change' pip.pk %}" data-testid="pip-add-change-form">
+            <form method="post" action="{% url 'pip_add_change' pip.pk %}{{ pip_edit_query_suffix }}" data-testid="pip-add-change-form">
                 {% csrf_token %}
                 <div class="row g-2">
                     <div class="col-md-3">
@@ -93,7 +96,7 @@
                         <select class="form-select form-select-sm" name="parent_workflow">
                             <option value="">—</option>
                             {% for bundle in workflow_bundle %}
-                            <option value="{{ bundle.workflow.pk }}">{{ bundle.workflow.name }}</option>
+                            <option value="{{ bundle.workflow.pk }}" {% if prefill_parent_workflow_id == bundle.workflow.pk %}selected{% endif %}>{{ bundle.workflow.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -115,19 +118,21 @@
                         </div>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-sm btn-primary mt-2" data-testid="pip-add-change-submit">Add change</button>
+                <div class="d-flex justify-content-end mt-2">
+                    <button type="submit" class="btn btn-sm btn-primary" data-testid="pip-add-change-submit"><i class="fas fa-plus me-1"></i>Add change</button>
+                </div>
             </form>
         </div>
     </div>
 
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="d-flex justify-content-end gap-2 flex-wrap align-items-center mt-4">
+        <a href="{% url 'pip_detail' pip.pk %}" class="btn btn-outline-secondary" data-testid="pip-view-readonly"><i class="fas fa-book-open me-1"></i>View read-only</a>
         <a class="btn btn-outline-secondary" href="{{ preview_url }}" data-testid="pip-preview-link" target="_blank"
-           rel="noopener">Preview diff</a>
-        <form method="post" action="{% url 'pip_submit_review' pip.pk %}" data-testid="pip-submit-form">
+           rel="noopener"><i class="fas fa-code-compare me-1"></i>Preview diff</a>
+        <form method="post" action="{% url 'pip_submit_review' pip.pk %}{{ pip_edit_query_suffix }}" data-testid="pip-submit-form" class="m-0 d-inline">
             {% csrf_token %}
-            <button type="submit" class="btn btn-success" data-testid="pip-submit-review">Submit for review</button>
+            <button type="submit" class="btn btn-success" data-testid="pip-submit-review"><i class="fas fa-paper-plane me-1"></i>Submit for review</button>
         </form>
-        <a href="{% url 'pip_detail' pip.pk %}" class="btn btn-link">View read-only</a>
     </div>
 </div>
 <script>console.log('PIP draft editor', {id: {{ pip.pk }}});</script>

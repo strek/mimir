@@ -61,16 +61,16 @@
                 <i class="fa-solid fa-list-check me-2"></i>Changes
                 <span class="badge bg-secondary ms-1">{{ pip.changes|length }}</span>
             </h5>
-            <div class="btn-group btn-group-sm" data-testid="admin-bulk-actions">
-                <button type="button" class="btn btn-outline-success btn-sm"
-                        data-testid="accept-all-btn"
-                        data-bs-toggle="tooltip" title="Set all decisions to ACCEPT">
-                    <i class="fa-solid fa-check-double me-1"></i> Accept All
-                </button>
+            <div class="btn-group btn-group-sm" role="group" data-testid="admin-bulk-actions">
                 <button type="button" class="btn btn-outline-danger btn-sm"
                         data-testid="reject-all-btn"
                         data-bs-toggle="tooltip" title="Set all decisions to REJECT">
                     <i class="fa-solid fa-xmark me-1"></i> Reject All
+                </button>
+                <button type="button" class="btn btn-outline-success btn-sm"
+                        data-testid="accept-all-btn"
+                        data-bs-toggle="tooltip" title="Set all decisions to ACCEPT">
+                    <i class="fa-solid fa-check-double me-1"></i> Accept All
                 </button>
             </div>
         </div>
@@ -182,9 +182,9 @@
     </div>
 
     <!-- Actions -->
-    <div class="d-flex justify-content-between mt-4" data-testid="admin-form-actions">
+    <div class="d-flex justify-content-end gap-2 flex-wrap mt-4" data-testid="admin-form-actions">
         <a href="{% url 'mockup_pip_detail' pip_id=pip.id %}"
-           class="btn btn-secondary"
+           class="btn btn-outline-secondary"
            data-testid="cancel-review-btn"
            data-bs-toggle="tooltip" title="Return to PIP detail without saving decisions">
             <i class="fa-solid fa-times me-1"></i> Cancel

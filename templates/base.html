@@ -56,105 +56,104 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <!-- Active state: Add 'active' class when on current section -->
-                <!-- Use request.path check for top-level pages, check path contains for sections with sub-pages -->
+                <!-- Single active tab: methodology.context_processors.primary_nav_section -->
                 <!-- Add aria-current="page" for accessibility when active -->
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/dashboard/' or request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+                        <a class="nav-link {% if nav_section == 'home' %}active{% endif %}" 
                            href="/dashboard/" 
                            data-testid="nav-dashboard"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="Overview and key metrics (dashboard)"
-                           {% if request.path == '/dashboard/' or request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'home' %}aria-current="page"{% endif %}>
                             <i class="fas fa-gauge"></i> Home
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/playbooks/' in request.path %}active{% endif %}" 
+                        <a class="nav-link {% if nav_section == 'playbooks' %}active{% endif %}" 
                            href="/playbooks/" 
                            data-testid="nav-playbooks"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="Browse and manage your engineering playbooks"
-                           {% if '/playbooks/' in request.path %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'playbooks' %}aria-current="page"{% endif %}>
                             <i class="fas fa-book-sparkles"></i> Playbooks
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'workflow_global_list' %}" data-testid="nav-workflows"
+                        <a class="nav-link {% if nav_section == 'workflows' %}active{% endif %}" href="{% url 'workflow_global_list' %}" data-testid="nav-workflows"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="View all workflows across your playbooks"
-                           {% if '/workflows/' in request.path %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'workflows' %}aria-current="page"{% endif %}>
                             <i class="fas fa-diagram-project"></i> Workflows
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/phases/' in request.path %}active{% endif %}" 
+                        <a class="nav-link {% if nav_section == 'phases' %}active{% endif %}" 
                            href="{% url 'phase_list_global' %}" 
                            data-testid="nav-phases"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="View all phases across your playbooks"
-                           {% if '/phases/' in request.path %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'phases' %}aria-current="page"{% endif %}>
                             <i class="fas fa-bars-progress"></i> Phases
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/activities/' in request.path %}active{% endif %}" 
+                        <a class="nav-link {% if nav_section == 'activities' %}active{% endif %}" 
                            href="{% url 'activity_global_list' %}" 
                            data-testid="nav-activities"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="View all activities across your playbooks and workflows"
-                           {% if '/activities/' in request.path %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'activities' %}aria-current="page"{% endif %}>
                             <i class="fas fa-list-check"></i> Activities
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/artifacts/' in request.path %}active{% endif %}" 
+                        <a class="nav-link {% if nav_section == 'artifacts' %}active{% endif %}" 
                            href="{% url 'artifact_list_global' %}" 
                            data-testid="nav-artifacts"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="View all artifacts across your playbooks"
-                           {% if '/artifacts/' in request.path %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'artifacts' %}aria-current="page"{% endif %}>
                             <i class="fas fa-gift"></i> Artifacts
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/agents/' in request.path %}active{% endif %}" 
+                        <a class="nav-link {% if nav_section == 'agents' %}active{% endif %}" 
                            href="{% url 'agent_list' %}" 
                            data-testid="nav-agents"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="View all agents across your playbooks"
-                           {% if '/agents/' in request.path %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'agents' %}aria-current="page"{% endif %}>
                             <i class="fas fa-brain-circuit"></i> Agents
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/skills/' in request.path %}active{% endif %}" 
+                        <a class="nav-link {% if nav_section == 'skills' %}active{% endif %}" 
                            href="{% url 'skill_list' %}" 
                            data-testid="nav-skills"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="View all skills across your playbooks"
-                           {% if '/skills/' in request.path %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'skills' %}aria-current="page"{% endif %}>
                             <i class="fas fa-hand-holding-magic"></i> Skills
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/rules/' in request.path %}active{% endif %}" 
+                        <a class="nav-link {% if nav_section == 'rules' %}active{% endif %}" 
                            href="{% url 'rule_list' %}" 
                            data-testid="nav-rules"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="View all IDE rules across your playbooks"
-                           {% if '/rules/' in request.path %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'rules' %}aria-current="page"{% endif %}>
                             <i class="fas fa-scale-balanced"></i> Rules
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/pips/' in request.path %}active{% endif %}"
+                        <a class="nav-link {% if nav_section == 'pips' %}active{% endif %}"
                            href="{% url 'pip_list' %}"
                            data-testid="nav-pips"
                            data-bs-toggle="tooltip" data-bs-placement="bottom"
                            title="Playbook Improvement Proposals"
-                           {% if '/pips/' in request.path %}aria-current="page"{% endif %}>
+                           {% if nav_section == 'pips' %}aria-current="page"{% endif %}>
                             <i class="fas fa-lightbulb"></i> PIPs
                             {% if user.is_authenticated and pip_nav_unread_count %}
                             <span class="badge bg-primary ms-1" data-testid="nav-pips-count">{{ pip_nav_unread_count }}</span>

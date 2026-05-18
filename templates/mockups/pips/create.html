@@ -76,7 +76,7 @@
                         <button type="button" class="btn btn-success btn-sm"
                                 data-bs-toggle="collapse" data-bs-target="#add-change-form"
                                 data-testid="show-add-change-btn"
-                                data-bs-toggle="tooltip" title="Add a structured change">
+                                title="Add a structured change">
                             <i class="fa-solid fa-plus me-1"></i> Add Change
                         </button>
                     </div>
@@ -169,7 +169,7 @@
 - [ ] Colour contrast ≥ 4.5:1
 - [ ] Focus trap in modals</textarea>
                             </div>
-                            <div class="d-flex justify-content-between">
+                            <div class="d-flex justify-content-end gap-2 flex-wrap mt-2">
                                 <button type="button" class="btn btn-outline-secondary btn-sm"
                                         data-bs-toggle="collapse" data-bs-target="#add-change-form">
                                     <i class="fa-solid fa-xmark me-1"></i> Cancel
@@ -233,34 +233,28 @@
                     {% endif %}
                 </div>
 
-                <!-- Preview Diff -->
-                <div class="mt-3 mb-2">
+                <!-- Form actions (bottom-right cluster: secondary … primary) -->
+                <div class="d-flex justify-content-end gap-2 flex-wrap mt-4" data-testid="pip-form-actions">
                     <button type="button" class="btn btn-outline-secondary btn-sm"
                             data-testid="preview-diff-btn"
                             data-bs-toggle="tooltip" title="Preview cumulative impact on the playbook">
                         <i class="fa-solid fa-code-compare me-1"></i> Preview Diff
                     </button>
-                </div>
-
-                <!-- Form actions -->
-                <div class="d-flex justify-content-between mt-3" data-testid="pip-form-actions">
-                    <a href="{% url 'mockup_pip_list' %}" class="btn btn-secondary"
+                    <a href="{% url 'mockup_pip_list' %}" class="btn btn-outline-secondary"
                        data-testid="cancel-btn"
                        data-bs-toggle="tooltip" title="Discard and return to PIP list">
                         <i class="fa-solid fa-times me-1"></i> Cancel
                     </a>
-                    <div class="btn-group">
-                        <button type="button" class="btn btn-outline-secondary"
-                                data-testid="save-draft-btn"
-                                data-bs-toggle="tooltip" title="Save as a draft to finish later">
-                            <i class="fa-solid fa-floppy-disk me-1"></i> Save as Draft
-                        </button>
-                        <button type="submit" class="btn btn-primary"
-                                data-testid="submit-pip-btn"
-                                data-bs-toggle="tooltip" title="Save and submit to Galdr for review">
-                            <i class="fa-solid fa-paper-plane me-1"></i> Submit for Review
-                        </button>
-                    </div>
+                    <button type="button" class="btn btn-outline-secondary"
+                            data-testid="save-draft-btn"
+                            data-bs-toggle="tooltip" title="Save as a draft to finish later">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Save as Draft
+                    </button>
+                    <button type="submit" class="btn btn-primary"
+                            data-testid="submit-pip-btn"
+                            data-bs-toggle="tooltip" title="Save and submit to Galdr for review">
+                        <i class="fa-solid fa-paper-plane me-1"></i> Submit for Review
+                    </button>
                 </div>
 
             </form>

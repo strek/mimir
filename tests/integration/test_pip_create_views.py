@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
-from methodology.models import Playbook, ProcessImprovementProposal
+from methodology.models import Activity, Playbook, ProcessImprovementProposal, Workflow
 
 User = get_user_model()
 
@@ -57,4 +57,37 @@ def test_pip_create_prefill_post_creates_draft(maria, released_pb):
     assert "/edit/" in rsp.url
     pip = ProcessImprovementProposal.objects.get(title="From playbook flow")
     assert pip.playbook_id == released_pb.pk
+
+
+@pytest.mark.django_db
+def test_pip_create_workflow_prefill_shows_hidden_focus_field(maria, released_pb):
+    wf = Workflow.objects.create(name="Scoped WF", playbook=released_pb, order=1)
+    client = Client()
+    client.force_login(maria)
+    url = f"{reverse('pip_create')}?playbook={released_pb.pk}&workflow={wf.pk}"
+    rsp = client.get(url)
+    assert rsp.status_code == 200
+    body = rsp.content.decode()
+    assert 'data-testid="pip-create-focus-workflow"' in body
+    assert "Workflow context:" in body
+    assert str(wf.pk) in body
+
+
+@pytest.mark.django_db
+def test_pip_create_activity_prefill_adds_hidden_fields(maria, released_pb):
+    wf = Workflow.objects.create(name="W2", playbook=released_pb, order=1)
+    act = Activity.objects.create(
+        workflow=wf, name="Act A", guidance="g" * 20, order=1
+    )
+    client = Client()
+    client.force_login(maria)
+    url = (
+        f"{reverse('pip_create')}?playbook={released_pb.pk}"
+        f"&workflow={wf.pk}&activity={act.pk}"
+    )
+    rsp = client.get(url)
+    assert rsp.status_code == 200
+    body = rsp.content.decode()
+    assert 'data-testid="pip-create-focus-activity"' in body
+    assert "Activity context:" in body
 

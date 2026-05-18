@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -100,5 +101,9 @@ urlpatterns = [
     path("rules/", rule_views.rule_list_global, name="rule_list"),  # Global rules view
     path("agents/", include("methodology.agent_urls")),  # Agent views (list, create, detail)
     path("artifacts/", artifact_views.artifact_list_global, name="artifact_list_global"),  # Global artifacts view
-    path("mockups/", include("mockups.urls")),  # UI mockups (design reference — no auth required)
 ]
+
+if getattr(settings, "ENABLE_UI_MOCKUPS", False):
+    urlpatterns.append(
+        path("mockups/", include("mockups.urls")),
+    )

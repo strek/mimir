@@ -5,6 +5,61 @@ from __future__ import annotations
 from django.http import HttpRequest
 
 
+def primary_nav_section(request: HttpRequest) -> dict:
+    """
+    Exactly one primary navbar section should appear active.
+
+    Nested URLs like ``/playbooks/…/workflows/…/activities/…`` must highlight
+    Activities only, not Playbooks (substring checks caused double-active tabs).
+
+    :returns: ``{"nav_section": str | None}`` — one of ``home``, ``playbooks``,
+        ``workflows``, ``phases``, ``activities``, ``artifacts``, ``agents``,
+        ``skills``, ``rules``, ``pips``, or ``None``.
+    """
+    path = getattr(request, "path", "") or ""
+    match = getattr(request, "resolver_match", None)
+    url_name = getattr(match, "url_name", None) if match else None
+
+    if path.startswith("/activities/") or (
+        "/playbooks/" in path and "/activities/" in path
+    ):
+        section = "activities"
+    elif path.startswith("/workflows/") or (
+        "/playbooks/" in path
+        and "/workflows/" in path
+        and "/activities/" not in path
+    ):
+        section = "workflows"
+    elif path.startswith("/phases/") or (
+        "/playbooks/" in path and "/phases/" in path
+    ):
+        section = "phases"
+    elif path.startswith("/artifacts/") or (
+        "/playbooks/" in path and "/artifacts/" in path
+    ):
+        section = "artifacts"
+    elif path.startswith("/agents/") or (
+        "/playbooks/" in path and "/agents/" in path
+    ):
+        section = "agents"
+    elif path.startswith("/skills/") or (
+        "/playbooks/" in path and "/skills/" in path
+    ):
+        section = "skills"
+    elif path.startswith("/rules/") or ("/playbooks/" in path and "/rules/" in path):
+        section = "rules"
+    elif path.startswith("/pips/") or path.startswith("/pip/"):
+        section = "pips"
+    elif "/playbooks/" in path:
+        section = "playbooks"
+    elif path == "/dashboard/" or url_name == "dashboard":
+        section = "home"
+    else:
+        section = None
+
+    return {"nav_section": section}
+
+
 def pip_nav(request: HttpRequest) -> dict:
     """
     Unread count for top-nav PIPs pill.

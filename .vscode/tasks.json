@@ -4,7 +4,7 @@
         {
             "label": "Django: runserver",
             "type": "shell",
-            "command": "${workspaceFolder}/venv/bin/python",
+            "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "${workspaceFolder}/manage.py",
                 "runserver",
@@ -29,7 +29,7 @@
         {
             "label": "Django: migrate",
             "type": "shell",
-            "command": "${workspaceFolder}/venv/bin/python",
+            "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "${workspaceFolder}/manage.py",
                 "migrate"
@@ -48,7 +48,7 @@
         {
             "label": "Django: makemigrations",
             "type": "shell",
-            "command": "${workspaceFolder}/venv/bin/python",
+            "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "${workspaceFolder}/manage.py",
                 "makemigrations"
@@ -67,7 +67,7 @@
         {
             "label": "Django: shell",
             "type": "shell",
-            "command": "${workspaceFolder}/venv/bin/python",
+            "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "${workspaceFolder}/manage.py",
                 "shell"
@@ -86,7 +86,7 @@
         {
             "label": "Django: createsuperuser",
             "type": "shell",
-            "command": "${workspaceFolder}/venv/bin/python",
+            "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "${workspaceFolder}/manage.py",
                 "createsuperuser"
@@ -105,7 +105,7 @@
         {
             "label": "pytest: All Tests",
             "type": "shell",
-            "command": "${workspaceFolder}/venv/bin/python",
+            "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "-m",
                 "pytest",
@@ -132,7 +132,7 @@
         {
             "label": "pytest: Current File",
             "type": "shell",
-            "command": "${workspaceFolder}/venv/bin/python",
+            "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "-m",
                 "pytest",
@@ -155,7 +155,7 @@
         {
             "label": "MCP Server",
             "type": "shell",
-            "command": "${workspaceFolder}/venv/bin/python",
+            "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "${workspaceFolder}/manage.py",
                 "mcp_server"
@@ -175,7 +175,7 @@
         {
             "label": "Django: collectstatic",
             "type": "shell",
-            "command": "${workspaceFolder}/venv/bin/python",
+            "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "${workspaceFolder}/manage.py",
                 "collectstatic",

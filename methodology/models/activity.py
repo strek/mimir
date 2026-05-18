@@ -157,7 +157,23 @@ class Activity(models.Model):
             'DFS1'
         """
         return f"{self.workflow.abbreviation}{self.order}"
-    
+
+    @property
+    def reference_label(self) -> str:
+        """
+        Display code for lists and badges: ``{workflow_abbrev}-{order}`` (e.g. ``ESM-1``).
+
+        Empty when the workflow has no abbreviation set (use :meth:`reference_name`
+        or fall back in templates).
+
+        :returns: Hyphenated label or empty string
+        :rtype: str
+        """
+        abbr = (self.workflow.abbreviation or "").strip()
+        if not abbr:
+            return ""
+        return f"{abbr}-{self.order}"
+
     def clean(self):
         """
         Validate activity dependencies and phase assignment.

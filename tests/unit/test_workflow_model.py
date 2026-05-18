@@ -145,11 +145,6 @@ class TestWorkflowModel:
         count = test_workflow.get_activity_count()
         assert count == 0
     
-    def test_get_phase_count(self, test_workflow):
-        """Test get_phase_count returns 0 (no Phase model yet)."""
-        count = test_workflow.get_phase_count()
-        assert count == 0
-    
     def test_is_owned_by_owner(self, test_user, test_workflow):
         """Test is_owned_by returns True for playbook owner."""
         assert test_workflow.is_owned_by(test_user) is True

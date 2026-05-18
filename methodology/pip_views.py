@@ -23,6 +23,134 @@ def _format_validation_error(exc: ValidationError) -> str:
     return str(exc)
 
 
+def _pip_edit_query_suffix(request) -> str:
+    """Preserve workflow/activity context across redirects (?workflow=&activity=)."""
+    wf = request.GET.get("workflow") or request.POST.get("focus_workflow")
+    act = request.GET.get("activity") or request.POST.get("focus_activity")
+    parts = []
+    if wf and str(wf).isdigit():
+        parts.append(f"workflow={int(wf)}")
+    if act and str(act).isdigit():
+        parts.append(f"activity={int(act)}")
+    return ("?" + "&".join(parts)) if parts else ""
+
+
+def _pip_edit_suffix_from_focus(wf_id: int | None, act_id: int | None) -> str:
+    parts = []
+    if wf_id is not None:
+        parts.append(f"workflow={wf_id}")
+    if act_id is not None:
+        parts.append(f"activity={act_id}")
+    return ("?" + "&".join(parts)) if parts else ""
+
+
+def _validated_pip_focus_ids(pip, request) -> tuple[int | None, int | None]:
+    wf_raw = request.GET.get("workflow")
+    act_raw = request.GET.get("activity")
+    wf_id = int(wf_raw) if wf_raw and str(wf_raw).isdigit() else None
+    act_id = int(act_raw) if act_raw and str(act_raw).isdigit() else None
+    from methodology.models import Activity, Workflow
+
+    if wf_id is not None and not Workflow.objects.filter(pk=wf_id, playbook=pip.playbook).exists():
+        wf_id = None
+    if act_id is not None:
+        act = Activity.objects.filter(pk=act_id, workflow__playbook=pip.playbook).first()
+        if act is None:
+            act_id = None
+        elif wf_id is not None and act.workflow_id != wf_id:
+            act_id = None
+    return wf_id, act_id
+
+
+def _resolve_create_prefill_workflow(request, prefill_playbook_id: int | None):
+    """Apply ?workflow= to create form; returns (playbook_pk, workflow_pk_or_none, workflow_or_none)."""
+    from methodology.models import Workflow
+
+    wf_raw = request.GET.get("workflow")
+    if not wf_raw or not str(wf_raw).isdigit():
+        return prefill_playbook_id, None, None
+
+    wf_id = int(wf_raw)
+    wf_obj = Workflow.objects.select_related("playbook").filter(pk=wf_id).first()
+    if not wf_obj:
+        messages.warning(request, "Unknown workflow.")
+        return prefill_playbook_id, None, None
+
+    pb = wf_obj.playbook
+    if pb.status != "released":
+        messages.warning(request, "PIPs apply only to Released playbooks.")
+        return prefill_playbook_id, None, None
+    if pb.source != "owned" or pb.author_id != request.user.id:
+        messages.warning(
+            request,
+            "You can only start a workflow-scoped PIP on playbooks you own.",
+        )
+        return prefill_playbook_id, None, None
+
+    if prefill_playbook_id is not None and prefill_playbook_id != pb.pk:
+        messages.warning(
+            request,
+            "That workflow does not belong to the playbook in the URL.",
+        )
+        return prefill_playbook_id, None, None
+
+    logger.info(
+        "PIP create workflow hint wf=%s playbook=%s user=%s",
+        wf_id,
+        pb.pk,
+        request.user.username,
+    )
+    return pb.pk, wf_id, wf_obj
+
+
+def _resolve_create_prefill_activity(
+    request, playbook_id: int | None, workflow_id: int | None
+):
+    """Validate ?activity= against playbook/workflow hints from playbook/workflow detail."""
+    from methodology.models import Activity
+
+    raw = request.GET.get("activity")
+    if not raw or not str(raw).isdigit():
+        return None, None
+    aid = int(raw)
+    act = Activity.objects.select_related("workflow__playbook").filter(pk=aid).first()
+    if act is None:
+        messages.warning(request, "Unknown activity.")
+        return None, None
+
+    pb = act.workflow.playbook
+    if pb.status != "released":
+        messages.warning(request, "PIPs apply only to Released playbooks.")
+        return None, None
+    if pb.source != "owned" or pb.author_id != request.user.id:
+        messages.warning(
+            request,
+            "You can only start an activity-scoped PIP on playbooks you own.",
+        )
+        return None, None
+    if playbook_id is not None and playbook_id != pb.pk:
+        messages.warning(
+            request,
+            "That activity does not belong to the playbook in the URL.",
+        )
+        return None, None
+    if workflow_id is not None and act.workflow_id != workflow_id:
+        messages.warning(
+            request,
+            "That activity does not belong to the workflow in the URL.",
+        )
+        return None, None
+
+    logger.info(
+        "PIP create activity hint act=%s wf=%s playbook=%s user=%s",
+        aid,
+        act.workflow_id,
+        pb.pk,
+        request.user.username,
+    )
+    return aid, act
+
+
 PIP_DETAIL_STATIC_BANNERS = {
     PipModel.STATUS_DRAFT: "Draft — not yet submitted for review.",
     PipModel.STATUS_SUBMITTED: "Submitted — awaiting Galdr processing.",
@@ -207,18 +335,51 @@ def pip_detail(request, pk: int):
 
 @login_required
 def pip_create(request):
-    from methodology.models import Playbook
+    from methodology.models import Activity, Playbook, Workflow
     from methodology.services.pip_service import PIPService
 
     released = Playbook.objects.filter(status="released").order_by("name")
-    prefill = request.GET.get("playbook")
-    prefill_id = int(prefill) if prefill and prefill.isdigit() else None
+
+    prefill_raw = request.GET.get("playbook")
+    prefill_id = int(prefill_raw) if prefill_raw and str(prefill_raw).isdigit() else None
+
+    pb_pre = Playbook.objects.filter(pk=prefill_id).first() if prefill_id else None
+    if prefill_id and (
+        pb_pre is None
+        or pb_pre.status != "released"
+        or pb_pre.source != "owned"
+        or pb_pre.author_id != request.user.id
+    ):
+        messages.warning(request, "Invalid or inaccessible playbook for PIP creation.")
+        prefill_id = None
+
+    prefill_id, prefill_wf_id, prefill_wf_obj = _resolve_create_prefill_workflow(
+        request, prefill_id
+    )
+    prefill_act_id, prefill_act_obj = _resolve_create_prefill_activity(
+        request, prefill_id, prefill_wf_id
+    )
 
     if request.method == "POST":
         try:
             playbook_id = int(request.POST.get("playbook", "0"))
             title = request.POST.get("title", "")
             summary = request.POST.get("summary", "")
+            focus_raw = (request.POST.get("focus_workflow") or "").strip()
+            focus_wf_id = int(focus_raw) if focus_raw.isdigit() else None
+            if focus_wf_id is not None:
+                if not Workflow.objects.filter(pk=focus_wf_id, playbook_id=playbook_id).exists():
+                    focus_wf_id = None
+
+            focus_act_raw = (request.POST.get("focus_activity") or "").strip()
+            focus_act_id = int(focus_act_raw) if focus_act_raw.isdigit() else None
+            if focus_act_id is not None:
+                q = Activity.objects.filter(pk=focus_act_id, workflow__playbook_id=playbook_id)
+                if not q.exists():
+                    focus_act_id = None
+                elif focus_wf_id is not None and not q.filter(workflow_id=focus_wf_id).exists():
+                    focus_act_id = None
+
             pip = PIPService.create_draft_for_playbook(
                 actor=request.user,
                 playbook_id=playbook_id,
@@ -226,17 +387,25 @@ def pip_create(request):
                 summary=summary,
             )
             messages.success(request, f"Saved draft {pip}.")
-            return redirect("pip_edit", pk=pip.pk)
+            url = reverse("pip_edit", kwargs={"pk": pip.pk}) + _pip_edit_suffix_from_focus(
+                focus_wf_id, focus_act_id
+            )
+            return redirect(url)
         except (TypeError, ValueError) as exc:
             messages.error(request, f"Invalid playbook id: {exc}")
         except ValidationError as exc:
             messages.error(request, _format_validation_error(exc))
+
     return render(
         request,
         "pips/create.html",
         {
             "released_playbooks": released,
             "prefill_playbook_id": prefill_id,
+            "prefill_workflow_id": prefill_wf_id,
+            "prefill_workflow": prefill_wf_obj,
+            "prefill_activity_id": prefill_act_id,
+            "prefill_activity": prefill_act_obj,
         },
     )
 
@@ -265,6 +434,9 @@ def pip_draft_editor(request, pk: int):
         messages.info(request, "PIP is not editable in this state.")
         return redirect("pip_detail", pk=pip.pk)
 
+    focus_wf, focus_act = _validated_pip_focus_ids(pip, request)
+    pip_edit_suffix = _pip_edit_suffix_from_focus(focus_wf, focus_act)
+
     if request.method == "POST":
         if request.POST.get("action") == "save_header":
             try:
@@ -277,12 +449,18 @@ def pip_draft_editor(request, pk: int):
                 messages.success(request, "Draft header saved.")
             except ValidationError as exc:
                 messages.error(request, _format_validation_error(exc))
-        return redirect("pip_edit", pk=pip.pk)
+        return redirect(reverse("pip_edit", kwargs={"pk": pip.pk}) + pip_edit_suffix)
 
     return render(
         request,
         "pips/draft_editor.html",
-        {"pip": pip, **_gather_targets(pip)},
+        {
+            "pip": pip,
+            "pip_edit_query_suffix": pip_edit_suffix,
+            "prefill_parent_workflow_id": focus_wf,
+            "pip_focus_activity_id": focus_act,
+            **_gather_targets(pip),
+        },
     )
 
 
@@ -312,7 +490,7 @@ def pip_add_change(request, pk: int):
         messages.success(request, "Change added.")
     except ValidationError as exc:
         messages.error(request, _format_validation_error(exc))
-    return redirect("pip_edit", pk=pip.pk)
+    return redirect(reverse("pip_edit", kwargs={"pk": pip.pk}) + _pip_edit_query_suffix(request))
 
 
 @login_required
@@ -326,7 +504,7 @@ def pip_remove_change(request, pk: int, change_id: int):
         messages.success(request, "Change removed.")
     except ValidationError as exc:
         messages.error(request, _format_validation_error(exc))
-    return redirect("pip_edit", pk=pip.pk)
+    return redirect(reverse("pip_edit", kwargs={"pk": pip.pk}) + _pip_edit_query_suffix(request))
 
 
 @login_required
@@ -349,7 +527,7 @@ def pip_submit_review(request, pk: int):
         messages.success(request, "PIP submitted — Galdr is reviewing your changes.")
     except ValidationError as exc:
         messages.error(request, _format_validation_error(exc))
-        return redirect("pip_edit", pk=pip.pk)
+        return redirect(reverse("pip_edit", kwargs={"pk": pip.pk}) + _pip_edit_query_suffix(request))
     return redirect("pip_detail", pk=pip.pk)
 
 
