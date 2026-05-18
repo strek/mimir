@@ -42,32 +42,24 @@
                             Import Playbook
                         </a>
                     </li>
-                    <li>
-                        <a class="dropdown-item disabled" 
-                           href="#"
-                           data-testid="quick-action-sync-homebase-header"
-                           data-bs-toggle="tooltip" 
-                           data-bs-placement="right" 
-                           title="Sync with Homebase repository (coming soon)">
-                            <i class="fa-solid fa-sync me-2"></i>
-                            Sync with Homebase
-                        </a>
-                    </li>
                 </ul>
             </div>
-            
-            <!-- Divider -->
+
+            {% if user.is_staff %}
+            <!-- Divider (only when admin quick link follows) -->
             <div class="vr"></div>
-            
-            <!-- Settings -->
-            <button class="btn btn-outline-secondary"
-                    data-testid="dashboard-settings-button"
-                    data-bs-toggle="tooltip" 
-                    data-bs-placement="bottom" 
-                    title="Configure your Mimir settings">
+
+            <!-- Django admin (staff only) -->
+            <a href="{% url 'admin:index' %}"
+               class="btn btn-outline-secondary"
+               data-testid="dashboard-settings-button"
+               data-bs-toggle="tooltip"
+               data-bs-placement="bottom"
+               title="Open Django admin">
                 <i class="fa-solid fa-gear me-2"></i>
                 Settings
-            </button>
+            </a>
+            {% endif %}
         </div>
     </div>
 

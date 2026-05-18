@@ -30,8 +30,19 @@
                 <i class="fa-solid fa-clock ms-2"></i> Updated {{ playbook.updated_at|timesince }} ago
             </p>
         </div>
-        <div class="btn-group">
+        <div class="btn-group" data-testid="playbook-header-actions" role="group" aria-label="Playbook actions">
             {% if playbook.source == 'owned' and playbook.author == request.user %}
+                {# Delete is always leftmost among header actions (destructive, isolated from primary CTAs). #}
+                <button type="button"
+                        class="btn btn-outline-danger"
+                        data-testid="delete-button"
+                        data-bs-toggle="tooltip"
+                        title="Delete this playbook"
+                        hx-get="{% url 'playbook_delete_confirm' pk=playbook.pk %}"
+                        hx-target="#playbook-delete-modal-container"
+                        hx-swap="innerHTML">
+                    <i class="fa-solid fa-trash"></i> Delete
+                </button>
                 {% if playbook.is_draft %}
                     <!-- Edit button for draft playbooks -->
                     <a href="{% url 'playbook_edit' pk=playbook.pk %}"
@@ -66,9 +77,10 @@
                             title="Cut the next major release line (for example v1.x → v2.0).">
                         <i class="fa-solid fa-rocket"></i> Next major
                     </button>
-                    <!-- Submit PIP button for released playbooks -->
-                    <a href="#"
+                    <!-- Submit PIP — primary CTA for released playbooks (rightmost before Back) -->
+                    <a href="{% url 'pip_create' %}?playbook={{ playbook.pk }}"
                        class="btn btn-primary"
+                       data-testid="playbook-submit-pip"
                        data-bs-toggle="tooltip"
                        title="Submit a Process Improvement Proposal to change this playbook">
                         <i class="fa-solid fa-lightbulb"></i> Submit PIP
@@ -82,19 +94,8 @@
                         <i class="fa-solid fa-edit"></i> Edit
                     </a>
                 {% endif %}
-                <!-- Delete button (HTMX modal) -->
-                <button type="button"
-                        class="btn btn-outline-danger"
-                        data-testid="delete-button"
-                        data-bs-toggle="tooltip"
-                        title="Delete this playbook"
-                        hx-get="{% url 'playbook_delete_confirm' pk=playbook.pk %}"
-                        hx-target="#playbook-delete-modal-container"
-                        hx-swap="innerHTML">
-                    <i class="fa-solid fa-trash"></i> Delete
-                </button>
             {% endif %}
-            <a href="{% url 'playbook_list' %}" 
+            <a href="{% url 'playbook_list' %}"
                class="btn btn-outline-secondary"
                data-bs-toggle="tooltip"
                title="Back to playbooks list">
@@ -220,11 +221,11 @@
                                     </a>
                                 </div>
                                 <div class="col-md-4 mb-3" data-testid="stat-phases">
-                                    <a href="{% url 'phase_list' playbook.pk %}"
+                                    <a href="{% url 'phase_list_global' %}?playbook={{ playbook.pk }}"
                                        class="d-block text-decoration-none text-reset p-3 border rounded h-100 quick-stat-link"
                                        data-testid="stat-phases-link"
                                        data-bs-toggle="tooltip"
-                                       title="View phases for this playbook">
+                                       title="View phases in global list (filtered to this playbook)">
                                         <i class="fa-solid fa-bars-progress fa-2x text-info mb-2"></i>
                                         <h3 class="mb-0">{{ quick_stats.phases }}</h3>
                                         <small class="text-muted">Phases</small>
@@ -546,32 +547,22 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('workflow-search');
-    const filterPhases = document.getElementById('filter-has-phases');
     const table = document.getElementById('workflows-table');
     const rows = table ? table.querySelectorAll('tbody tr[data-workflow-row]') : [];
     const emptyState = document.getElementById('empty-state');
 
     function filterWorkflows() {
-        if (!searchInput || !filterPhases || rows.length === 0) return;
+        if (!searchInput || rows.length === 0) return;
 
         const searchTerm = searchInput.value.toLowerCase();
-        const phaseFilter = filterPhases.value;
         let visibleCount = 0;
 
         rows.forEach(row => {
             const nameElement = row.querySelector('[data-workflow-name]');
-            const phaseElement = row.querySelector('[data-phase-count]');
-
             const name = nameElement ? nameElement.textContent.toLowerCase() : '';
-            const phaseCount = phaseElement ? parseInt(phaseElement.textContent) : 0;
-
             const matchesSearch = name.includes(searchTerm);
 
-            let matchesPhase = true;
-            if (phaseFilter === 'with-phases') matchesPhase = phaseCount > 0;
-            if (phaseFilter === 'no-phases') matchesPhase = phaseCount === 0;
-
-            if (matchesSearch && matchesPhase) {
+            if (matchesSearch) {
                 row.style.display = '';
                 visibleCount++;
             } else {
@@ -591,7 +582,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (searchInput) searchInput.addEventListener('input', filterWorkflows);
-    if (filterPhases) filterPhases.addEventListener('change', filterWorkflows);
 });
 </script>
 {% endblock %}

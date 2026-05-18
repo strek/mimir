@@ -51,6 +51,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Name</th>
+                        <th>Abbrev.</th>
                         <th>Playbook</th>
                         <th>Order</th>
                         <th>Description</th>
@@ -63,6 +64,13 @@
                         <td>
                             <i class="fa-solid fa-diagram-project text-primary me-2"></i>
                             <strong>{{ workflow.name }}</strong>
+                        </td>
+                        <td data-testid="workflow-ref-{{ workflow.id }}">
+                            {% if workflow.abbreviation %}
+                                <span class="badge bg-secondary font-monospace">{{ workflow.abbreviation }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
                         </td>
                         <td>
                             <a href="{% url 'playbook_detail' workflow.playbook.pk %}">

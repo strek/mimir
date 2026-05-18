@@ -148,7 +148,7 @@
                                     {% for act in available_predecessors %}
                                     <option value="{{ act.id }}" 
                                             {% if form_data.predecessor|stringformat:"s" == act.id|stringformat:"s" %}selected{% endif %}>
-                                        {{ act.reference_name }} - {{ act.name }}
+                                        {{ act.reference_label|default:act.reference_name }} - {{ act.name }}
                                     </option>
                                     {% endfor %}
                                 </select>
@@ -174,7 +174,7 @@
                                     {% for act in available_successors %}
                                     <option value="{{ act.id }}" 
                                             {% if form_data.successor|stringformat:"s" == act.id|stringformat:"s" %}selected{% endif %}>
-                                        {{ act.reference_name }} - {{ act.name }}
+                                        {{ act.reference_label|default:act.reference_name }} - {{ act.name }}
                                     </option>
                                     {% endfor %}
                                 </select>

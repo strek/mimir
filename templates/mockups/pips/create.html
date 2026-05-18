@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}New PIP — Mockup{% endblock %}
+
+{% block content %}
+<div class="container mt-4" data-testid="pip-create-page">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'mockup_pip_list' %}">PIPs</a></li>
+            <li class="breadcrumb-item active" aria-current="page">New PIP</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <h2><i class="fa-solid fa-lightbulb"></i> New PIP</h2>
+    </div>
+
+    <div class="row">
+        <!-- Main form column -->
+        <div class="col-md-8">
+            <form method="post" data-testid="pip-form">
+                {% csrf_token %}
+
+                <!-- Header fields card -->
+                <div class="card mb-4" data-testid="pip-header-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fa-solid fa-circle-info me-2"></i>Header</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="target_playbook">
+                                Target Playbook <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="target_playbook" name="target_playbook"
+                                    data-testid="pip-target-playbook" required>
+                                <option value="">— Select a Released playbook —</option>
+                                {% for pb in released_playbooks %}
+                                <option value="{{ pb.id }}" {% if pb.id == 1 %}selected{% endif %}>
+                                    {{ pb.name }} ({{ pb.version }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Only Released (v≥1.0) playbooks can receive PIPs.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="title">
+                                Title <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="title" name="title"
+                                   maxlength="200" value="Add Accessibility Audit"
+                                   placeholder="Brief descriptive title for this PIP"
+                                   data-testid="pip-title" required>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="summary">
+                                Summary <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="summary" name="summary" rows="4"
+                                      data-testid="pip-summary"
+                                      placeholder="Describe the problem or opportunity. What's missing or wrong in the playbook today?">The React Frontend Dev playbook lacks WCAG 2.1 AA coverage. All components we build need accessibility checks but the playbook currently has no dedicated activity for it.</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Changes card -->
+                <div class="card mb-4" data-testid="pip-changes-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fa-solid fa-list-check me-2"></i>Changes
+                            <span class="badge bg-secondary ms-1">{{ draft_changes|length }}</span>
+                        </h5>
+                        <button type="button" class="btn btn-success btn-sm"
+                                data-bs-toggle="collapse" data-bs-target="#add-change-form"
+                                data-testid="show-add-change-btn"
+                                title="Add a structured change">
+                            <i class="fa-solid fa-plus me-1"></i> Add Change
+                        </button>
+                    </div>
+
+                    <!-- Add Change inline form -->
+                    <div class="collapse show" id="add-change-form">
+                        <div class="card-body border-bottom bg-light" data-testid="add-change-form">
+                            <h6 class="mb-3 text-muted small fw-semibold text-uppercase">New Change</h6>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small">Type <span class="text-danger">*</span></label>
+                                    <select class="form-select form-select-sm" name="change_type"
+                                            data-testid="change-type-select">
+                                        <option value="">— pick type —</option>
+                                        {% for t in change_types %}
+                                        <option value="{{ t }}" {% if t == "ADD" %}selected{% endif %}>{{ t }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Entity <span class="text-danger">*</span></label>
+                                    <select class="form-select form-select-sm" name="entity_type"
+                                            data-testid="change-entity-select">
+                                        <option value="">— pick entity —</option>
+                                        {% for e in entity_types %}
+                                        <option value="{{ e }}" {% if e == "Activity" %}selected{% endif %}>{{ e }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">
+                                        Name <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="form-control form-control-sm"
+                                           name="change_name" value="Accessibility Audit"
+                                           placeholder="New entity name"
+                                           data-testid="change-name-input">
+                                </div>
+                            </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-6" id="position-field">
+                                    <label class="form-label small">
+                                        Position
+                                        <i class="fa-solid fa-circle-question text-muted ms-1"
+                                           data-bs-toggle="tooltip"
+                                           title="Append at end of a workflow, or insert after a named sibling activity."></i>
+                                    </label>
+                                    <select class="form-select form-select-sm" name="insert_after"
+                                            data-testid="change-insert-after">
+                                        <option value="">Append at end of workflow</option>
+                                        {% for act in activities %}
+                                        <option value="{{ act.id }}" {% if act.id == 22 %}selected{% endif %}>
+                                            After: {{ act.name }} ({{ act.workflow }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6" id="parent-workflow-field">
+                                    <label class="form-label small">
+                                        Parent Workflow
+                                        <i class="fa-solid fa-circle-question text-muted ms-1"
+                                           data-bs-toggle="tooltip"
+                                           title="Required for ADD — which workflow does the new entity belong to?"></i>
+                                    </label>
+                                    <select class="form-select form-select-sm" name="parent_workflow"
+                                            data-testid="change-parent-workflow">
+                                        <option value="">— select workflow —</option>
+                                        {% for wf in workflows %}
+                                        <option value="{{ wf.id }}">{{ wf.name }} (id={{ wf.id }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">
+                                    Content / Rationale <span class="text-danger">*</span>
+                                    <span class="text-muted">(for DROP: explain why the entity should be removed)</span>
+                                </label>
+                                <textarea class="form-control form-control-sm font-monospace" rows="5"
+                                          name="change_content" data-testid="change-content-textarea"
+                                          placeholder="Full content / guidance text for the new or updated entity.">Ensure all React components meet WCAG 2.1 AA standards.
+
+**Setup:** Install `axe-core` and `jest-axe`.
+
+**Tests:** Add `@axe-core/react` checks to each component's test suite. Configure CI/CD pipeline to fail on any a11y violation.
+
+**Checklist:**
+- [ ] All interactive elements keyboard-accessible
+- [ ] ARIA labels on icon-only buttons
+- [ ] Colour contrast ≥ 4.5:1
+- [ ] Focus trap in modals</textarea>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 flex-wrap mt-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        data-bs-toggle="collapse" data-bs-target="#add-change-form">
+                                    <i class="fa-solid fa-xmark me-1"></i> Cancel
+                                </button>
+                                <button type="button" class="btn btn-primary btn-sm"
+                                        data-testid="add-change-save-btn">
+                                    <i class="fa-solid fa-check me-1"></i> Add Change
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Draft change list -->
+                    {% if draft_changes %}
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0" data-testid="draft-changes-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 5%">#</th>
+                                    <th style="width: 10%">Type</th>
+                                    <th style="width: 15%">Entity</th>
+                                    <th style="width: 30%">Name / Target</th>
+                                    <th style="width: 30%">Position / Content preview</th>
+                                    <th style="width: 10%" class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ch in draft_changes %}
+                                <tr data-testid="change-row-{{ ch.number }}">
+                                    <td class="text-muted small">{{ ch.number }}</td>
+                                    <td><span class="badge {{ ch.change_type_css }}">{{ ch.change_type }}</span></td>
+                                    <td class="small text-muted">{{ ch.entity_type }}</td>
+                                    <td class="small"><strong>{{ ch.name }}</strong></td>
+                                    <td class="small text-muted text-truncate" style="max-width: 200px;">
+                                        {% if ch.position %}{{ ch.position }}{% else %}{{ ch.content|truncatechars:60 }}{% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                    data-testid="edit-change-{{ ch.number }}"
+                                                    data-bs-toggle="tooltip" title="Edit this change">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                    data-testid="remove-change-{{ ch.number }}"
+                                                    data-bs-toggle="tooltip" title="Remove this change">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="card-body text-center py-4 text-muted" data-testid="changes-empty">
+                        <i class="fa-solid fa-list-check fa-2x mb-2"></i>
+                        <p class="mb-0">No changes yet — add at least one ADD, ALTER, or DROP change.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Form actions (bottom-right cluster: secondary … primary) -->
+                <div class="d-flex justify-content-end gap-2 flex-wrap mt-4" data-testid="pip-form-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                            data-testid="preview-diff-btn"
+                            data-bs-toggle="tooltip" title="Preview cumulative impact on the playbook">
+                        <i class="fa-solid fa-code-compare me-1"></i> Preview Diff
+                    </button>
+                    <a href="{% url 'mockup_pip_list' %}" class="btn btn-outline-secondary"
+                       data-testid="cancel-btn"
+                       data-bs-toggle="tooltip" title="Discard and return to PIP list">
+                        <i class="fa-solid fa-times me-1"></i> Cancel
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary"
+                            data-testid="save-draft-btn"
+                            data-bs-toggle="tooltip" title="Save as a draft to finish later">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Save as Draft
+                    </button>
+                    <button type="submit" class="btn btn-primary"
+                            data-testid="submit-pip-btn"
+                            data-bs-toggle="tooltip" title="Save and submit to Galdr for review">
+                        <i class="fa-solid fa-paper-plane me-1"></i> Submit for Review
+                    </button>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <div class="card mb-4" data-testid="pip-sidebar-types">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fa-solid fa-circle-question me-2"></i>Change types</h6>
+                </div>
+                <div class="card-body small">
+                    <p class="mb-1">
+                        <span class="badge bg-success">ADD</span>
+                        Create a new entity (Activity, Workflow, Skill, Agent, or Artifact).
+                    </p>
+                    <p class="mb-1">
+                        <span class="badge bg-warning text-dark">ALTER</span>
+                        Update the content of an existing entity.
+                    </p>
+                    <p class="mb-0">
+                        <span class="badge bg-danger">DROP</span>
+                        Remove an existing entity from the playbook.
+                    </p>
+                </div>
+            </div>
+            <div class="card border-0 bg-light" data-testid="pip-sidebar-flow">
+                <div class="card-body small text-muted">
+                    <h6 class="card-title">
+                        <i class="fa-solid fa-diagram-next text-warning me-1"></i> What happens next
+                    </h6>
+                    <ol class="ps-3 mb-0">
+                        <li class="mb-1">You submit the PIP.</li>
+                        <li class="mb-1">Galdr AI reviews each change for conflicts.</li>
+                        <li class="mb-1">An Administrator accepts or rejects Galdr's recommendations.</li>
+                        <li>You receive an email with the decision.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup nav -->
+    <div class="alert alert-light border mt-4 small">
+        <strong>Mockup screens:</strong>
+        <a href="{% url 'mockup_pip_list' %}">List</a> ·
+        <a href="{% url 'mockup_pip_create' %}">Create</a> ·
+        <a href="{% url 'mockup_pip_detail' pip_id=42 %}">Detail — Reviewed (PIP-42)</a> ·
+        <a href="{% url 'mockup_pip_detail' pip_id=30 %}">Detail — Draft (PIP-30)</a> ·
+        <a href="{% url 'mockup_pip_admin_review' pip_id=38 %}">Admin Review (PIP-38)</a>
+    </div>
+
+</div>
+{% endblock %}

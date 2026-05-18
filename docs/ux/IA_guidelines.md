@@ -1866,6 +1866,35 @@ Atoms are the foundational building blocks - the smallest functional units.
 - `.btn-link` - Link style
 - `.btn-sm`, `.btn-lg` - Size variants
 
+**Placement (page actions)** — primary is always the **rightmost** control in the row; secondary actions sit **to its left** (LTR). Use `d-flex justify-content-end gap-2` (optionally `flex-wrap`) so groups align to the corner.
+
+| Context | Corner | Order (left → right) |
+|---------|--------|----------------------|
+| **List pages** | Top-right of the page header (or filter toolbar row) | Secondary … Primary |
+| **Create / edit forms** | Bottom-right of the form | e.g. Cancel → Save draft → Submit |
+| **Read-only detail / view** | Top-right of the page header (same idea as list) | Secondary … Primary |
+
+**Owned resource detail (e.g. playbook):** Put **Delete** (or equivalent destructive control) **leftmost** in the header button cluster so it is never mistaken for the primary action; keep **Back** **rightmost** when shown. Primary CTAs (e.g. Submit PIP on a released playbook) stay **rightmost before Back**.
+
+```html
+<!-- List or view header -->
+<div class="d-flex justify-content-end gap-2 flex-wrap">
+  <button type="button" class="btn btn-outline-secondary">Secondary</button>
+  <a class="btn btn-primary" href="#">Primary</a>
+</div>
+
+<!-- Form footer -->
+<div class="d-flex justify-content-end gap-2 flex-wrap mt-4">
+  <a href="#" class="btn btn-outline-secondary">Cancel</a>
+  <button type="submit" class="btn btn-outline-primary">Save draft</button>
+  <button type="submit" class="btn btn-primary">Submit</button>
+</div>
+```
+
+Modal footers follow the same rule: dismiss / cancel left, confirming primary action right.
+
+**Dev-only mockups:** Static PIP wireframes under `/mockups/…` follow these placement rules for consistency with production templates. Those routes are registered only when `ENABLE_UI_MOCKUPS` is true (`mimir.settings.dev`); test and production settings leave it disabled so `/mockups/` returns 404.
+
 #### Input Atom
 ```html
 <input type="text" 

@@ -295,7 +295,8 @@ def activity_detail(request, playbook_pk, workflow_pk, activity_pk):
         - playbook: Playbook instance
         - workflow: Workflow instance
         - activity: Activity instance
-        - can_edit: Boolean indicating if user can edit
+        - can_edit: Boolean (unreleased owned playbook — user may edit/delete)
+        - can_submit_pip: Boolean (released owned playbook — user may propose a PIP)
     
     :param request: Django request object
     :param playbook_pk: Playbook primary key
@@ -333,11 +334,22 @@ def activity_detail(request, playbook_pk, workflow_pk, activity_pk):
         'workflow': workflow,
         'activity': activity,
         'can_edit': workflow.can_edit(request.user),
+        'can_submit_pip': (
+            playbook.source == 'owned'
+            and playbook.author_id == request.user.id
+            and playbook.is_released
+        ),
         'artifact_inputs': artifact_inputs,
 
     }
     
-    logger.info(f"Activity detail rendered for user {request.user.username}")
+    logger.info(
+        "Activity detail rendered user=%s activity=%s can_edit=%s can_submit_pip=%s",
+        request.user.username,
+        activity_pk,
+        context["can_edit"],
+        context["can_submit_pip"],
+    )
     return render(request, 'activities/detail.html', context)
 
 

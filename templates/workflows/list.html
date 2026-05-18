@@ -48,10 +48,10 @@
             <thead>
                 <tr>
                     <th>Order</th>
+                    <th>Abbrev.</th>
                     <th>Name</th>
                     <th>Description</th>
                     <th>Activities</th>
-                    <th>Phases</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -59,6 +59,13 @@
                 {% for workflow in workflows %}
                 <tr data-testid="workflow-row-{{ workflow.pk }}">
                     <td>{{ workflow.order }}</td>
+                    <td data-testid="workflow-ref-{{ workflow.pk }}">
+                        {% if workflow.abbreviation %}
+                            <span class="badge bg-secondary font-monospace">{{ workflow.abbreviation }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <a href="{% url 'workflow_detail' playbook.pk workflow.pk %}">
                             {{ workflow.name }}
@@ -66,7 +73,6 @@
                     </td>
                     <td>{{ workflow.description|truncatewords:10 }}</td>
                     <td>{{ workflow.get_activity_count }}</td>
-                    <td>{{ workflow.get_phase_count }}</td>
                     <td>
                         <div class="btn-group btn-group-sm" role="group">
                             <a href="{% url 'workflow_detail' playbook.pk workflow.pk %}" 

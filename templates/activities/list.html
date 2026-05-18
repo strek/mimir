@@ -68,10 +68,11 @@
                             <thead class="table-light">
                                 <tr>
                                     <th style="width: 5%">#</th>
-                                    <th style="width: 30%">Name</th>
-                                    <th style="width: 45%">Guidance</th>
+                                    <th style="width: 22%">Name</th>
+                                    <th style="width: 10%">Abbrev.</th>
+                                    <th style="width: 38%">Guidance</th>
                                     <th style="width: 10%">Dependencies</th>
-                                    <th style="width: 10%">Actions</th>
+                                    <th style="width: 15%">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -80,6 +81,13 @@
                                     <td class="text-muted">{{ activity.order }}</td>
                                     <td>
                                         <strong>{{ activity.name }}</strong>
+                                    </td>
+                                    <td data-testid="activity-ref-{{ activity.id }}">
+                                        {% if activity.reference_label %}
+                                            <span class="badge bg-secondary font-monospace">{{ activity.reference_label }}</span>
+                                        {% else %}
+                                            <span class="text-muted small">—</span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <small class="text-muted">{{ activity.guidance|markdown|striptags|truncatewords:15 }}</small>
@@ -136,10 +144,11 @@
                         <thead class="table-light">
                             <tr>
                                 <th style="width: 5%">#</th>
-                                <th style="width: 30%">Name</th>
-                                <th style="width: 45%">Guidance</th>
+                                <th style="width: 22%">Name</th>
+                                <th style="width: 10%">Abbrev.</th>
+                                <th style="width: 38%">Guidance</th>
                                 <th style="width: 10%">Dependencies</th>
-                                <th style="width: 10%">Actions</th>
+                                <th style="width: 15%">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -149,6 +158,13 @@
                                     <td class="text-muted">{{ activity.order }}</td>
                                     <td>
                                         <strong>{{ activity.name }}</strong>
+                                    </td>
+                                    <td data-testid="activity-ref-{{ activity.id }}">
+                                        {% if activity.reference_label %}
+                                            <span class="badge bg-secondary font-monospace">{{ activity.reference_label }}</span>
+                                        {% else %}
+                                            <span class="text-muted small">—</span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <small class="text-muted">{{ activity.guidance|markdown|striptags|truncatewords:15 }}</small>

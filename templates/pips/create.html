@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}New PIP — Mimir{% endblock %}
+{% block content %}
+<div class="container mt-4" data-testid="pip-create-page">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'pip_list' %}">PIPs</a></li>
+            <li class="breadcrumb-item active">New</li>
+        </ol>
+    </nav>
+    <h1 class="h3">Create PIP</h1>
+    <form method="post" class="mt-3" data-testid="pip-create-form">
+        {% csrf_token %}
+        {% if prefill_workflow_id %}
+        <input type="hidden" name="focus_workflow" value="{{ prefill_workflow_id }}" data-testid="pip-create-focus-workflow"/>
+        {% endif %}
+        {% if prefill_activity_id %}
+        <input type="hidden" name="focus_activity" value="{{ prefill_activity_id }}" data-testid="pip-create-focus-activity"/>
+        {% endif %}
+        <div class="mb-3">
+            <label class="form-label" for="id_playbook">Target playbook (released only)</label>
+            {% if prefill_playbook_id %}
+            {# Opened via playbook detail (?playbook=…): target must stay fixed (FOB-PIP-CREATE-01). #}
+            <input type="hidden" name="playbook" value="{{ prefill_playbook_id }}" data-testid="pip-create-playbook-hidden"/>
+            <select class="form-select" id="id_playbook" disabled required data-testid="pip-create-playbook"
+                    aria-disabled="true">
+                <option value="">— Select playbook —</option>
+                {% for pb in released_playbooks %}
+                <option value="{{ pb.pk }}" {% if prefill_playbook_id == pb.pk %}selected{% endif %}>
+                    {{ pb.name }} (v{{ pb.version }})
+                </option>
+                {% endfor %}
+            </select>
+            <p class="form-text small mb-0">Target playbook is fixed because you opened this form from the playbook.</p>
+            {% if prefill_workflow %}
+            <p class="form-text small mb-0 mt-1">Workflow context: <strong>{{ prefill_workflow.name }}</strong> — parent workflow is pre-selected when adding Activity changes.</p>
+            {% endif %}
+            {% if prefill_activity %}
+            <p class="form-text small mb-0 mt-1">Activity context: <strong>{{ prefill_activity.name }}</strong> — use ALTER/DROP with target id {{ prefill_activity.pk }} when editing this activity.</p>
+            {% endif %}
+            {% else %}
+            <select class="form-select" name="playbook" id="id_playbook" required data-testid="pip-create-playbook">
+                <option value="">— Select playbook —</option>
+                {% for pb in released_playbooks %}
+                <option value="{{ pb.pk }}">{{ pb.name }} (v{{ pb.version }})</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="id_title">Title</label>
+            <input class="form-control" type="text" name="title" id="id_title" required maxlength="200"
+                   data-testid="pip-create-title"/>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="id_summary">Summary (optional)</label>
+            <textarea class="form-control" rows="3" name="summary" id="id_summary"></textarea>
+        </div>
+        <div class="d-flex justify-content-end gap-2 flex-wrap mt-4">
+            <a href="{% url 'pip_list' %}" class="btn btn-outline-secondary" data-testid="pip-create-cancel"><i class="fas fa-times me-1"></i>Cancel</a>
+            <button type="submit" class="btn btn-primary" data-testid="pip-create-submit"><i class="fas fa-floppy-disk me-1"></i>Save draft &amp; add changes</button>
+        </div>
+    </form>
+</div>
+<script>console.log('PIP create form ready');</script>
+{% endblock %}

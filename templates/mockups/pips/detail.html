@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}PIP-{{ pip.id }}: {{ pip.title }} — Mockup{% endblock %}
+
+{% block content %}
+<div class="container mt-4" data-testid="pip-detail-page">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'mockup_pip_list' %}">PIPs</a></li>
+            <li class="breadcrumb-item active" aria-current="page">PIP-{{ pip.id }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4" data-testid="pip-detail-header">
+        <div>
+            <h2 data-testid="pip-title">
+                <i class="fa-solid fa-lightbulb"></i> PIP-{{ pip.id }}: {{ pip.title }}
+            </h2>
+            <p class="text-muted small">
+                <span class="badge {{ pip.status_css }}" data-testid="pip-status">{{ pip.status }}</span>
+                &middot;
+                <i class="fa-solid fa-book-sparkles"></i>
+                {{ pip.target_playbook }}
+                <span class="badge bg-light text-dark border">{{ pip.target_version }}</span>
+                &middot;
+                <i class="fa-solid fa-user"></i> {{ pip.submitted_by }}
+                &middot;
+                <i class="fa-solid fa-clock"></i> Updated {{ pip.last_updated }}
+            </p>
+        </div>
+        {% if pip.status == "Draft" %}
+        <div class="d-flex flex-wrap gap-2 justify-content-end flex-shrink-0" data-testid="pip-draft-actions">
+            <button type="button" class="btn btn-outline-danger"
+                    data-testid="pip-cancel-btn"
+                    data-bs-toggle="tooltip" title="Cancel and delete this draft">
+                <i class="fa-solid fa-trash me-1"></i> Cancel
+            </button>
+            <a href="{% url 'mockup_pip_create' %}" class="btn btn-outline-secondary"
+               data-bs-toggle="tooltip" title="Edit this draft PIP">
+                <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+            </a>
+            <button type="button" class="btn btn-primary"
+                    data-testid="pip-submit-btn"
+                    data-bs-toggle="tooltip" title="Submit for Galdr review">
+                <i class="fa-solid fa-paper-plane me-1"></i> Submit for Review
+            </button>
+        </div>
+        {% elif pip.status == "Submitted" %}
+        <div class="d-flex flex-wrap gap-2 justify-content-end flex-shrink-0" data-testid="pip-submitted-actions">
+            <button type="button" class="btn btn-outline-secondary"
+                    data-testid="pip-cancel-btn"
+                    data-bs-toggle="tooltip" title="Withdraw this PIP before Galdr processes it">
+                <i class="fa-solid fa-ban me-1"></i> Cancel PIP
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Status alert -->
+    {% if pip.status == "Reviewed" %}
+    <div class="alert alert-info d-flex align-items-center mb-4" role="alert" data-testid="pip-status-alert">
+        <i class="fa-solid fa-robot me-3 fa-lg"></i>
+        <div>Reviewed — awaiting Administrator decision.</div>
+    </div>
+    {% elif pip.status == "Accepted" %}
+    <div class="alert alert-success d-flex align-items-center mb-4" role="alert" data-testid="pip-status-alert">
+        <i class="fa-solid fa-circle-check me-3 fa-lg"></i>
+        <div>Accepted — all changes applied. {{ pip.target_playbook }} is now v2.0.</div>
+    </div>
+    {% elif pip.status == "Rejected" %}
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert" data-testid="pip-status-alert">
+        <i class="fa-solid fa-circle-xmark me-3 fa-lg"></i>
+        <div>Rejected — no changes were applied.</div>
+    </div>
+    {% elif pip.status == "Processing (Galdr)" %}
+    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert" data-testid="pip-status-alert">
+        <i class="fa-solid fa-spinner fa-spin me-3 fa-lg"></i>
+        <div>Galdr is reviewing your changes — check back shortly.</div>
+    </div>
+    {% elif pip.status == "Draft" %}
+    <div class="alert alert-secondary d-flex align-items-center mb-4" role="alert" data-testid="pip-status-alert">
+        <i class="fa-solid fa-pencil me-3 fa-lg"></i>
+        <div>Draft — not yet submitted for review.</div>
+    </div>
+    {% endif %}
+
+    <!-- Summary card -->
+    <div class="card mb-4" data-testid="pip-summary-card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fa-solid fa-align-left me-2"></i>Summary</h5>
+        </div>
+        <div class="card-body" data-testid="pip-summary-text">
+            <p class="mb-0">{{ pip.summary }}</p>
+        </div>
+    </div>
+
+    <!-- Changes -->
+    <div class="card mb-4" data-testid="pip-changes-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fa-solid fa-list-check me-2"></i>Changes
+                <span class="badge bg-secondary ms-1">{{ pip.changes|length }}</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% for ch in pip.changes %}
+            <div class="border-bottom p-3" data-testid="change-row-{{ ch.number }}">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="text-muted small me-2">#{{ ch.number }}</span>
+                        <span class="badge {{ ch.change_type_css }} me-1">{{ ch.change_type }}</span>
+                        <span class="badge bg-light text-dark border me-1">{{ ch.entity_type }}</span>
+                        {% if ch.name %}
+                        <strong>{{ ch.name }}</strong>
+                        {% else %}
+                        <a href="#" class="text-reset"><strong>{{ ch.target_name }}</strong></a>
+                        <span class="text-muted small ms-1">(id={{ ch.target_id }})</span>
+                        {% endif %}
+                        {% if ch.position %}
+                        <span class="text-muted small ms-2">
+                            <i class="fa-solid fa-arrow-down-short-wide"></i> {{ ch.position }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if ch.galdr_recommendation %}
+                    <span class="badge {% if ch.galdr_recommendation == 'ACCEPT' %}bg-success{% else %}bg-danger{% endif %}"
+                          data-testid="galdr-rec-{{ ch.number }}">
+                        <i class="fa-solid fa-robot me-1"></i>Galdr: {{ ch.galdr_recommendation }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Content (collapsible) -->
+                <div>
+                    <button class="btn btn-link btn-sm px-0 text-muted text-decoration-none"
+                            type="button" data-bs-toggle="collapse"
+                            data-bs-target="#change-content-{{ ch.number }}"
+                            data-testid="toggle-change-content-{{ ch.number }}">
+                        <i class="fa-solid fa-chevron-down me-1"></i> Content
+                    </button>
+                    <div class="collapse show" id="change-content-{{ ch.number }}"
+                         data-testid="change-content-{{ ch.number }}">
+                        <pre class="mt-2 p-2 bg-light border rounded small" style="white-space: pre-wrap;">{{ ch.content }}</pre>
+                    </div>
+                </div>
+
+                <!-- Galdr reasoning -->
+                {% if ch.galdr_reasoning %}
+                <div class="mt-2" data-testid="galdr-reasoning-{{ ch.number }}">
+                    <small class="text-muted">
+                        <i class="fa-solid fa-robot me-1"></i>
+                        <strong>Galdr reasoning:</strong>
+                        {{ ch.galdr_reasoning }}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Metadata card -->
+    <div class="card mb-4" data-testid="pip-meta-card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fa-solid fa-circle-info me-2"></i>Details</h5>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Submitted by</dt>
+                <dd class="col-sm-9">{{ pip.submitted_by }}</dd>
+                <dt class="col-sm-3">Submitted at</dt>
+                <dd class="col-sm-9">{{ pip.submitted_at|default:"— not submitted yet —" }}</dd>
+                <dt class="col-sm-3">Target playbook</dt>
+                <dd class="col-sm-9">{{ pip.target_playbook }} {{ pip.target_version }}</dd>
+                <dt class="col-sm-3">Last updated</dt>
+                <dd class="col-sm-9">{{ pip.last_updated }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Mockup nav -->
+    <div class="alert alert-light border small">
+        <strong>Mockup screens:</strong>
+        <a href="{% url 'mockup_pip_list' %}">List</a> ·
+        <a href="{% url 'mockup_pip_create' %}">Create</a> ·
+        <a href="{% url 'mockup_pip_detail' pip_id=42 %}">Detail — Reviewed (PIP-42)</a> ·
+        <a href="{% url 'mockup_pip_detail' pip_id=30 %}">Detail — Draft (PIP-30)</a> ·
+        <a href="{% url 'mockup_pip_admin_review' pip_id=38 %}">Admin Review (PIP-38)</a>
+    </div>
+
+</div>
+<style>.pip-status-reviewed { background-color: var(--bs-purple); color: #fff; }</style>
+{% endblock %}

@@ -287,4 +287,34 @@ class TestActivityModel:
         )
         
         assert activity.get_icon_class() == 'fas fa-list-check'
+
+    def test_reference_label_hyphen_format(self, test_workflow):
+        """reference_label uses workflow abbreviation and order with a hyphen."""
+        test_workflow.abbreviation = 'ESM'
+        test_workflow.save(update_fields=['abbreviation'])
+        activity = Activity.objects.create(
+            workflow=test_workflow,
+            name='Step One',
+            guidance='Do the thing',
+            order=1,
+        )
+        assert activity.reference_label == 'ESM-1'
+        assert activity.reference_name == 'ESM1'
+
+    def test_reference_label_empty_when_no_workflow_abbreviation(self, test_workflow):
+        """reference_label is empty if workflow abbreviation is cleared (DB-only update)."""
+        from methodology.models import Workflow
+
+        test_workflow.save()
+        Workflow.objects.filter(pk=test_workflow.pk).update(abbreviation='')
+        activity = Activity.objects.create(
+            workflow_id=test_workflow.pk,
+            name='Lonely',
+            guidance='x',
+            order=4,
+        )
+        activity = Activity.objects.select_related('workflow').get(pk=activity.pk)
+        assert activity.workflow.abbreviation == ''
+        assert activity.reference_label == ''
+        assert activity.reference_name == '4'
     

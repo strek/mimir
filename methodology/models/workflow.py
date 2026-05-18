@@ -12,9 +12,8 @@ class Workflow(models.Model):
     """
     Workflow represents an execution sequence within a playbook.
     
-    Workflows organize activities into logical sequences and can optionally
-    include phases for grouping. Each workflow has a specific order within
-    its parent playbook.
+    Workflows organize activities into logical sequences.
+    Each workflow has a specific order within its parent playbook.
     """
     
     # Core fields
@@ -57,20 +56,6 @@ class Workflow(models.Model):
             5  # Returns count of activities
         """
         return self.activities.count()
-    
-    def get_phase_count(self):
-        """
-        Get number of phases in this workflow.
-        
-        :returns: Phase count
-        :rtype: int
-        
-        Example:
-            >>> workflow.get_phase_count()
-            0  # Returns 0 until Phase model is implemented
-        """
-        # TODO: Implement when Phase model exists
-        return 0
     
     def is_owned_by(self, user):
         """

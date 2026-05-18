@@ -152,8 +152,7 @@ class TestPlaybookViewWorkflowsTab:
         assert '>Name<' in content
         assert '>Description<' in content
         assert '>Activities<' in content
-        assert '>Phases<' in content
-        assert '>Actions<' in content
+        assert '>Abbrev.<' in content
     
     def test_workflows_tab_shows_all_workflows(self, playbook_with_workflows):
         """All workflows are displayed in the table."""
@@ -182,22 +181,6 @@ class TestPlaybookViewWorkflowsTab:
         assert 'id="workflow-search"' in content
         assert 'data-testid="workflow-search-input"' in content
         assert 'Search workflows by name' in content
-    
-    def test_workflows_tab_shows_phase_filter(self, playbook_with_workflows):
-        """Phase filter dropdown is present."""
-        client = Client()
-        user = playbook_with_workflows['user']
-        playbook = playbook_with_workflows['playbook']
-        
-        client.force_login(user)
-        response = client.get(reverse('playbook_detail', kwargs={'pk': playbook.pk}))
-        
-        content = response.content.decode('utf-8')
-        assert 'id="filter-has-phases"' in content
-        assert 'data-testid="workflow-phase-filter"' in content
-        assert 'All Workflows' in content
-        assert 'With Phases' in content
-        assert 'No Phases' in content
     
     def test_workflows_tab_shows_filter_section(self, playbook_with_workflows):
         """Filter section is present with correct testid."""
@@ -278,7 +261,6 @@ class TestPlaybookViewWorkflowsTab:
         content = response.content.decode('utf-8')
         assert 'data-workflow-row' in content
         assert 'data-workflow-name' in content
-        assert 'data-phase-count' in content
     
     def test_workflows_tab_has_empty_state_for_filtered_results(self, playbook_with_workflows):
         """Empty state element exists for filtered results (hidden by default)."""
@@ -292,4 +274,4 @@ class TestPlaybookViewWorkflowsTab:
         content = response.content.decode('utf-8')
         assert 'id="empty-state"' in content
         assert 'data-testid="workflows-empty-state"' in content
-        assert 'No workflows match your filters' in content
+        assert 'No workflows match your search' in content

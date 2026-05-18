@@ -35,6 +35,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Name</th>
+                        <th>Abbrev.</th>
                         <th>Workflow</th>
                         <th>Phase</th>
                         <th style="width: 10%">Actions</th>
@@ -46,6 +47,13 @@
                         <td>
                             <i class="fa-solid fa-list-check text-primary me-2"></i>
                             <strong>{{ activity.name }}</strong>
+                        </td>
+                        <td data-testid="activity-ref-{{ activity.id }}">
+                            {% if activity.reference_label %}
+                                <span class="badge bg-secondary font-monospace">{{ activity.reference_label }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
                         </td>
                         <td>
                             <a href="{% url 'workflow_detail' playbook_pk=playbook.pk pk=activity.workflow.pk %}">

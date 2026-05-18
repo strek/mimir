@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}PIP-{{ pip.pk }} — Edit draft{% endblock %}
+{% block content %}
+<div class="container mt-4" data-testid="pip-draft-editor">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'pip_list' %}">PIPs</a></li>
+            <li class="breadcrumb-item active">PIP-{{ pip.pk }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3">Edit draft</h1>
+    <p class="text-muted">Target: <strong>{{ pip.playbook.name }}</strong> v{{ pip.playbook.version }}</p>
+
+    <form method="post" class="card card-body mb-4" data-testid="pip-header-form"
+          action="{% url 'pip_edit' pip.pk %}{{ pip_edit_query_suffix }}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_header"/>
+        <div class="mb-2">
+            <label class="form-label" for="hdr_title">Title</label>
+            <input class="form-control" id="hdr_title" name="title" value="{{ pip.title }}" required/>
+        </div>
+        <div class="mb-2">
+            <label class="form-label" for="hdr_summary">Summary</label>
+            <textarea class="form-control" id="hdr_summary" name="summary" rows="3">{{ pip.summary }}</textarea>
+        </div>
+        <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-outline-primary btn-sm" data-testid="pip-save-header"><i class="fas fa-floppy-disk me-1"></i>Save header</button>
+        </div>
+    </form>
+
+    <h2 class="h5">Changes</h2>
+    <table class="table table-sm">
+        <thead><tr><th>#</th><th>Type</th><th>Entity</th><th>Summary</th><th></th></tr></thead>
+        <tbody>
+        {% for ch in pip.changes.all %}
+        <tr data-testid="pip-change-row-{{ ch.pk }}">
+            <td>{{ ch.order }}</td>
+            <td>{{ ch.change_type }}</td>
+            <td>{{ ch.entity_type }}</td>
+            <td class="small">
+                {% if ch.change_type == 'ADD' %}{{ ch.name }}{% else %}{{ ch.target_name_snapshot }} (id={{ ch.target_id }}){% endif %}
+                {% if ch.content %}<span class="text-muted d-block">{{ ch.content|truncatewords:24 }}</span>{% endif %}
+            </td>
+            <td>
+                <form method="post" action="{% url 'pip_remove_change' pip.pk ch.pk %}{{ pip_edit_query_suffix }}">
+                    {% csrf_token %}
+                    <button class="btn btn-link text-danger btn-sm p-0" type="submit" data-testid="pip-remove-{{ ch.pk }}"><i class="fas fa-trash me-1"></i>Remove</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-muted small">No changes yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="card mb-4">
+        <div class="card-header">Add change</div>
+        <div class="card-body">
+            <form method="post" action="{% url 'pip_add_change' pip.pk %}{{ pip_edit_query_suffix }}" data-testid="pip-add-change-form">
+                {% csrf_token %}
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label small">Type</label>
+                        <select class="form-select form-select-sm" name="change_type" required>
+                            <option value="ADD">ADD</option>
+                            <option value="ALTER">ALTER</option>
+                            <option value="DROP">DROP</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Entity</label>
+                        <select class="form-select form-select-sm" name="entity_type" required>
+                            <option value="Activity">Activity</option>
+                            <option value="Workflow">Workflow</option>
+                            <option value="Skill">Skill</option>
+                            <option value="Agent">Agent</option>
+                            <option value="Artifact">Artifact</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Name (ADD) or unused for ALTER/DROP</label>
+                        <input class="form-control form-control-sm" type="text" name="name" maxlength="255"/>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Guidance / new content / DROP rationale</label>
+                        <textarea class="form-control form-control-sm" name="content" rows="3"></textarea>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Target id (ALTER/DROP — entity pk)</label>
+                        <input class="form-control form-control-sm" type="number" name="target_id" min="1"
+                               placeholder="e.g. Activity id"/>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Parent workflow (ADD Activity)</label>
+                        <select class="form-select form-select-sm" name="parent_workflow">
+                            <option value="">—</option>
+                            {% for bundle in workflow_bundle %}
+                            <option value="{{ bundle.workflow.pk }}" {% if prefill_parent_workflow_id == bundle.workflow.pk %}selected{% endif %}>{{ bundle.workflow.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Insert after activity</label>
+                        <select class="form-select form-select-sm" name="insert_after_activity">
+                            <option value="">—</option>
+                            {% for bundle in workflow_bundle %}
+                            {% for a in bundle.activities %}
+                            <option value="{{ a.pk }}">{{ bundle.workflow.name }} ▸ {{ a.name }} ({{ a.pk }})</option>
+                            {% endfor %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="append_end" id="append_end"/>
+                            <label class="form-check-label" for="append_end">Append to end of parent / workflow</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end mt-2">
+                    <button type="submit" class="btn btn-sm btn-primary" data-testid="pip-add-change-submit"><i class="fas fa-plus me-1"></i>Add change</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 flex-wrap align-items-center mt-4">
+        <a href="{% url 'pip_detail' pip.pk %}" class="btn btn-outline-secondary" data-testid="pip-view-readonly"><i class="fas fa-book-open me-1"></i>View read-only</a>
+        <a class="btn btn-outline-secondary" href="{{ preview_url }}" data-testid="pip-preview-link" target="_blank"
+           rel="noopener"><i class="fas fa-code-compare me-1"></i>Preview diff</a>
+        <form method="post" action="{% url 'pip_submit_review' pip.pk %}{{ pip_edit_query_suffix }}" data-testid="pip-submit-form" class="m-0 d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success" data-testid="pip-submit-review"><i class="fas fa-paper-plane me-1"></i>Submit for review</button>
+        </form>
+    </div>
+</div>
+<script>console.log('PIP draft editor', {id: {{ pip.pk }}});</script>
+{% endblock %}

@@ -1,5 +1,8 @@
 """
-Integration tests: Quick Stats on playbook detail link to playbook-scoped lists.
+Integration tests: Quick Stats on playbook detail link targets.
+
+Most tiles point at playbook-scoped list URLs; the Phases tile points at the
+global ``/phases/`` list with ``?playbook=<pk>``.
 """
 
 import pytest
@@ -13,7 +16,6 @@ User = get_user_model()
 
 STAT_LINK_ROWS = (
     ('workflows', 'workflow_list', 'playbook_pk'),
-    ('phases', 'phase_list', 'playbook_pk'),
     ('activities', 'activity_list_for_playbook', 'playbook_pk'),
     ('artifacts', 'artifact_list', 'playbook_id'),
     ('agents', 'agent_list_for_playbook', 'playbook_pk'),
@@ -56,3 +58,25 @@ def test_quick_stat_tile_href_and_destination_ok(slug, url_name, kw, playbook_qu
 
     dest = client.get(expected_href)
     assert dest.status_code == 200
+
+
+@pytest.mark.django_db
+def test_quick_stat_phases_links_to_global_list_with_playbook_query(playbook_quick_links):
+    """Phases tile opens /phases/?playbook=<pk> (global list with filter)."""
+    user = playbook_quick_links['user']
+    playbook = playbook_quick_links['playbook']
+    client = Client()
+    client.force_login(user)
+
+    detail = client.get(reverse('playbook_detail', kwargs={'pk': playbook.pk}))
+    assert detail.status_code == 200
+    html = detail.content.decode()
+
+    expected_href = f'{reverse("phase_list_global")}?playbook={playbook.pk}'
+    assert 'data-testid="stat-phases-link"' in html
+    assert f'href="{expected_href}"' in html
+
+    dest = client.get(reverse('phase_list_global'), {'playbook': str(playbook.pk)})
+    assert dest.status_code == 200
+    content = dest.content.decode()
+    assert 'data-testid="phase-global-playbook-filter"' in content

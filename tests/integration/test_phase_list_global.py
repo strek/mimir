@@ -108,6 +108,57 @@ class TestPhaseListGlobal:
         assert b'Inception' in response.content
         assert b'Construction' not in response.content
 
+    def test_filter_by_playbook_query_param(self):
+        """?playbook=<pk> limits rows to that playbook (owned by user)."""
+        other = Playbook.objects.create(
+            name='Other PB',
+            description='x',
+            category='development',
+            status='draft',
+            source='owned',
+            author=self.user,
+        )
+        Phase.objects.create(playbook=self.playbook, name='Only Here', order=1)
+        Phase.objects.create(playbook=other, name='Other Phase', order=1)
+
+        url = reverse('phase_list_global')
+        response = self.client.get(url, {'playbook': str(self.playbook.pk)})
+
+        assert response.status_code == 200
+        body = response.content.decode()
+        assert 'Only Here' in body
+        assert 'Other Phase' not in body
+        assert 'data-testid="phase-global-playbook-filter"' in body
+        assert 'React Frontend v1.2' in body
+
+    def test_filter_by_playbook_unknown_id_ignored(self):
+        """Invalid or not-owned playbook id does not 404; playbook filter is not applied."""
+        Phase.objects.create(playbook=self.playbook, name='Mine', order=1)
+
+        url = reverse('phase_list_global')
+        r1 = self.client.get(url, {'playbook': '999999'})
+        assert r1.status_code == 200
+        assert b'Mine' in r1.content
+        assert b'data-testid="phase-global-playbook-filter"' not in r1.content
+
+        stranger = User.objects.create_user(username='stranger_pb', password='x')
+        alien = Playbook.objects.create(
+            name='Alien PB',
+            description='x',
+            category='development',
+            status='draft',
+            source='owned',
+            author=stranger,
+        )
+        Phase.objects.create(playbook=alien, name='Not Yours', order=1)
+
+        r2 = self.client.get(url, {'playbook': str(alien.pk)})
+        assert r2.status_code == 200
+        assert b'Mine' in r2.content
+        assert b'Not Yours' not in r2.content
+        assert b'data-testid="phase-global-playbook-filter"' not in r2.content
+
+
     def test_empty_state(self):
         """Empty state shown when no phases exist."""
         url = reverse('phase_list_global')

@@ -140,10 +140,25 @@ def workflow_detail(request, playbook_pk, pk):
             logger.error(f"Failed to generate activity graph for workflow {pk}: {str(e)}")
             # Continue without graph - template will show error or plain list
     
+    can_submit_pip = (
+        playbook.source == "owned"
+        and playbook.author_id == request.user.id
+        and playbook.is_released
+    )
+    logger.info(
+        "User %s viewing workflow pk=%s playbook=%s can_edit=%s can_submit_pip=%s",
+        request.user.username,
+        pk,
+        playbook_pk,
+        workflow.can_edit(request.user),
+        can_submit_pip,
+    )
+
     return render(request, 'workflows/detail.html', {
         'playbook': playbook,
         'workflow': workflow,
         'can_edit': workflow.can_edit(request.user),
+        'can_submit_pip': can_submit_pip,
         'activities_svg': activities_svg,
         'activity_count': activity_count,
         'has_activities': activity_count > 0,

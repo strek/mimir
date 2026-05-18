@@ -9,6 +9,7 @@ from methodology.models import (
     ArtifactInput,
     Playbook,
     PlaybookVersion,
+    PipChange,
     ProcessImprovementProposal,
     Rule,
     Skill,
@@ -63,13 +64,122 @@ class PlaybookVersionAdmin(admin.ModelAdmin):
     raw_id_fields = ("pip",)
 
 
+def _pip_admin_exc_text(exc: ValidationError | Exception) -> str:
+    """Render admin action errors cleanly."""
+    if isinstance(exc, ValidationError):
+        msg_dict = getattr(exc, "message_dict", None)
+        if msg_dict:
+            return str(msg_dict)
+        msgs = getattr(exc, "messages", None)
+        if msgs:
+            return "; ".join(str(m) for m in msgs)
+    return str(exc)
+
+
+_PIP_INLINE_FREEZE_AFTER = frozenset(
+    {
+        ProcessImprovementProposal.STATUS_ACCEPTED,
+        ProcessImprovementProposal.STATUS_ACCEPTED_PARTIAL,
+        ProcessImprovementProposal.STATUS_REJECTED,
+    }
+)
+
+
+class PipChangeInline(admin.TabularInline):
+    """Inline editor for structured PIP deltas."""
+
+    model = PipChange
+    extra = 0
+    show_change_link = True
+
+    def get_readonly_fields(self, request, obj=None):  # parent PIP row
+        audit_always = frozenset(
+            {
+                "galdr_recommendation",
+                "galdr_reasoning",
+                "created_at",
+                "updated_at",
+            }
+        )
+        field_names = [f.name for f in PipChange._meta.fields if not f.primary_key]
+        if obj is None:
+            return tuple(sorted(audit_always))
+        if obj.status == ProcessImprovementProposal.STATUS_REVIEWED:
+            return tuple(n for n in field_names if n not in {"admin_decision", "admin_note"})
+        if obj.status in _PIP_INLINE_FREEZE_AFTER:
+            return tuple(field_names)
+        return tuple(sorted(audit_always))
+
+
 @admin.register(ProcessImprovementProposal)
 class ProcessImprovementProposalAdmin(admin.ModelAdmin):
-    list_display = ("title", "playbook", "status", "created_at")
+    inlines = (PipChangeInline,)
+    list_display = (
+        "title",
+        "playbook",
+        "status",
+        "created_by",
+        "change_count_column",
+        "submitted_at",
+        "updated_at",
+    )
     list_filter = ("status",)
-    search_fields = ("title", "playbook__name")
-    readonly_fields = ("created_at",)
-    raw_id_fields = ("playbook",)
+    search_fields = ("title", "playbook__name", "summary")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "status_changed_at",
+    )
+    raw_id_fields = ("playbook", "created_by")
+    actions = ("finalize_reviewed_pips",)
+
+    @admin.action(description="Finalize reviewed PIPs (apply accepted changes + notify)")
+    def finalize_reviewed_pips(self, request, queryset):
+        """Admin queue action — thin wrapper around :class:`PIPAdminService`."""
+
+        from methodology.services.pip_admin_service import PIPAdminService
+
+        ok = skipped = failed = 0
+        for row in queryset.iterator():
+            if row.status != ProcessImprovementProposal.STATUS_REVIEWED:
+                skipped += 1
+                continue
+            try:
+                PIPAdminService.finalize_pip(row, request.user)
+                ok += 1
+                self.message_user(
+                    request,
+                    f'Finalised "{row.title}" (PIP-{row.pk}).',
+                    level=messages.SUCCESS,
+                )
+            except ValidationError as exc:
+                failed += 1
+                self.message_user(
+                    request,
+                    f"PIP-{row.pk}: {_pip_admin_exc_text(exc)}",
+                    level=messages.ERROR,
+                )
+        if skipped:
+            self.message_user(
+                request,
+                f"Skipped {skipped} proposal(s) not in Reviewed state.",
+                level=messages.WARNING,
+            )
+        if ok == 0 and failed == 0 and not skipped:
+            self.message_user(request, "No proposals selected.", level=messages.WARNING)
+
+    @staticmethod
+    def change_count_column(obj):
+        return obj.changes.count()
+
+    change_count_column.short_description = "Changes"
+
+
+@admin.register(PipChange)
+class PipChangeAdmin(admin.ModelAdmin):
+    list_display = ("id", "pip", "change_type", "entity_type", "order", "name")
+    list_filter = ("change_type", "entity_type")
+    raw_id_fields = ("pip", "parent_workflow", "insert_after_activity")
 
 
 @admin.register(Workflow)

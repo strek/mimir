@@ -9,6 +9,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from methodology.models import Playbook, Phase
 from methodology.services.phase_service import PhaseService
 
@@ -21,44 +22,81 @@ logger = logging.getLogger(__name__)
 def phase_list_global(request):
     """
     Global phases list — all phases across all playbooks owned by the user.
-    
-    Supports search via ?q= query parameter (matches name and description).
-    
+
+    Supports:
+    - ``?q=`` — search (matches name and description)
+    - ``?playbook=<id>`` — limit to phases in that playbook (must be owned by user)
+
     Template: phases/list_global.html
     Template Context:
         - phases: QuerySet of Phase instances (filtered by query if provided)
         - query: Current search string
+        - filter_playbook: Playbook instance if ``playbook`` query param applied, else None
         - total_count: Total phases before filtering
-    
+
     :param request: Django request object
     :return: Rendered global list template
     """
     query = request.GET.get('q', '').strip()
-    
-    # Get all phases for user's playbooks
+    filter_playbook = _resolve_phase_list_playbook_filter(request)
+
     phases = Phase.objects.filter(playbook__author=request.user).select_related('playbook')
-    
-    # Apply search filter if query provided
+    if filter_playbook is not None:
+        phases = phases.filter(playbook_id=filter_playbook.pk)
+
     if query:
         phases = phases.filter(
-            name__icontains=query
-        ) | phases.filter(
-            description__icontains=query
+            Q(name__icontains=query) | Q(description__icontains=query)
         )
-    
+
     total_count = Phase.objects.filter(playbook__author=request.user).count()
-    
+
+    log_extra = []
+    if filter_playbook is not None:
+        log_extra.append(f"playbook_id={filter_playbook.pk}")
+    if query:
+        log_extra.append(f"query={query!r}")
     logger.info(
-        f"User {request.user.username} viewing global phase list"
-        + (f", query={query!r}" if query else "")
+        "User %s viewing global phase list%s",
+        request.user.username,
+        (" (" + ", ".join(log_extra) + ")") if log_extra else "",
     )
-    
+
     context = {
         'phases': phases.order_by('playbook__name', 'order'),
         'query': query,
+        'filter_playbook': filter_playbook,
         'total_count': total_count,
     }
     return render(request, 'phases/list_global.html', context)
+
+
+def _resolve_phase_list_playbook_filter(request):
+    """
+    Parse optional ``playbook`` query param for :func:`phase_list_global`.
+
+    :returns: Owned :class:`Playbook` or ``None`` if missing/invalid/not owned
+    """
+    raw = request.GET.get('playbook', '').strip()
+    if not raw:
+        return None
+    try:
+        pk = int(raw)
+    except ValueError:
+        logger.info(
+            "Ignoring invalid playbook query param for phase_list_global user=%s raw=%r",
+            request.user.username,
+            raw,
+        )
+        return None
+    book = Playbook.objects.filter(pk=pk, author=request.user).first()
+    if book is None:
+        logger.info(
+            "Playbook filter not applied (missing or not owned) user=%s playbook=%s",
+            request.user.username,
+            pk,
+        )
+    return book
 
 
 @login_required
