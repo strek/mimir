@@ -4,7 +4,7 @@ Two containers make up the Mimir stack:
 
 | Container | Image | Purpose |
 |-----------|-------|---------|
-| **FOB** (web app) | `411113550285.dkr.ecr.us-east-1.amazonaws.com/mimir:latest` | Django UI + REST API |
+| **FOB** (web app) | built from source (`docker build`) | Django UI + REST API |
 | **MCP Facade** | `featurefactory/mimir-mcp:latest` | Connects your AI IDE to FOB |
 
 ---
@@ -33,12 +33,12 @@ docker compose up -d
 ### Step 1 — Run the FOB (web app)
 
 ```bash
-# Authenticate to ECR
-aws ecr get-login-password --region us-east-1 \
-  | docker login --username AWS --password-stdin \
-    411113550285.dkr.ecr.us-east-1.amazonaws.com
+# Build from source (one-time)
+git clone https://github.com/phainestai/mimir.git
+cd mimir
+docker build -t mimir-web:local .
 
-# Pull and run
+# Run
 docker run -d \
   --name mimir-fob \
   -p 8000:8000 \
@@ -46,7 +46,7 @@ docker run -d \
   -e MIMIR_USER=admin \
   -e MIMIR_PASSWORD=changeme \
   -e MIMIR_EMAIL=admin@localhost \
-  411113550285.dkr.ecr.us-east-1.amazonaws.com/mimir:latest
+  mimir-web:local
 ```
 
 FOB is ready when `docker logs mimir-fob | grep "Listening"` appears.
@@ -169,9 +169,9 @@ docker stop mimir-fob
 
 # Update to latest
 docker stop mimir-fob && docker rm mimir-fob
-docker pull 411113550285.dkr.ecr.us-east-1.amazonaws.com/mimir:latest
+git pull && docker build -t mimir-web:local .
 docker pull featurefactory/mimir-mcp:latest
-# re-run with same docker run command above for FOB; IDE/container uses latest MCP image on next `docker run`
+# re-run with same docker run command above
 ```
 
 ## Troubleshooting
