@@ -94,15 +94,23 @@ format: ## Auto-format code with ruff
 lint-fix: ## Run ruff linter with auto-fix
 	$(RUFF) check --fix .
 
-##@ Database (SQLite)
+##@ Database
+# Local dev uses SQLite (mimir.db). Production on EB uses Postgres (DATABASE_URL env var).
 
 .PHONY: db-reset
-db-reset: ## Delete mimir.db and re-run migrations (destroys all data)
-	@echo "WARNING: This will delete mimir.db and all data."
+db-reset: ## [local] Delete mimir.db and re-run migrations (destroys all local data)
+	@echo "WARNING: This will delete mimir.db and all local data."
 	@read -p "Continue? [y/N] " ans && [ "$$ans" = "y" ]
 	rm -f mimir.db
 	$(PYTHON) manage.py migrate --noinput
 	@echo "Database reset. Run 'make demo' to reload demo data."
+
+.PHONY: backup
+backup: ## [prod] Dump prod Postgres to S3 — requires S3_BUCKET and DATABASE_URL env vars
+	@[ -n "$$S3_BUCKET" ] || (echo "S3_BUCKET not set"; exit 1)
+	@[ -n "$$DATABASE_URL" ] || (echo "DATABASE_URL not set"; exit 1)
+	pg_dump "$$DATABASE_URL" | aws s3 cp - s3://$$S3_BUCKET/mimir-$(shell date +%Y%m%d-%H%M%S).sql
+	@echo "Backup uploaded to s3://$$S3_BUCKET"
 
 ##@ Deploy (AWS EB)
 
