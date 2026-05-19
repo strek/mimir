@@ -62,7 +62,7 @@ def _configure_logging(transport: str) -> None:
 
 
 def _build_mcp() -> FastMCP:
-    """Create and register all 53 tools with a FastMCP instance."""
+    """Create and register all 61 tools with a FastMCP instance."""
     mcp = FastMCP("Mimir Methodology Assistant")
 
     # Playbooks (5)
@@ -136,7 +136,17 @@ def _build_mcp() -> FastMCP:
     mcp.tool()(tools.delete_phase)
     mcp.tool()(tools.reorder_phases)
 
-    logger.info("MCP Facade: All 53 tools registered")
+    # PIPs — Process Improvement Proposals (8)
+    mcp.tool()(tools.list_pips)
+    mcp.tool()(tools.get_pip)
+    mcp.tool()(tools.create_pip)
+    mcp.tool()(tools.add_pip_change)
+    mcp.tool()(tools.remove_pip_change)
+    mcp.tool()(tools.submit_pip)
+    mcp.tool()(tools.cancel_pip)
+    mcp.tool()(tools.preview_pip_diff)
+
+    logger.info("MCP Facade: All 61 tools registered")
     return mcp
 
 

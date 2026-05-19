@@ -35,7 +35,7 @@ from methodology.api.viewsets import (
 )
 from methodology.api.viewsets_resources import (
     SkillViewSet, AgentViewSet, ArtifactViewSet,
-    ArtifactInputViewSet, PhaseViewSet, RuleViewSet
+    ArtifactInputViewSet, PhaseViewSet, RuleViewSet, PIPViewSet
 )
 
 # DRF Router for API endpoints
@@ -49,6 +49,7 @@ router.register(r'artifacts', ArtifactViewSet, basename='api-artifact')
 router.register(r'artifact-inputs', ArtifactInputViewSet, basename='api-artifact-input')
 router.register(r'phases', PhaseViewSet, basename='api-phase')
 router.register(r'rules', RuleViewSet, basename='api-rule')
+router.register(r'pips', PIPViewSet, basename='api-pip')
 
 urlpatterns = [
     path("health/", health_views.health_check, name="health_check"),

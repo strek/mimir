@@ -6,8 +6,8 @@ Maps Django models to JSON representations for API requests/responses.
 
 from rest_framework import serializers
 from methodology.models import (
-    Playbook, Workflow, Activity, Skill, Agent, Artifact, 
-    ArtifactInput, Phase, Rule
+    Playbook, Workflow, Activity, Skill, Agent, Artifact,
+    ArtifactInput, Phase, Rule, ProcessImprovementProposal, PipChange
 )
 
 
@@ -168,3 +168,72 @@ class RuleSerializer(serializers.ModelSerializer):
         model = Rule
         fields = ['id', 'playbook_id', 'title', 'slug', 'content', 'always_apply']
         read_only_fields = ['id']
+
+
+class PipChangeSerializer(serializers.ModelSerializer):
+    """Serializer for PipChange model."""
+
+    parent_workflow_id = serializers.IntegerField(source='parent_workflow.id', read_only=True)
+    insert_after_activity_id = serializers.IntegerField(
+        source='insert_after_activity.id', read_only=True
+    )
+
+    class Meta:
+        model = PipChange
+        fields = [
+            'id', 'order', 'change_type', 'entity_type', 'name',
+            'target_id', 'target_name_snapshot', 'content',
+            'parent_workflow_id', 'insert_after_activity_id', 'append_to_playbook_end',
+            'galdr_recommendation', 'galdr_reasoning',
+            'admin_decision', 'admin_note',
+        ]
+        read_only_fields = ['id', 'order']
+
+
+class PIPSerializer(serializers.ModelSerializer):
+    """Serializer for ProcessImprovementProposal (PIP)."""
+
+    submitted_by_username = serializers.CharField(
+        source='created_by.username', read_only=True
+    )
+    changes_count = serializers.SerializerMethodField()
+    changes = PipChangeSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ProcessImprovementProposal
+        fields = [
+            'id', 'playbook_id', 'title', 'summary', 'status',
+            'submitted_by_username', 'submitted_at', 'status_changed_at',
+            'changes_count', 'changes',
+        ]
+        read_only_fields = [
+            'id', 'status', 'submitted_by_username',
+            'submitted_at', 'status_changed_at', 'changes_count', 'changes',
+        ]
+
+    def get_changes_count(self, obj):
+        """Return number of changes attached to this PIP."""
+        return obj.changes.count()
+
+
+class PIPListSerializer(serializers.ModelSerializer):
+    """Lightweight PIP serializer for list views (no nested changes)."""
+
+    submitted_by_username = serializers.CharField(
+        source='created_by.username', read_only=True
+    )
+    changes_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProcessImprovementProposal
+        fields = [
+            'id', 'playbook_id', 'title', 'summary', 'status',
+            'submitted_by_username', 'submitted_at', 'status_changed_at',
+            'changes_count',
+        ]
+
+    def get_changes_count(self, obj):
+        """Return number of changes (uses annotated field when available)."""
+        if hasattr(obj, 'change_count'):
+            return obj.change_count
+        return obj.changes.count()

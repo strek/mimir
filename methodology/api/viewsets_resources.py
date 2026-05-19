@@ -1,5 +1,5 @@
 """
-DRF ViewSets for resource models (Skills, Agents, Artifacts, Phases, Rules).
+DRF ViewSets for resource models (Skills, Agents, Artifacts, Phases, Rules, PIPs).
 
 Continuation of viewsets.py for remaining resources.
 """
@@ -11,13 +11,17 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from django.db.models import Count
+from django.core.exceptions import ValidationError
 
 from methodology.models import (
-    Playbook, Skill, Agent, Artifact, ArtifactInput, Phase, Rule
+    Playbook, Skill, Agent, Artifact, ArtifactInput, Phase, Rule,
+    ProcessImprovementProposal, PipChange
 )
 from methodology.api.serializers import (
     SkillSerializer, AgentSerializer, ArtifactSerializer,
-    ArtifactInputSerializer, PhaseSerializer, RuleSerializer
+    ArtifactInputSerializer, PhaseSerializer, RuleSerializer,
+    PIPSerializer, PIPListSerializer
 )
 from methodology.api.permissions import IsOwnerOrReadOnly, IsDraftPlaybook
 
@@ -241,3 +245,165 @@ class RuleViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(activities__isnull=True)
         
         return queryset.order_by('title')
+
+
+class PIPViewSet(viewsets.GenericViewSet):
+    """
+    ViewSet for Process Improvement Proposals (PIPs).
+
+    Maps to MCP tools: list_pips, get_pip, create_pip, add_pip_change,
+    remove_pip_change, submit_pip, cancel_pip, preview_pip_diff.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return PIPListSerializer
+        return PIPSerializer
+
+    def get_queryset(self):
+        from methodology.services.pip_service import PIPService
+        scope = self.request.query_params.get('scope', 'mine')
+        status_codes = self.request.query_params.get('status_codes', '')
+        playbook_id = self.request.query_params.get('playbook_id')
+        status_list = [s.strip() for s in status_codes.split(',') if s.strip()] if status_codes else None
+        try:
+            return PIPService.list_queryset_for_user(
+                actor=self.request.user,
+                scope=scope,
+                status_filters=status_list,
+                playbook_id=int(playbook_id) if playbook_id else None,
+            )
+        except PermissionError as exc:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(str(exc)) from exc
+
+    def list(self, request):
+        """List PIPs for current user (staff may use scope=all)."""
+        logger.info(
+            "API: list_pips user=%s scope=%s",
+            request.user.pk, request.query_params.get('scope', 'mine')
+        )
+        qs = self.get_queryset()
+        serializer = PIPListSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        """Get a single PIP with nested changes."""
+        logger.info("API: get_pip user=%s pip=%s", request.user.pk, pk)
+        from methodology.services.pip_service import PIPService
+        try:
+            pip = PIPService.get_pip(int(pk), request.user)
+        except ProcessImprovementProposal.DoesNotExist:
+            return Response({"error": f"PIP {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        serializer = PIPSerializer(pip)
+        return Response(serializer.data)
+
+    def create(self, request):
+        """Create a Draft PIP targeting a Released playbook."""
+        logger.info("API: create_pip user=%s data=%s", request.user.pk, request.data)
+        from methodology.services.pip_service import PIPService
+        try:
+            pip = PIPService.create_draft_for_playbook(
+                actor=request.user,
+                playbook_id=int(request.data['playbook_id']),
+                title=request.data['title'],
+                summary=request.data.get('summary', ''),
+            )
+        except (ValidationError, KeyError, ValueError) as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        refreshed = PIPService.get_pip(pip.pk, request.user)
+        return Response(PIPSerializer(refreshed).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='changes')
+    def add_change(self, request, pk=None):
+        """Add a change row to a Draft PIP."""
+        logger.info("API: add_pip_change user=%s pip=%s", request.user.pk, pk)
+        from methodology.services.pip_service import PIPService
+        try:
+            pip = PIPService.get_pip(int(pk), request.user)
+            change = PIPService.add_change(
+                actor=request.user,
+                pip=pip,
+                change_type=request.data['change_type'],
+                entity_type=request.data['entity_type'],
+                name=request.data.get('name', ''),
+                content=request.data.get('content', ''),
+                target_id=request.data.get('target_id'),
+                parent_workflow_id=request.data.get('parent_workflow_id'),
+                insert_after_activity_id=request.data.get('insert_after_activity_id'),
+                append_to_playbook_end=bool(request.data.get('append_to_playbook_end', False)),
+            )
+        except ProcessImprovementProposal.DoesNotExist:
+            return Response({"error": f"PIP {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except (ValidationError, KeyError, ValueError) as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"change_id": change.pk}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['delete'], url_path=r'changes/(?P<change_id>[0-9]+)')
+    def remove_change(self, request, pk=None, change_id=None):
+        """Remove a change row from a Draft PIP."""
+        logger.info("API: remove_pip_change user=%s pip=%s change=%s", request.user.pk, pk, change_id)
+        from methodology.services.pip_service import PIPService
+        try:
+            pip = PIPService.get_pip(int(pk), request.user)
+            PIPService.remove_change(actor=request.user, pip=pip, change_id=int(change_id))
+        except ProcessImprovementProposal.DoesNotExist:
+            return Response({"error": f"PIP {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except (ValidationError, ValueError) as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"removed": True, "change_id": int(change_id)})
+
+    @action(detail=True, methods=['post'], url_path='submit')
+    def submit(self, request, pk=None):
+        """Submit a Draft PIP for Galdr review."""
+        logger.info("API: submit_pip user=%s pip=%s", request.user.pk, pk)
+        from methodology.services.pip_service import PIPService
+        try:
+            pip = PIPService.get_pip(int(pk), request.user)
+            PIPService.submit_for_review(actor=request.user, pip=pip)
+        except ProcessImprovementProposal.DoesNotExist:
+            return Response({"error": f"PIP {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except (ValidationError, ValueError) as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        updated = PIPService.get_pip(int(pk), request.user)
+        return Response(PIPSerializer(updated).data)
+
+    @action(detail=True, methods=['post'], url_path='cancel')
+    def cancel(self, request, pk=None):
+        """Withdraw / cancel a PIP (owner only)."""
+        logger.info("API: cancel_pip user=%s pip=%s", request.user.pk, pk)
+        from methodology.services.pip_service import PIPService
+        try:
+            pip = PIPService.get_pip(int(pk), request.user)
+            PIPService.cancel_pip(pip, request.user)
+        except ProcessImprovementProposal.DoesNotExist:
+            return Response({"error": f"PIP {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except (ValidationError, ValueError) as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"cancelled": True, "pip_id": int(pk)})
+
+    @action(detail=True, methods=['get'], url_path='preview')
+    def preview(self, request, pk=None):
+        """Return preview diff rows for a PIP."""
+        logger.info("API: preview_pip_diff user=%s pip=%s", request.user.pk, pk)
+        from methodology.services.pip_service import PIPService
+        try:
+            pip = PIPService.get_pip(int(pk), request.user)
+            rows = PIPService.summarize_preview_rows(pip)
+        except ProcessImprovementProposal.DoesNotExist:
+            return Response({"error": f"PIP {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"pip_id": int(pk), "rows": rows})

@@ -1,7 +1,7 @@
 """
 MCP HTTP facade tools.
 
-53 synchronous functions, each mapping one MCP tool to one or more
+61 synchronous functions, each mapping one MCP tool to one or more
 REST API calls via httpx.  Same tool names, same parameter signatures,
 same semantic return shapes as the ORM-based tools.py.
 
@@ -957,3 +957,151 @@ def reorder_phases(playbook_id: int, phase_order: list) -> dict:
         "phase_order": phase_order
     })
     return check_response(r, "reorder_phases")
+
+
+# ============================================================================
+# PROCESS IMPROVEMENT PROPOSALS (PIP) — Act 9  (8 tools)
+# ============================================================================
+
+def list_pips(
+    scope: str = "mine",
+    status_codes: Optional[str] = None,
+    playbook_id: Optional[int] = None,
+) -> list:
+    """
+    List PIPs for the current user (staff may use scope=all).
+
+    :param scope: "mine" (default) or "all" (staff only)
+    :param status_codes: Comma-separated statuses to filter, e.g. "draft,reviewed"
+    :param playbook_id: Optional playbook ID filter. Example: 1
+    :return: List of PIP summary dicts
+    """
+    logger.info(f'HTTP Tool: list_pips scope={scope} status_codes={status_codes}')
+    params: dict = {"scope": scope}
+    if status_codes:
+        params["status_codes"] = status_codes
+    if playbook_id is not None:
+        params["playbook_id"] = playbook_id
+    r = get_client().get("/api/pips/", params=params)
+    data = check_response(r, "list_pips")
+    return data.get("results", data) if isinstance(data, dict) else data
+
+
+def get_pip(pip_id: int) -> dict:
+    """
+    Get a single PIP with nested change rows.
+
+    :param pip_id: PIP ID. Example: 1
+    :return: PIP dict with nested changes list
+    """
+    logger.info(f'HTTP Tool: get_pip id={pip_id}')
+    r = get_client().get(f"/api/pips/{pip_id}/")
+    return check_response(r, "get_pip")
+
+
+def create_pip(playbook_id: int, title: str, summary: str = "") -> dict:
+    """
+    Create a Draft PIP targeting a Released playbook.
+
+    :param playbook_id: Released playbook ID. Example: 1
+    :param title: PIP title (required). Example: "Add caching activity"
+    :param summary: Optional summary text
+    :return: Created PIP dict
+    """
+    logger.info(f'HTTP Tool: create_pip playbook={playbook_id} title="{title}"')
+    r = get_client().post("/api/pips/", json={
+        "playbook_id": playbook_id, "title": title, "summary": summary
+    })
+    return check_response(r, "create_pip")
+
+
+def add_pip_change(
+    pip_id: int,
+    change_type: str,
+    entity_type: str,
+    name: str = "",
+    content: str = "",
+    target_id: Optional[int] = None,
+    parent_workflow_id: Optional[int] = None,
+    insert_after_activity_id: Optional[int] = None,
+    append_to_playbook_end: bool = False,
+) -> dict:
+    """
+    Add a typed change row to a Draft PIP.
+
+    :param pip_id: PIP ID. Example: 1
+    :param change_type: "ADD", "ALTER", or "DROP"
+    :param entity_type: "Activity", "Workflow", "Skill", "Agent", or "Artifact"
+    :param name: Name for ADD changes. Example: "New caching activity"
+    :param content: Guidance/rationale text (optional)
+    :param target_id: Target entity ID for ALTER/DROP changes (optional)
+    :param parent_workflow_id: Parent workflow for ADD Activity (optional)
+    :param insert_after_activity_id: Insert after this activity ID (optional)
+    :param append_to_playbook_end: Append to end instead of inserting (optional)
+    :return: Dict with change_id
+    """
+    logger.info(f'HTTP Tool: add_pip_change pip={pip_id} type={change_type} entity={entity_type}')
+    payload: dict = {
+        "change_type": change_type,
+        "entity_type": entity_type,
+        "name": name,
+        "content": content,
+        "append_to_playbook_end": append_to_playbook_end,
+    }
+    if target_id is not None:
+        payload["target_id"] = target_id
+    if parent_workflow_id is not None:
+        payload["parent_workflow_id"] = parent_workflow_id
+    if insert_after_activity_id is not None:
+        payload["insert_after_activity_id"] = insert_after_activity_id
+    r = get_client().post(f"/api/pips/{pip_id}/changes/", json=payload)
+    return check_response(r, "add_pip_change")
+
+
+def remove_pip_change(pip_id: int, change_id: int) -> dict:
+    """
+    Remove a change row from a Draft PIP.
+
+    :param pip_id: PIP ID. Example: 1
+    :param change_id: Change ID to remove. Example: 5
+    :return: Dict with removed=True and change_id
+    """
+    logger.info(f'HTTP Tool: remove_pip_change pip={pip_id} change={change_id}')
+    r = get_client().delete(f"/api/pips/{pip_id}/changes/{change_id}/")
+    return check_response(r, "remove_pip_change")
+
+
+def submit_pip(pip_id: int) -> dict:
+    """
+    Submit a Draft PIP for Galdr evaluation.
+
+    :param pip_id: PIP ID. Example: 1
+    :return: Updated PIP dict with new status
+    """
+    logger.info(f'HTTP Tool: submit_pip id={pip_id}')
+    r = get_client().post(f"/api/pips/{pip_id}/submit/")
+    return check_response(r, "submit_pip")
+
+
+def cancel_pip(pip_id: int) -> dict:
+    """
+    Withdraw / cancel a PIP owned by the current user.
+
+    :param pip_id: PIP ID. Example: 1
+    :return: Dict with cancelled=True and pip_id
+    """
+    logger.info(f'HTTP Tool: cancel_pip id={pip_id}')
+    r = get_client().post(f"/api/pips/{pip_id}/cancel/")
+    return check_response(r, "cancel_pip")
+
+
+def preview_pip_diff(pip_id: int) -> dict:
+    """
+    Return human-readable preview rows for diff-style inspection.
+
+    :param pip_id: PIP ID. Example: 1
+    :return: Dict with pip_id and rows list (section, change_type, snippet)
+    """
+    logger.info(f'HTTP Tool: preview_pip_diff id={pip_id}')
+    r = get_client().get(f"/api/pips/{pip_id}/preview/")
+    return check_response(r, "preview_pip_diff")
