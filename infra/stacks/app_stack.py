@@ -1,6 +1,7 @@
 from aws_cdk import Duration, RemovalPolicy, Stack
 from aws_cdk import aws_cloudwatch as cw
 from aws_cdk import aws_ec2 as ec2
+from aws_cdk import aws_ecr as ecr
 from aws_cdk import aws_elasticbeanstalk as eb
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_logs as logs
@@ -48,8 +49,91 @@ class MimirApp(Stack):
         self._eb_sg = eb_sg
         self._acm_cert_arn = acm_cert_arn
 
+        self._create_ecr_repos()
+        self._create_ci_user()
         self._create_eb_app()
         self._create_cw_alarms()
+
+    # ── ECR Repositories ──────────────────────────────────────────────────────
+
+    def _create_ecr_repos(self) -> None:
+        """Define ECR repos with lifecycle rules to cap storage cost.
+
+        These repos pre-exist — run ``cdk import`` to bring them under CDK
+        management without recreating them.
+        """
+        for repo_name in ["mimir"]:
+            ecr.Repository(
+                self,
+                f"EcrRepo{repo_name.replace('-', '').title()}",
+                repository_name=repo_name,
+                removal_policy=RemovalPolicy.RETAIN,
+                lifecycle_rules=[
+                    ecr.LifecycleRule(
+                        max_image_count=20,
+                        description="Keep last 20 images to cap storage cost",
+                    ),
+                ],
+            )
+
+    # ── IAM: CI deploy user ───────────────────────────────────────────────────
+
+    def _create_ci_user(self) -> None:
+        """GitHub Actions deploy user with least-privilege ECR + EB permissions.
+
+        Matches the existing IAM user ``mimir-ci`` — import with ``cdk import``
+        if the user already exists, or CDK will create it fresh.
+        The static access key must be rotated manually and stored in GitHub Secrets
+        as AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
+        """
+        deploy_user = iam.User(self, "CiDeployUser", user_name="mimir-ci")
+
+        deploy_policy = iam.ManagedPolicy(
+            self,
+            "CiDeployPolicy",
+            managed_policy_name="mimir-ci-policy",
+            statements=[
+                iam.PolicyStatement(
+                    sid="ECRAuth",
+                    actions=["ecr:GetAuthorizationToken"],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    sid="ECRPush",
+                    actions=[
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:BatchGetImage",
+                        "ecr:PutImage",
+                        "ecr:InitiateLayerUpload",
+                        "ecr:UploadLayerPart",
+                        "ecr:CompleteLayerUpload",
+                    ],
+                    resources=[
+                        f"arn:aws:ecr:us-east-1:{self.account}:repository/mimir",
+                    ],
+                ),
+                iam.PolicyStatement(
+                    sid="EBDeploy",
+                    actions=[
+                        "elasticbeanstalk:*",
+                        "ec2:Describe*",
+                        "ec2:CreateSecurityGroup",
+                        "ec2:CreateTags",
+                        "elasticloadbalancing:*",
+                        "autoscaling:*",
+                        "cloudwatch:*",
+                        "cloudformation:*",
+                        "s3:*",
+                        "logs:*",
+                        "iam:PassRole",
+                        "iam:GetRole",
+                    ],
+                    resources=["*"],
+                ),
+            ],
+        )
+        deploy_user.add_managed_policy(deploy_policy)
 
     # ── EB Application + Blue/Green Environments ──────────────────────────────
 

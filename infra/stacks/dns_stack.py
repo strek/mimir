@@ -1,14 +1,20 @@
-from aws_cdk import Duration, Stack
+from pathlib import Path
+
+from aws_cdk import CustomResource, Duration, Stack
 from aws_cdk import aws_certificatemanager as acm
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
+from aws_cdk import aws_iam as iam
+from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_route53 as route53
-from aws_cdk import aws_route53_targets as targets
+from aws_cdk.custom_resources import Provider
 from constructs import Construct
 
 # EB CNAME for the initial production environment.
 # After the first blue/green swap this should be updated to whichever env is live.
 EB_ORIGIN_HOST = "mimir-blue.us-east-1.elasticbeanstalk.com"
+
+_LAMBDA_DIR = Path(__file__).resolve().parent.parent / "lambda" / "route53_cname"
 
 
 class MimirDns(Stack):
@@ -19,9 +25,10 @@ class MimirDns(Stack):
     Uses the pre-issued ACM certificate for mimir.featurefactory.io and points
     at the mimir-blue EB environment as the initial origin.
 
-    After cutover the Route53 CNAME for mimir.featurefactory.io is updated to
-    point at this distribution's domain name, replacing the old S3/CloudFront
-    entry.
+    The Route53 record is managed via an idempotent custom-resource Lambda
+    (infra/lambda/route53_cname/handler.py) that UPSERTs the CNAME rather
+    than failing if the record already exists.  This avoids ConflictingResourceExists
+    errors on re-deploy when the record still points at the old EB/S3 origin.
 
     ``acm_cert_arn`` must be in us-east-1 (CloudFront requirement) — the
     existing cert arn:aws:acm:us-east-1:411113550285:certificate/b0d774c7-…
@@ -53,7 +60,7 @@ class MimirDns(Stack):
         )
 
         distribution = self._create_distribution(cert)
-        self._create_route53_record(hosted_zone, distribution)
+        self._create_route53_cname(hosted_zone, distribution)
 
     def _create_distribution(self, cert: acm.ICertificate) -> cloudfront.Distribution:
         """Create the CloudFront distribution for mimir.featurefactory.io."""
@@ -89,26 +96,56 @@ class MimirDns(Stack):
                 # Forward all headers/cookies/query strings so Django sessions work.
                 origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER,
                 response_headers_policy=hsts_policy,
-                # Allow all methods so POST/PUT/PATCH/DELETE reach Django.
+                # ALLOW_ALL is required — CloudFront's default (GET+HEAD only) returns
+                # 403 for any POST/PUT/PATCH/DELETE (login, HTMX, DRF writes, etc.).
                 allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
             ),
             comment="Mimir FOB — mimir.featurefactory.io",
         )
 
-    def _create_route53_record(
+    def _create_route53_cname(
         self,
         hosted_zone: route53.IHostedZone,
         distribution: cloudfront.Distribution,
     ) -> None:
-        """Create an A-alias record pointing mimir.featurefactory.io → CloudFront."""
-        route53.ARecord(
+        """Idempotent CNAME upsert via Lambda custom resource.
+
+        Unlike a plain CDK ARecord, this survives re-deploys when a CNAME
+        already exists (avoids ConflictingResourceExists from Route53 API).
+        """
+        on_event_fn = lambda_.Function(
             self,
-            "MimirAliasRecord",
-            zone=hosted_zone,
-            record_name="mimir",
-            target=route53.RecordTarget.from_alias(
-                targets.CloudFrontTarget(distribution)
-            ),
-            ttl=Duration.minutes(5),
-            comment="mimir.featurefactory.io → Mimir CloudFront distribution",
+            "Route53CnameFn",
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler="handler.on_event",
+            code=lambda_.Code.from_asset(str(_LAMBDA_DIR)),
+            timeout=Duration.minutes(2),
         )
+
+        on_event_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "route53:ListResourceRecordSets",
+                    "route53:ChangeResourceRecordSets",
+                ],
+                resources=[
+                    f"arn:aws:route53:::hostedzone/{hosted_zone.hosted_zone_id}",
+                ],
+            )
+        )
+
+        provider = Provider(self, "Route53CnameProvider", on_event_handler=on_event_fn)
+
+        record_fqdn = f"mimir.{self._domain}."
+        cname_resource = CustomResource(
+            self,
+            "MimirCnameResource",
+            service_token=provider.service_token,
+            properties={
+                "HostedZoneId": hosted_zone.hosted_zone_id,
+                "RecordName": record_fqdn,
+                "TargetDomain": distribution.distribution_domain_name,
+                "Ttl": "300",
+            },
+        )
+        cname_resource.node.add_dependency(distribution)
