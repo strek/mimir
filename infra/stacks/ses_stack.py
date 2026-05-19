@@ -135,7 +135,15 @@ class MimirSes(Stack):
                     effect=iam.Effect.ALLOW,
                     actions=["ses:SendEmail", "ses:SendRawEmail"],
                     resources=[_SES_IDENTITY_ARN],
-                )
+                ),
+                # django-ses calls ses:GetSendQuota on every send to throttle
+                # outbound rate. This action is account-scoped (no resource ARN).
+                iam.PolicyStatement(
+                    sid="AllowSESQuota",
+                    effect=iam.Effect.ALLOW,
+                    actions=["ses:GetSendQuota"],
+                    resources=["*"],
+                ),
             ],
         )
 
