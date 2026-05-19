@@ -158,17 +158,22 @@ Maintainers publishing from CI configure GitHub Actions secrets **`DOCKERHUB_USE
    
    **Note:** The default database (`mimir.db`) includes the **FeatureFactory** playbook, which was used to build Mimir itself. This playbook provides a complete feature development workflow with 8 activities covering planning, implementation, testing, and finalization.
 
-5. **Create admin user (or use default)**
-   
-   The database comes with a default admin account:
-   - **Username:** `admin`
-   - **Password:** `admin`
-   
-   **For production or shared environments, create your own user:**
+5. **Ensure local superuser**
+
+   Create or restore the conventional dev superuser used by MCP/facade tests:
+
+   ```bash
+   python manage.py create_default_admin
+   ```
+
+   Run this whenever your SQLite auth drifts after local experiments (recommended before `pytest` facade tests).
+
+   **For production or shared environments:**
+
    ```bash
    python manage.py createsuperuser
    ```
-   
+
    You'll be prompted for:
    - Username (required)
    - Email (optional, for password reset)

@@ -193,17 +193,66 @@ class TestPlaybookListPublicSection:
             category="development",
             author=mike,
             visibility="public",
-            status="draft",
-            version=Decimal("0.1"),
+            status="released",
+            version=Decimal("1.0"),
         )
         client = Client()
         client.force_login(maria)
         response = client.get(reverse("playbook_list"))
         assert response.status_code == 200
         content = response.content.decode("utf-8")
-        assert 'data-testid="public-playbooks-section"' in content
+        assert 'data-testid="playbooks-list-section"' in content
+        assert 'data-testid="public-playbooks-section"' not in content
         assert "Mike Public Methodology" in content
         assert "mike" in content.lower()
+        assert 'data-testid="playbooks-empty-state"' not in content
+
+    def test_draft_public_playbook_from_other_author_hidden(self):
+        maria = User.objects.create_user(username="maria", password="x")
+        mike = User.objects.create_user(username="mike", password="x")
+        Playbook.objects.create(
+            name="Mike Draft Public PB",
+            description="Draft public playbook must stay owner-only",
+            category="development",
+            author=mike,
+            visibility="public",
+            status="draft",
+            version=Decimal("0.1"),
+        )
+        client = Client()
+        client.force_login(maria)
+        response = client.get(reverse("playbook_list"))
+        content = response.content.decode("utf-8")
+        assert "Mike Draft Public PB" not in content
+        assert 'data-testid="playbooks-empty-state"' in content
+
+    def test_empty_state_only_when_no_owned_or_public_playbooks(self):
+        maria = User.objects.create_user(username="maria", password="x")
+        client = Client()
+        client.force_login(maria)
+        response = client.get(reverse("playbook_list"))
+        content = response.content.decode("utf-8")
+        assert 'data-testid="playbooks-empty-state"' in content
+        assert "No playbooks yet" in content
+
+    def test_no_empty_state_when_only_public_playbooks_exist(self):
+        maria = User.objects.create_user(username="maria", password="x")
+        mike = User.objects.create_user(username="mike", password="x")
+        Playbook.objects.create(
+            name="Shared Released Playbook",
+            description="Visible to Maria even with zero owned playbooks",
+            category="development",
+            author=mike,
+            visibility="public",
+            status="released",
+            version=Decimal("1.0"),
+        )
+        client = Client()
+        client.force_login(maria)
+        response = client.get(reverse("playbook_list"))
+        content = response.content.decode("utf-8")
+        assert 'data-testid="playbooks-empty-state"' not in content
+        assert "Shared Released Playbook" in content
 
     def test_private_playbook_from_other_author_not_in_public_section(self):
         maria = User.objects.create_user(username="maria", password="x")

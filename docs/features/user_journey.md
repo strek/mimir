@@ -377,30 +377,15 @@ Full search page with filters:
 
 Maria clicks "Playbooks" in the main navigation. The playbooks list page appears (this is the entry point for all playbook operations, marked with bold border in flow diagrams):
 
-**Layout**:
-- **Header**: "Playbooks" with count badge (e.g., "Playbooks (3)")
-- **Top Actions**:
-  - [Create New Playbook] button (primary action, bold blue)
-  - [Import from JSON] button
-- **Search & Filter Section**:
-  - Search box: "Find playbooks..." (searches name, description, author)
-  - Filters: Status (Active/Disabled), Source (Local/Downloaded/Owned), Category dropdown
-  - [Clear Filters] button
-- **Playbooks Table** with columns:
-  - Name | Description | Author | Version | Status | Last Modified | Actions
-  - Sort by any column
-- **Row Actions** (dropdown menu per playbook):
-  - [View] - Opens FOB-PLAYBOOKS-VIEW_PLAYBOOK
-  - [Edit] - Opens FOB-PLAYBOOKS-EDIT_PLAYBOOK  
-  - [Delete] - Opens FOB-PLAYBOOKS-DELETE_PLAYBOOK modal
-  - [Export JSON] - (only for authored playbooks)
-  - [...More] - Additional actions
-- **Empty State** (if no playbooks):
-  - Illustration: Empty bookshelf
+**Layout** (MVP card grid):
+- **Header**: "Playbooks" with [Create New Playbook] primary action
+- **Card grid**: Owned playbooks and other authors' **public, non-draft** playbooks in one section
+  - Owned cards: Delete + View actions
+  - Other authors' cards: "by {username}" subtitle, View only (read-only)
+- **Empty State** (only when the user has zero owned playbooks AND no visible public playbooks from others):
   - "No playbooks yet"
-  - "Create your first playbook, import from JSON, or explore team playbooks"
-  - [Create Playbook] [Browse Teams] [Import JSON] buttons
-- **Pagination**: Shows 20 per page with page controls
+  - [Create New Playbook] button
+- Draft playbooks with Public visibility remain **owner-only** until released
 
 **Example Data**:
 - "React Frontend Development" | Mike Chen | v1.2 | Active | Downloaded

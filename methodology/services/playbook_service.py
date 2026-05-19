@@ -149,20 +149,23 @@ class PlaybookService:
     @staticmethod
     def list_public_playbooks(exclude_author):
         """
-        Public playbooks authored by other users (FOB browse section).
+        Public, non-draft playbooks authored by other users (FOB browse list).
 
-        :param exclude_author: Current user; their own public playbooks appear under My Playbooks.
+        Draft playbooks stay owner-only even when visibility is Public.
+
+        :param exclude_author: Current user; their own playbooks appear in the owned list.
         :returns: List of Playbook instances, newest first
         """
         qs = (
             Playbook.objects.filter(visibility="public")
+            .exclude(status="draft")
             .exclude(author=exclude_author)
             .select_related("author")
             .order_by("-updated_at")
         )
         rows = list(qs)
         logger.info(
-            "Listed %s public playbooks for user id=%s (excluding own)",
+            "Listed %s public playbooks for user id=%s (excluding own and draft)",
             len(rows),
             getattr(exclude_author, "pk", exclude_author),
         )

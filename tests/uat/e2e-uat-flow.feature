@@ -261,14 +261,16 @@ Feature: Mimir E2E UAT — browser-only flow (registration → GUI CRUDL → rel
     # Pre: admin is a separate Django user (createsuperuser). UAT user is logged in as uat_user.
     # STEP admin-create-public
     # DO: in a separate browser session, login as admin; GET `/playbooks/create/`
-    # DO: name `Admin Public Playbook`; description ≥40 chars; visibility `public`; complete wizard
-    # RECORD `<ADMIN_PUBLIC_PB_ID>` from detail URL
+    # DO: name `Admin Public Playbook`; description ≥40 chars; visibility `public`; complete wizard as Draft first
+    # DO: release the playbook to v1.0 via `[data-testid="open-release-modal"]` (draft public is owner-only)
+    # RECORD `<ADMIN_PUBLIC_PB_ID>` from detail URL; confirm `[data-testid="status-badge"]` `Released`
     # STEP admin-create-private
     # DO: still as admin, create another playbook: name `Admin Private Playbook`; visibility `private`
     # RECORD `<ADMIN_PRIVATE_PB_ID>` from detail URL
     # STEP list-public-visible
     # DO: as uat_user, GET `/playbooks/`
-    # SEE: `[data-testid="public-playbooks-section"]` (or equivalent section heading) contains card referencing `Admin Public Playbook`
+    # SEE: `[data-testid="playbooks-list-section"]` contains `[data-testid="public-playbook-card-<ADMIN_PUBLIC_PB_ID>"]` referencing `Admin Public Playbook`
+    # SEE: `[data-testid="playbooks-empty-state"]` is NOT present
     # IF DIFFER: UAT-03-05 list-public-visible
     # STEP list-private-absent
     # SEE: `Admin Private Playbook` is absent from entire page
@@ -292,11 +294,14 @@ Feature: Mimir E2E UAT — browser-only flow (registration → GUI CRUDL → rel
 
   @manual @uat @act-2 @visibility
   Scenario: UAT-03-05b Toggle own playbook Private → Public → Private; nested routes follow visibility
-    # Pre: uat_user owns `<GUI_PLAYBOOK_ID>` (currently Private from UAT-03-01).
+    # Pre: uat_user owns `<GUI_PLAYBOOK_ID>` (currently Private Draft from UAT-03-01).
     # STEP toggle-to-public
     # DO: GET `/playbooks/<GUI_PLAYBOOK_ID>/edit/`; change `[data-testid="playbook-visibility-select"]` to `public`; submit
     # SEE: playbook detail `[data-testid="visibility-badge"]` (or equivalent) shows `Public`
-    # IF DIFFER: UAT-03-05b toggle-to-public
+    # STEP release-for-public-browse
+    # DO: release `<GUI_PLAYBOOK_ID>` to v1.0 (draft public is owner-only for other users)
+    # SEE: `[data-testid="status-badge"]` `Released`
+    # IF DIFFER: UAT-03-05b release-for-public-browse
     # STEP admin-sees-public-detail
     # DO: in admin browser session, GET `/playbooks/<GUI_PLAYBOOK_ID>/`
     # SEE: HTTP 200, playbook detail renders; no Edit/Delete controls visible for admin (non-owner)

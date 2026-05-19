@@ -252,3 +252,13 @@ class TestLoginInvalidCredentials:
         assert 'username' in content.lower()
         assert 'password' in content.lower()
         assert 'data-testid="login-form"' in content
+        assert 'Default credentials' not in content
+        assert (
+            '<strong>admin</strong> / <strong>admin</strong>' not in content
+        ), 'Login page must not advertise default admin/password'
+        cc = (response.headers.get('Cache-Control') or response.get('Cache-Control') or '')
+        cc_lower = cc.lower()
+        assert 'no-store' in cc_lower or 'no-cache' in cc_lower, (
+            'Login GET should forbid caching so browsers do not show stale markup; '
+            f'got Cache-Control={cc!r}'
+        )

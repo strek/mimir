@@ -3,8 +3,8 @@ Feature: FOB-PLAYBOOKS-LIST+FIND-1 Playbooks List and Search
   I want to view, search, and filter my playbooks
   So that I can quickly find and manage methodologies I need
 
-  # MVP simplified: list shows "My Playbooks" (owned) and "Public Playbooks" (public by others).
-  # Any authenticated user can browse and view Public playbooks.
+  # MVP simplified: list shows owned playbooks and other authors' public, non-draft playbooks
+  # in one card grid. Empty state appears only when both sets are empty.
   # Write/edit/delete actions are visible only to the owner on their own playbooks.
 
   Background:
@@ -164,7 +164,8 @@ Feature: FOB-PLAYBOOKS-LIST+FIND-1 Playbooks List and Search
 
   Scenario: FOB-PLAYBOOKS-LIST+FIND-19 Empty state display for new users
     Given Maria is on the playbooks list page
-    And Maria has zero playbooks
+    And Maria has zero owned playbooks
+    And no other authors have public non-draft playbooks
     Then she sees an empty bookshelf illustration
     And she sees "No playbooks yet"
     And she sees "Create your first playbook, download from Homebase, or import from JSON"
@@ -173,6 +174,21 @@ Feature: FOB-PLAYBOOKS-LIST+FIND-1 Playbooks List and Search
       | Create Playbook |
       | Browse Families |
       | Import JSON     |
+
+  Scenario: FOB-PLAYBOOKS-LIST+FIND-19b No empty state when only public playbooks exist
+    Given Maria has zero owned playbooks
+    And Mike owns a Public Released playbook "React Frontend Development"
+    When Maria opens the playbooks list page
+    Then she does not see "No playbooks yet"
+    And she sees "React Frontend Development" in the same card grid as her own playbooks would appear
+    And the card shows author "Mike Chen"
+
+  Scenario: FOB-PLAYBOOKS-LIST+FIND-19c Draft public playbooks from others are hidden
+    Given Mike owns a Public Draft playbook "Work In Progress Methodology"
+    And Maria has zero owned playbooks
+    When Maria opens the playbooks list page
+    Then she does not see "Work In Progress Methodology"
+    And she sees "No playbooks yet" only if no other visible playbooks exist
 
   Scenario: FOB-PLAYBOOKS-LIST+FIND-20 Pagination with many playbooks
     Given Maria is on the playbooks list page
@@ -221,12 +237,11 @@ Feature: FOB-PLAYBOOKS-LIST+FIND-1 Playbooks List and Search
     Then she is redirected to FOB-PLAYBOOKS-LIST+FIND-1
     And the Playbooks nav link is highlighted as active
 
-  # MVP simplified: public browsing is in scope for MVP.
+  # MVP simplified: public browsing is in scope for MVP (released/active only, not draft).
   Scenario: FOB-PLAYBOOKS-LIST+FIND-25 Browse Public playbooks from other owners
-    Given Mike owns a Public playbook "React Frontend Development"
+    Given Mike owns a Public Released playbook "React Frontend Development"
     And Maria is authenticated in FOB
-    When Maria opens the "Public Playbooks" section or searches with visibility filter "Public"
+    When Maria opens the playbooks list page
     Then she sees "React Frontend Development" with author "Mike Chen"
     And she can [View] the playbook detail page
     And she does not see [Edit] or [Delete] actions for it in her list
-    # MVP: Maria's list may show only her own playbooks until public catalog ships.

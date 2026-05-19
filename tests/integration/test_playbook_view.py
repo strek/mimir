@@ -108,6 +108,23 @@ class TestPlaybookViewVisibility:
         assert "Public" in content
         assert 'data-testid="delete-button"' not in content
 
+    def test_non_owner_gets_404_for_draft_public_playbook(self):
+        mike = User.objects.create_user(username="mike_draft_pub", password="x")
+        maria = User.objects.create_user(username="maria_draft_pub", password="x")
+        pb = Playbook.objects.create(
+            name="Draft Public Detail PB",
+            description="Draft public stays owner-only for non-owners",
+            category="development",
+            author=mike,
+            visibility="public",
+            status="draft",
+            version=Decimal("0.1"),
+        )
+        client = Client()
+        client.force_login(maria)
+        response = client.get(reverse("playbook_detail", kwargs={"pk": pb.pk}))
+        assert response.status_code == 404
+
     def test_non_owner_gets_404_for_private_playbook(self):
         mike = User.objects.create_user(username="mike_priv", password="x")
         maria = User.objects.create_user(username="maria_priv", password="x")

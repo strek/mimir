@@ -228,7 +228,7 @@ pytest tests/e2e/ --headed
 ```bash
 python manage.py runserver 8000
 # Open http://localhost:8000
-# Login: admin/admin
+# Ensure dev superuser: python manage.py create_default_admin
 ```
 
 ### Test MCP Server

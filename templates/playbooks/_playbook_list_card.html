@@ -1,0 +1,74 @@
+{# Unified playbook card for owned and browsable public playbooks. #}
+<div class="col-md-6 col-lg-4 mb-4">
+    <div class="playbook-book-card h-100"
+         data-testid="{% if playbook.author == request.user %}playbook-book-card{% else %}public-playbook-card{% endif %}-{{ playbook.pk }}">
+        <div class="card playbook-book-card-inner h-100 border-0 d-flex flex-column">
+            <div class="card-header playbook-book-card-header border-0 pb-0">
+                <div class="d-flex align-items-start gap-2">
+                    <span class="text-primary flex-shrink-0 mt-1" aria-hidden="true">
+                        <i class="fa-solid fa-book-sparkles fa-lg"></i>
+                    </span>
+                    <div class="flex-grow-1 min-w-0">
+                        <h5 class="card-title playbook-book-card-title mb-1">
+                            {{ playbook.name }}
+                        </h5>
+                        <small class="text-muted playbook-book-card-author"
+                               data-testid="playbook-card-author-{{ playbook.pk }}">
+                            {% if playbook.author == request.user %}
+                                by you
+                            {% else %}
+                                by {{ playbook.author.username }}
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body pt-3 pb-0 d-flex flex-column flex-grow-1">
+                {% if playbook.description %}
+                    <p class="card-text text-muted small playbook-book-card-description mb-0">
+                        {{ playbook.description|truncatewords:42 }}
+                    </p>
+                {% else %}
+                    <p class="card-text text-muted small playbook-book-card-description mb-0 fst-italic">
+                        No description yet.
+                    </p>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0 mt-auto">
+                <div class="playbook-book-card-meta d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge bg-{{ playbook.get_status_badge_color }}">
+                        {{ playbook.get_status_display }}
+                    </span>
+                    <small class="text-muted">v{{ playbook.version }}</small>
+                </div>
+                <div class="playbook-book-card-actions d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <small class="text-muted mb-0">
+                        Updated {{ playbook.updated_at|timesince }} ago
+                    </small>
+                    <div class="d-flex align-items-center gap-3 ms-auto">
+                        <span class="playbook-book-delete-slot">
+                            {% if playbook.source == 'owned' and playbook.author == request.user %}
+                                <form method="post"
+                                      action="{% url 'playbook_delete' pk=playbook.pk %}"
+                                      class="mb-0 d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="btn btn-sm playbook-book-delete text-danger px-0 border-0 bg-transparent shadow-none"
+                                            data-testid="playbook-delete-{{ playbook.pk }}"
+                                            title="Delete this playbook">
+                                        Delete
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </span>
+                        <a href="{% url 'playbook_detail' pk=playbook.pk %}"
+                           class="btn btn-primary btn-sm"
+                           data-testid="{% if playbook.author == request.user %}playbook-view{% else %}public-playbook-view{% endif %}-{{ playbook.pk }}">
+                            <i class="fa-solid fa-eye me-1"></i>View
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

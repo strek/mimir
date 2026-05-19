@@ -7,10 +7,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from urllib.parse import quote
 
-from django.http import Http404
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 from rest_framework.authtoken.models import Token
 
@@ -155,6 +155,7 @@ def _login_page_context(
     }
 
 
+@never_cache
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     """
@@ -485,24 +486,24 @@ def _registration_public_base_url(request):
     return request.build_absolute_uri("/").rstrip("/")
 
 
-def _email_verification_row_for_token_or_404(token: str) -> UserEmailVerification:
-    """Load ``UserEmailVerification`` for a non-blank token or raise 404.
+def _find_verification_row(token: str) -> UserEmailVerification | None:
+    """Load ``UserEmailVerification`` for a URL token segment, if found.
 
     :param token: Verification token from the emailed URL segment.
-    :return: Row with related ``user`` (via select_related).
-    :raises Http404: When the token is missing or unknown.
+    :return: Row with related ``user`` (via select_related), or ``None`` when
+             the segment is blank or unknown (show resend/expired UX).
     """
     trimmed = (token or "").strip()
     if not trimmed:
         logger.warning("[VERIFY_EMAIL] Empty verification token in URL")
-        raise Http404("Invalid verification link.")
+        return None
     try:
         return UserEmailVerification.objects.select_related("user").get(
             verification_token=trimmed
         )
     except UserEmailVerification.DoesNotExist:
         logger.warning("[VERIFY_EMAIL] Unknown token (prefix=%s)", trimmed[:8])
-        raise Http404("Invalid verification link.")
+        return None
 
 
 def _resend_verification_if_needed(request, user: User | None) -> None:
@@ -536,7 +537,14 @@ def _resend_verification_if_needed(request, user: User | None) -> None:
 def verify_email(request, token: str):
     """Validate emailed token: verify, expire, or already-verified outcomes."""
     logger.info("[VERIFY_EMAIL] GET token_prefix=%s", (token or "")[:8])
-    row = _email_verification_row_for_token_or_404(token)
+    row = _find_verification_row(token)
+    if row is None:
+        logger.info("[VERIFY_EMAIL] Unknown/invalid token — showing expired page")
+        return render(
+            request,
+            "accounts/verify_email_result.html",
+            {"verify_state": "expired", "resend_email": ""},
+        )
     user = row.user
     if row.is_verified:
         messages.info(
@@ -748,8 +756,8 @@ def register(request):
 def password_reset_request(request):
     """
     Display password reset request form and send reset email.
-    
-    Uses console email backend per AUTH_IMPLEMENTATION_PLAN.md.
+
+    Uses Django ``EMAIL_BACKEND`` (SES in dev/prod; locmem in tests).
     
     Template: accounts/password_reset.html
     Context:

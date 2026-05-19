@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}My Playbooks{% endblock %}
+{% block title %}Playbooks{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -27,6 +27,33 @@
         box-shadow: 0 0.35rem 0.75rem rgba(0, 0, 0, 0.06);
         overflow: hidden;
         transition: box-shadow 0.22s ease;
+    }
+
+    .playbook-book-card-author {
+        display: block;
+        min-height: 1.25rem;
+        line-height: 1.25rem;
+    }
+
+    .playbook-book-card-description {
+        min-height: 5.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .playbook-book-card-meta {
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+    }
+
+    .playbook-book-card-actions {
+        min-height: 2rem;
+    }
+
+    .playbook-book-delete-slot {
+        display: inline-flex;
+        align-items: center;
+        min-width: 3.25rem;
+        justify-content: flex-start;
     }
 
     .playbook-book-card-header {
@@ -61,7 +88,7 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>
-            <i class="fa-solid fa-book-sparkles"></i> My Playbooks
+            <i class="fa-solid fa-book-sparkles"></i> Playbooks
         </h2>
         <a href="{% url 'playbook_create' %}" 
            class="btn btn-primary"
@@ -71,76 +98,18 @@
         </a>
     </div>
 
-    <!-- Playbooks List -->
-    {% if playbooks %}
-        <div class="row">
+    <!-- Playbooks List (owned + public by others in one grid) -->
+    {% if has_playbooks %}
+        <div class="row" data-testid="playbooks-list-section">
             {% for playbook in playbooks %}
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="playbook-book-card h-100" data-testid="playbook-book-card-{{ playbook.pk }}">
-                        <div class="card playbook-book-card-inner h-100 border-0">
-                            <div class="card-header playbook-book-card-header border-0 pb-0">
-                                <div class="d-flex align-items-start gap-2">
-                                    <span class="text-primary flex-shrink-0 mt-1" aria-hidden="true">
-                                        <i class="fa-solid fa-book-sparkles fa-lg"></i>
-                                    </span>
-                                    <h5 class="card-title playbook-book-card-title mb-0 flex-grow-1">
-                                        {{ playbook.name }}
-                                    </h5>
-                                </div>
-                            </div>
-                            <div class="card-body pt-3 d-flex flex-column">
-                                {% if playbook.description %}
-                                    <p class="card-text text-muted small flex-grow-1 mb-3">
-                                        {{ playbook.description|truncatewords:42 }}
-                                    </p>
-                                {% else %}
-                                    <p class="card-text text-muted small flex-grow-1 mb-3 fst-italic">
-                                        No description yet.
-                                    </p>
-                                {% endif %}
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-{{ playbook.get_status_badge_color }}">
-                                        {{ playbook.get_status_display }}
-                                    </span>
-                                    <small class="text-muted">v{{ playbook.version }}</small>
-                                </div>
-                            </div>
-                            <div class="card-footer bg-transparent border-0 pt-0">
-                                <div class="d-flex flex-column gap-2">
-                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                        <small class="text-muted mb-0">
-                                            Updated {{ playbook.updated_at|timesince }} ago
-                                        </small>
-                                        <div class="d-flex align-items-center gap-3 ms-auto">
-                                            {% if playbook.source == 'owned' and playbook.author == request.user %}
-                                                <form method="post"
-                                                      action="{% url 'playbook_delete' pk=playbook.pk %}"
-                                                      class="mb-0 d-inline">
-                                                    {% csrf_token %}
-                                                    <button type="submit"
-                                                            class="btn btn-sm playbook-book-delete text-danger px-0 border-0 bg-transparent shadow-none"
-                                                            data-testid="playbook-delete-{{ playbook.pk }}"
-                                                            title="Delete this playbook">
-                                                        Delete
-                                                    </button>
-                                                </form>
-                                            {% endif %}
-                                            <a href="{% url 'playbook_detail' pk=playbook.pk %}"
-                                               class="btn btn-primary btn-sm"
-                                               data-testid="playbook-view-{{ playbook.pk }}">
-                                                <i class="fa-solid fa-eye me-1"></i>View
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {% include "playbooks/_playbook_list_card.html" %}
+            {% endfor %}
+            {% for playbook in public_playbooks %}
+                {% include "playbooks/_playbook_list_card.html" %}
             {% endfor %}
         </div>
     {% else %}
-        <div class="alert alert-info text-center">
+        <div class="alert alert-info text-center" data-testid="playbooks-empty-state">
             <i class="fa-solid fa-info-circle fa-3x mb-3"></i>
             <h4>No playbooks yet</h4>
             <p>Create your first playbook to get started!</p>
@@ -148,62 +117,6 @@
                 <i class="fa-solid fa-plus"></i> Create New Playbook
             </a>
         </div>
-    {% endif %}
-
-    {% if public_playbooks %}
-    <div class="mt-5" data-testid="public-playbooks-section">
-        <h3 class="mb-2" data-testid="public-playbooks-heading">
-            <i class="fa-solid fa-globe me-2" aria-hidden="true"></i>Public Playbooks
-        </h3>
-        <p class="text-muted small mb-4">Published by other authors — open to view (read-only).</p>
-        <div class="row">
-            {% for playbook in public_playbooks %}
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="playbook-book-card h-100" data-testid="public-playbook-card-{{ playbook.pk }}">
-                        <div class="card playbook-book-card-inner h-100 border-0">
-                            <div class="card-header playbook-book-card-header border-0 pb-0">
-                                <div class="d-flex align-items-start gap-2">
-                                    <span class="text-primary flex-shrink-0 mt-1" aria-hidden="true">
-                                        <i class="fa-solid fa-book-open fa-lg"></i>
-                                    </span>
-                                    <div class="flex-grow-1">
-                                        <h5 class="card-title playbook-book-card-title mb-1">
-                                            {{ playbook.name }}
-                                        </h5>
-                                        <small class="text-muted">by {{ playbook.author.username }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-body pt-3 d-flex flex-column">
-                                {% if playbook.description %}
-                                    <p class="card-text text-muted small flex-grow-1 mb-3">
-                                        {{ playbook.description|truncatewords:42 }}
-                                    </p>
-                                {% else %}
-                                    <p class="card-text text-muted small flex-grow-1 mb-3 fst-italic">
-                                        No description yet.
-                                    </p>
-                                {% endif %}
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-{{ playbook.get_status_badge_color }}">
-                                        {{ playbook.get_status_display }}
-                                    </span>
-                                    <small class="text-muted">v{{ playbook.version }}</small>
-                                </div>
-                            </div>
-                            <div class="card-footer bg-transparent border-0 pt-0">
-                                <a href="{% url 'playbook_detail' pk=playbook.pk %}"
-                                   class="btn btn-primary btn-sm w-100"
-                                   data-testid="public-playbook-view-{{ playbook.pk }}">
-                                    <i class="fa-solid fa-eye me-1"></i>View
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
     {% endif %}
 </div>
 {% endblock %}

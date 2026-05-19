@@ -305,7 +305,37 @@ class TestPlaybookCreateWizard:
         
         assert response.status_code == 302
         session = self.client.session
-        assert 'workflows' in session['wizard_data']
+        assert session['wizard_data']['workflows'] == [{
+            'name': 'Discovery Phase',
+            'description': 'Initial research and validation',
+        }]
+
+    def test_add_workflow_step2_persists_workflow_after_step3(self):
+        """Workflow entered in Step 2 is created when the wizard completes."""
+        step1_data = {
+            'name': 'Workflow Wizard Playbook',
+            'description': 'Test description here',
+            'category': 'product',
+            'visibility': 'private',
+        }
+        self.client.post(reverse('playbook_create'), data=step1_data)
+        self.client.post(
+            reverse('playbook_create_step2'),
+            data={
+                'workflow_name': 'Discovery Phase',
+                'workflow_description': 'Initial research and validation',
+            },
+        )
+        response = self.client.post(
+            reverse('playbook_create_step3'),
+            data={'status': 'draft'},
+        )
+
+        assert response.status_code == 302
+        playbook = Playbook.objects.get(name='Workflow Wizard Playbook')
+        workflow = Workflow.objects.get(playbook=playbook, name='Discovery Phase')
+        assert workflow.description == 'Initial research and validation'
+        assert workflow.order == 1
     
     # PB-CREATE-11: Cancel adding workflow in Step 2
     def test_cancel_workflow_step2(self):

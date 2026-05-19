@@ -16,11 +16,58 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from methodology.forms.playbook_forms import PlaybookBasicInfoForm, PlaybookPublishingForm
+from methodology.forms.playbook_forms import (
+    PlaybookBasicInfoForm,
+    PlaybookPublishingForm,
+    PlaybookWorkflowForm,
+)
 from methodology.models import Playbook, Workflow
 from methodology.services.playbook_service import PlaybookService
+from methodology.services.workflow_service import WorkflowService
 
 logger = logging.getLogger(__name__)
+
+
+def _wizard_skip_requested(post_data) -> bool:
+    """Return True when Step 2 POST explicitly skips workflow creation."""
+    raw = (post_data.get("skip") or "").strip().lower()
+    return raw in ("true", "1", "on", "yes")
+
+
+def _workflows_from_step2_form(cleaned_data: dict, *, skipped: bool) -> list[dict]:
+    """Build session-safe workflow payloads from Step 2 form data."""
+    if skipped:
+        return []
+    name = (cleaned_data.get("workflow_name") or "").strip()
+    if not name:
+        return []
+    description = (cleaned_data.get("workflow_description") or "").strip()
+    return [{"name": name, "description": description}]
+
+
+def _create_wizard_workflows(playbook: Playbook, workflows_data: list) -> None:
+    """Persist workflows collected during the creation wizard."""
+    for index, item in enumerate(workflows_data, start=1):
+        if isinstance(item, dict):
+            name = (item.get("name") or "").strip()
+            description = (item.get("description") or "").strip()
+        else:
+            name = str(item).strip()
+            description = ""
+        if not name:
+            continue
+        WorkflowService.create_workflow(
+            playbook,
+            name=name,
+            description=description,
+            order=index,
+        )
+        logger.info(
+            "Wizard created workflow %r for playbook id=%s order=%s",
+            name,
+            playbook.pk,
+            index,
+        )
 
 
 def _playbook_readable_or_404(request, pk):
@@ -42,26 +89,35 @@ def _playbook_readable_or_404(request, pk):
 @login_required
 def playbook_list(request):
     """
-    List all playbooks owned by the current user.
+    List playbooks visible to the current user (owned + public by others).
 
     Template: playbooks/list.html
-    Context: playbooks — QuerySet of Playbook instances
+    Context:
+        playbooks — owned playbooks
+        public_playbooks — other authors' public, non-draft playbooks
+        has_playbooks — True when either list is non-empty
 
     :param request: Django request object
     :return: Rendered list template
     """
     playbooks = PlaybookService.list_playbooks(author=request.user)
     public_playbooks = PlaybookService.list_public_playbooks(request.user)
+    has_playbooks = bool(playbooks or public_playbooks)
     logger.info(
-        "User %s viewing playbook list (%s owned, %s public by others)",
+        "User %s viewing playbook list (%s owned, %s public by others, has_any=%s)",
         request.user.username,
         len(playbooks),
         len(public_playbooks),
+        has_playbooks,
     )
     return render(
         request,
         "playbooks/list.html",
-        {"playbooks": playbooks, "public_playbooks": public_playbooks},
+        {
+            "playbooks": playbooks,
+            "public_playbooks": public_playbooks,
+            "has_playbooks": has_playbooks,
+        },
     )
 
 
@@ -122,12 +178,33 @@ def playbook_create_step2(request):
         return redirect('playbook_create')
 
     if request.method == 'POST':
-        wizard_data['workflows'] = request.POST.getlist('workflow_names', [])
-        request.session['wizard_data'] = wizard_data
-        return redirect('playbook_create_step3')
+        form = PlaybookWorkflowForm(request.POST)
+        if form.is_valid():
+            skipped = _wizard_skip_requested(request.POST) or form.cleaned_data.get("skip")
+            wizard_data['workflows'] = _workflows_from_step2_form(
+                form.cleaned_data,
+                skipped=skipped,
+            )
+            request.session['wizard_data'] = wizard_data
+            logger.info(
+                "Playbook wizard step 2 completed by %s: workflows=%s",
+                request.user.username,
+                len(wizard_data["workflows"]),
+            )
+            return redirect('playbook_create_step3')
+        logger.warning(
+            "Playbook wizard step 2 validation failed for %s: %s",
+            request.user.username,
+            form.errors,
+        )
+        return render(request, 'playbooks/create_wizard_step2.html', {
+            'wizard_data': wizard_data,
+            'form': form,
+        })
 
     return render(request, 'playbooks/create_wizard_step2.html', {
         'wizard_data': wizard_data,
+        'form': PlaybookWorkflowForm(),
     })
 
 
@@ -178,6 +255,8 @@ def playbook_create_step3(request):
             if wizard_data.get('tags'):
                 playbook.tags = wizard_data['tags']
                 playbook.save()
+
+            _create_wizard_workflows(playbook, wizard_data.get('workflows') or [])
 
             del request.session['wizard_data']
             messages.success(request, f"Playbook '{playbook.name}' created successfully!")

@@ -126,7 +126,8 @@ Feature: Mimir MCP UAT — all 61 tools exercised end-to-end in agent mode
 
   @manual @uat @mcp-visibility
   Scenario: MCP-01b MCP list_playbooks and get_playbook are author-scoped regardless of GUI visibility
-    # Pre: <ADMIN_PUBLIC_PB_ID> exists as a Public playbook owned by admin (from e2e-uat-flow UAT-03-05).
+    # Pre: <ADMIN_PUBLIC_PB_ID> exists as a Public Released playbook owned by admin (from e2e-uat-flow UAT-03-05).
+    # Pre: GUI `/playbooks/` shows admin's released public playbook to uat_user, but never draft public playbooks from others.
     # MCP token is <UAT_TOKEN>.
     #
     # STEP list-no-admin-public

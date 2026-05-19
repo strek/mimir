@@ -101,8 +101,8 @@ class TestPublicPlaybookNestedRoutesReadable:
             category="development",
             author=owner,
             visibility="public",
-            status="draft",
-            version=Decimal("0.1"),
+            status="released",
+            version=Decimal("1.0"),
         )
         wf = Workflow.objects.create(playbook=pb, name="Pub WF", description="d", order=1)
         act = Activity.objects.create(
@@ -131,4 +131,51 @@ class TestPublicPlaybookNestedRoutesReadable:
                 )
             ).status_code
             == 200
+        )
+
+
+@pytest.mark.django_db
+class TestDraftPublicPlaybookNestedRoutesBlocked:
+    """Draft + Public playbooks stay owner-only for non-owners (list and nested URLs)."""
+
+    def test_workflow_and_activity_views_404(self, db):
+        owner = User.objects.create_user(username="draft_pub_o", password="x")
+        visitor = User.objects.create_user(username="draft_pub_v", password="x")
+        pb = Playbook.objects.create(
+            name="Draft Public Nested PB",
+            description="Draft public nested routes must not leak to visitors",
+            category="development",
+            author=owner,
+            visibility="public",
+            status="draft",
+            version=Decimal("0.1"),
+        )
+        wf = Workflow.objects.create(playbook=pb, name="Draft Pub WF", description="d", order=1)
+        act = Activity.objects.create(
+            workflow=wf,
+            name="Draft Pub Act",
+            guidance="Guidance for draft public nested blocked test",
+            order=1,
+        )
+        c = Client()
+        c.force_login(visitor)
+        assert c.get(reverse("playbook_detail", kwargs={"pk": pb.pk})).status_code == 404
+        assert (
+            c.get(
+                reverse("workflow_detail", kwargs={"playbook_pk": pb.pk, "pk": wf.pk})
+            ).status_code
+            == 404
+        )
+        assert (
+            c.get(
+                reverse(
+                    "activity_detail",
+                    kwargs={
+                        "playbook_pk": pb.pk,
+                        "workflow_pk": wf.pk,
+                        "activity_pk": act.pk,
+                    },
+                )
+            ).status_code
+            == 404
         )

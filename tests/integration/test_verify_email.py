@@ -86,11 +86,13 @@ def test_already_verified_token_redirects_gracefully(client):
 
 
 @pytest.mark.django_db
-def test_invalid_token_returns_404(client):
+def test_invalid_token_shows_expired_page(client):
     response = client.get(
         reverse("verify_email", kwargs={"token": "no-such-token-in-db-xyz"})
     )
-    assert response.status_code == 404
+    assert response.status_code == 200
+    assert b'data-testid="verify-email-expired-alert"' in response.content
+    assert b'data-testid="verify-email-resend-form"' in response.content
 
 
 @pytest.mark.django_db

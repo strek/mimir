@@ -15,22 +15,23 @@ Feature files under `act-2-playbooks/` and `act-9-pips/` align with this model.
 | Value | Who can view | Who can edit (draft) | Who can finalize PIP (released) |
 |-------|-------------|----------------------|---------------------------------|
 | **Private** | Owner only | Owner only | Owner or Staff admin |
-| **Public** | Any authenticated user | Owner only | Owner or Staff admin |
+| **Public** | Owner always; other authenticated users when status is **not** draft | Owner only | Owner or Staff admin |
 
 - Default on creation: **Private**.
+- **Draft + Public** is owner-only until the playbook is released (or otherwise leaves draft status).
 - Changing from Public → Private immediately hides the playbook from non-owners.
-- Changing from Private → Public immediately makes it readable to all logged-in users.
+- Changing from Private → Public immediately makes a **non-draft** playbook readable to all logged-in users.
 
 ---
 
 ## Access by surface
 
-| Surface | Private playbook | Public playbook |
-|---------|-----------------|-----------------|
-| **FOB GUI list** | Owner only | Appears in "Public Playbooks" tab / search for all users |
-| **FOB GUI detail** | Owner only | Any authenticated user (read-only for non-owners) |
-| **MCP tools** | Owner only (`author=user`) | Owner only (MCP scoped to author; public read is GUI-only) |
-| **REST API** | Owner or `shared_with_groups` member | Owner or `shared_with_groups` member |
+| Surface | Private playbook | Public playbook (non-draft) | Public playbook (draft) |
+|---------|-----------------|------------------------------|-------------------------|
+| **FOB GUI list** | Owner only | All authenticated users (same card grid as owned) | Owner only |
+| **FOB GUI detail** | Owner only | Any authenticated user (read-only for non-owners) | Owner only |
+| **MCP tools** | Owner only (`author=user`) | Owner only (MCP scoped to author; public read is GUI-only) | Owner only |
+| **REST API** | Owner or `shared_with_groups` member | Owner or `shared_with_groups` member | Owner or `shared_with_groups` member |
 
 ---
 
@@ -70,7 +71,7 @@ Feature files under `act-2-playbooks/` and `act-9-pips/` align with this model.
 
 - `playbooks-create.feature` — wizard visibility Private / Public, Step 3 draft/released
 - `playbooks-edit.feature` — visibility toggle, owner-only write
-- `playbooks-list-find.feature` — "My Playbooks" + "Public Playbooks" browse
+- `playbooks-list-find.feature` — unified Playbooks card grid; empty state only when nothing visible
 - `playbooks-view.feature` — public read by any authenticated user
 - `playbooks-delete.feature` — public visibility deletion impact
 - `pips-admin-review.feature` — owner and admin finalize, public viewer cannot

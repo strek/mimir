@@ -157,15 +157,22 @@ LOGGING = {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Email — dev default: console (stdout only, NOT delivered to real inboxes).
-# For real delivery (e.g. dp2580@nyu.edu): USE_SES_IN_DEV=1 + AWS credentials.
-# Requires botocore[crt] if you use `aws login` (see requirements.txt).
+# Email — dev default: AWS SES (same as production). Opt out with USE_SES_IN_DEV=0
+# to print messages to the runserver terminal instead (no inbox delivery).
+# Requires AWS credentials locally (`aws login` needs botocore[crt] in requirements.txt).
 # ─────────────────────────────────────────────────────────────────────────────
 import logging as _logging
 
 _email_log = _logging.getLogger("mimir.settings.dev")
 
-_USE_SES_IN_DEV = os.getenv("USE_SES_IN_DEV", "").strip()
+
+def _env_flag(name: str, *, default: str = "1") -> bool:
+    """Return True unless the env var is an explicit falsey token."""
+    raw = os.getenv(name, default).strip().lower()
+    return raw not in ("", "0", "false", "no", "off")
+
+
+_USE_SES_IN_DEV = _env_flag("USE_SES_IN_DEV", default="1")
 
 if _USE_SES_IN_DEV:
     EMAIL_BACKEND = "django_ses.SESBackend"
@@ -175,19 +182,23 @@ if _USE_SES_IN_DEV:
         "DEFAULT_FROM_EMAIL",
         "noreply@featurefactory.io",
     )
+    _ses_cfg_set = os.getenv("AWS_SES_CONFIGURATION_SET", "mimir-transactional")
+    if _ses_cfg_set:
+        AWS_SES_CONFIGURATION_SET = _ses_cfg_set
     _email_log.info(
-        "[EMAIL] Dev SES enabled: backend=%s from=%s region=%s",
+        "[EMAIL] Dev SES enabled: backend=%s from=%s region=%s config_set=%s",
         EMAIL_BACKEND,
         DEFAULT_FROM_EMAIL,
         AWS_SES_REGION_NAME,
+        _ses_cfg_set or "(none)",
     )
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@mimir.local")
     _email_log.warning(
         "[EMAIL] Console backend active — verification emails are printed to the "
-        "runserver terminal only, not sent to Gmail/nyu.edu. Set USE_SES_IN_DEV=1 "
-        "and restart runserver to deliver via AWS SES."
+        "runserver terminal only, not sent to real inboxes. Unset USE_SES_IN_DEV=0 "
+        "or remove it to deliver via AWS SES."
     )
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8000")

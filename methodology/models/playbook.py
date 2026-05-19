@@ -82,10 +82,14 @@ class Playbook(models.Model):
         return self.author == user
 
     def can_view(self, user):
-        """Authenticated owner always sees their playbook; public is readable by any user."""
+        """Authenticated owner always sees their playbook; public non-draft is readable by any user."""
         if self.author_id == getattr(user, "pk", None):
             return True
-        return self.visibility == 'public'
+        if self.visibility != "public":
+            return False
+        if self.status == "draft":
+            return False
+        return True
 
     def can_edit(self, user):
         """

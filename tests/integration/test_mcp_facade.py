@@ -194,7 +194,8 @@ class DjangoTestServer:
         # Try to create admin user if it doesn't exist with expected password
         raise RuntimeError(
             f"Could not get token for '{username}' (HTTP {r.status_code}). "
-            f"Ensure user exists with password 'admin' in mimir.db."
+            "Run `python manage.py create_default_admin` so the facade test username "
+            "matches the app's local dev defaults, then retry."
         )
 
     def stop(self):
