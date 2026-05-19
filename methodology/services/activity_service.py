@@ -9,7 +9,7 @@ import logging
 from django.db import IntegrityError
 from django.db import models
 from django.core.exceptions import ValidationError
-from methodology.models import Activity, Skill, Agent, Rule
+from methodology.models import Activity, Skill, Agent, Rule, Playbook
 
 logger = logging.getLogger(__name__)
 
@@ -173,20 +173,31 @@ class ActivityService:
     @staticmethod
     def list_activities_for_playbook(playbook_id: int, user):
         """
-        Return activities across all workflows in a playbook, scoped to author's playbooks.
+        Return activities across all workflows in a playbook if ``user`` may view the playbook.
+
+        Private playbooks: owner only. Public playbooks: any authenticated user with ``can_view``.
 
         :param playbook_id: Playbook primary key
-        :param user: Django user restricting results to workflows they own
-        :returns: QuerySet ordered by workflow order then activity order
+        :param user: Django user (visibility check)
+        :returns: QuerySet ordered by workflow order then activity order (empty if no access)
         """
-        return Activity.objects.filter(
-            workflow__playbook_id=playbook_id,
-            workflow__playbook__author=user,
-        ).select_related(
-            'workflow',
-            'workflow__playbook',
-            'phase',
-        ).order_by('workflow__order', 'order', 'pk')
+        try:
+            playbook = Playbook.objects.get(pk=playbook_id)
+        except Playbook.DoesNotExist:
+            logger.warning("list_activities_for_playbook: playbook id=%s not found", playbook_id)
+            return Activity.objects.none()
+        if not playbook.can_view(user):
+            logger.info(
+                "list_activities_for_playbook: user id=%s denied playbook id=%s",
+                getattr(user, "pk", user),
+                playbook_id,
+            )
+            return Activity.objects.none()
+        return Activity.objects.filter(workflow__playbook_id=playbook_id).select_related(
+            "workflow",
+            "workflow__playbook",
+            "phase",
+        ).order_by("workflow__order", "order", "pk")
     
     @staticmethod
     def update_activity(activity_id, **kwargs):

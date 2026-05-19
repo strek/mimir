@@ -280,7 +280,7 @@ class TestActivityService:
 class TestListActivitiesForPlaybook:
     """Tests for ActivityService.list_activities_for_playbook."""
 
-    def test_returns_only_activities_for_given_playbook_and_author(self):
+    def test_returns_activities_when_user_can_view_playbook(self):
         u1 = User.objects.create_user(username='u1Acts', password='x')
         u2 = User.objects.create_user(username='u2Acts', password='x')
         pb1 = Playbook.objects.create(
@@ -297,6 +297,22 @@ class TestListActivitiesForPlaybook:
         qs = ActivityService.list_activities_for_playbook(pb1.pk, u1)
         assert list(qs) == [a1]
         assert ActivityService.list_activities_for_playbook(pb1.pk, u2).count() == 0
+
+    def test_public_playbook_lists_activities_for_non_owner(self):
+        u1 = User.objects.create_user(username='u1PubActs', password='x')
+        u2 = User.objects.create_user(username='u2PubActs', password='x')
+        pb = Playbook.objects.create(
+            name='PubPBActs',
+            description='d',
+            category='development',
+            author=u1,
+            source='owned',
+            visibility='public',
+        )
+        wf = Workflow.objects.create(playbook=pb, name='W', description='d', order=1)
+        a1 = Activity.objects.create(workflow=wf, name='SharedAct', guidance='g', order=1)
+        qs = ActivityService.list_activities_for_playbook(pb.pk, u2)
+        assert list(qs) == [a1]
 
     def test_orders_by_workflow_order_then_activity_order(self):
         user = User.objects.create_user(username='ordUserActs', password='x')

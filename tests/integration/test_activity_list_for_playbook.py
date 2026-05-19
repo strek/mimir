@@ -72,6 +72,28 @@ class TestActivityListForPlaybook:
         )
         assert response.status_code == 404
 
+    def test_non_owner_sees_public_playbook_activity_list(self, db):
+        owner = User.objects.create_user(username='act_pub_owner', password='secret')
+        other = User.objects.create_user(username='act_pub_other', password='secret')
+        pb = Playbook.objects.create(
+            name='Public Act PB',
+            description='d',
+            category='development',
+            status='active',
+            source='owned',
+            visibility='public',
+            author=owner,
+        )
+        wf = Workflow.objects.create(playbook=pb, name='WF Pub', description='d', order=1)
+        Activity.objects.create(workflow=wf, name='PubActivity', guidance='g', order=1)
+        client = Client()
+        client.force_login(other)
+        response = client.get(
+            reverse('activity_list_for_playbook', kwargs={'playbook_pk': pb.pk})
+        )
+        assert response.status_code == 200
+        assert 'PubActivity' in response.content.decode()
+
     def test_unauthenticated_redirects_to_login(self, activity_list_playbook_setup):
         pb_a = activity_list_playbook_setup['pb_a']
         response = Client().get(

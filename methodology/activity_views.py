@@ -7,6 +7,7 @@ within workflows.
 
 import logging
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import Http404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -69,7 +70,14 @@ def activity_global_list(request):
 
 @login_required
 def activity_list_for_playbook(request, playbook_pk):
-    playbook = get_object_or_404(Playbook, pk=playbook_pk, author=request.user)
+    playbook = get_object_or_404(Playbook, pk=playbook_pk)
+    if not playbook.can_view(request.user):
+        logger.warning(
+            "%s denied playbook-wide activity list for playbook %s",
+            request.user.username,
+            playbook_pk,
+        )
+        raise Http404()
     activities_qs = ActivityService.list_activities_for_playbook(playbook_pk, request.user)
     cnt = activities_qs.count()
     logger.info(
@@ -116,13 +124,15 @@ def activity_list(request, playbook_pk, workflow_pk):
     # Get workflow and playbook with permission check
     playbook = get_object_or_404(Playbook, pk=playbook_pk)
     workflow = get_object_or_404(Workflow, pk=workflow_pk, playbook=playbook)
-    
-    # Check if user has access to this playbook
-    if playbook.source == 'owned' and playbook.author != request.user:
-        logger.warning(f"User {request.user.username} attempted to access workflow {workflow_pk} they don't own")
-        messages.error(request, "You don't have permission to view this workflow's activities.")
-        return redirect('playbook_list')
-    
+
+    if not playbook.can_view(request.user):
+        logger.warning(
+            "%s denied activity list for playbook %s (no view access)",
+            request.user.username,
+            playbook_pk,
+        )
+        raise Http404()
+
     # Get activities grouped by phase
     activities_by_phase = ActivityService.get_activities_grouped_by_phase(workflow)
     total_activities = sum(len(acts) for acts in activities_by_phase.values())
@@ -174,7 +184,15 @@ def activity_create(request, playbook_pk, workflow_pk):
     # Get workflow and playbook with permission check
     playbook = get_object_or_404(Playbook, pk=playbook_pk)
     workflow = get_object_or_404(Workflow, pk=workflow_pk, playbook=playbook)
-    
+
+    if not playbook.can_view(request.user):
+        logger.warning(
+            "%s denied activity create for playbook %s (no view access)",
+            request.user.username,
+            playbook_pk,
+        )
+        raise Http404()
+
     # Check edit permission
     if not workflow.can_edit(request.user):
         logger.warning(f"User {request.user.username} attempted to create activity without permission")
@@ -315,13 +333,15 @@ def activity_detail(request, playbook_pk, workflow_pk, activity_pk):
         pk=activity_pk,
         workflow=workflow
     )
-    
-    # Check if user has access
-    if playbook.source == 'owned' and playbook.author != request.user:
-        logger.warning(f"User {request.user.username} attempted to access activity {activity_pk} they don't own")
-        messages.error(request, "You don't have permission to view this activity.")
-        return redirect('playbook_list')
-    
+
+    if not playbook.can_view(request.user):
+        logger.warning(
+            "%s denied activity detail %s (no playbook view access)",
+            request.user.username,
+            activity_pk,
+        )
+        raise Http404()
+
     
     # Get artifact inputs for this activity
     artifact_inputs = ArtifactInput.objects.filter(
@@ -388,7 +408,15 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
         pk=activity_pk,
         workflow=workflow
     )
-    
+
+    if not playbook.can_view(request.user):
+        logger.warning(
+            "%s denied activity edit %s (no playbook view access)",
+            request.user.username,
+            activity_pk,
+        )
+        raise Http404()
+
     # Check edit permission
     if not activity.can_edit(request.user):
         messages.error(request, "You don't have permission to edit this activity.")
@@ -575,7 +603,15 @@ def activity_delete(request, playbook_pk, workflow_pk, activity_pk):
     playbook = get_object_or_404(Playbook, pk=playbook_pk)
     workflow = get_object_or_404(Workflow, pk=workflow_pk, playbook=playbook)
     activity = get_object_or_404(Activity, pk=activity_pk, workflow=workflow)
-    
+
+    if not playbook.can_view(request.user):
+        logger.warning(
+            "%s denied activity delete %s (no playbook view access)",
+            request.user.username,
+            activity_pk,
+        )
+        raise Http404()
+
     # Check edit permission
     if not workflow.can_edit(request.user):
         logger.warning(f"User {request.user.username} attempted to delete activity without permission")
