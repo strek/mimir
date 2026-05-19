@@ -1,69 +1,78 @@
 @manual @uat @e2e-uat-flow
-Feature: Mimir E2E UAT — strict linear operator script (browser + CallMcpTool replay)
+Feature: Mimir E2E UAT — browser-only flow (registration → GUI CRUDL → release → PIP GUI → admin finalize)
 
-  Not collected by pytest. Execute in file order: Journey 1→2→3, then UAT-04-00/04-01/04-02 (MCP on Draft), then UAT-05-00/05-01 (release v1.0), then **UAT-04-03** (Released mutation guard), then PIP journeys UAT-06-xx and UAT-07-xx. Exception: `UAT-04-03` is numbered 04 but intentionally runs after Journey 5.
+  BROWSER STEPS ONLY — no CallMcpTool calls in this file.
+  All MCP tool scenarios live in tests/uat/mcp-uat-flow.feature (run in agent mode).
+
+  Execution order:
+    1. J1 here  (register + token RECORD)
+    2. mcp-uat-flow.feature MCP-00  (wire Docker token → smoke)
+    3. J3 here  (GUI CRUDL)
+    4. mcp-uat-flow.feature MCP-01/02/03  (MCP read/write against GUI playbook)
+    5. J5 here  (release via GUI)
+    6. mcp-uat-flow.feature MCP-06/07  (release + post-release guard)
+    7. J6 browser here  (PIP UI)
+    8. mcp-uat-flow.feature MCP-08/08b/08c/09  (PIP MCP lifecycle)
+    9. J7 here  (admin finalize + GUI verify)
+   10. mcp-uat-flow.feature MCP-11  (post-finalize inventory)
 
   ==============================================================================
-  JOURNEY MAP (docs/features/user_journey.md ↔ this file)
+  JOURNEY MAP
   ==============================================================================
-    | Journey | Intended acts | Scenario IDs |
-    | J1 | Act 0–1 + profile | UAT-01-00 … UAT-01-04, UAT-01-01b, UAT-01-03b |
-    | J2 | Act 12 MCP bootstrap | UAT-02-01 … UAT-02-03 |
-    | J3 | Acts 2–8 + nav/search | UAT-03-00 … UAT-03-04 (+ split CRUDL) |
-    | J4 | MCP tooling + sandbox | UAT-04-00, UAT-04-01, UAT-04-02 |
-    | J5 | Release v1.0 | UAT-05-00, UAT-05-01 |
-    | J4-post | Released MCP guard | UAT-04-03 immediately after J5 |
-    | J6 | Act 9 PIPs | UAT-06-00 … UAT-06-06 |
-    | J7 | Act 9 admin + verify | UAT-07-01 … UAT-07-03 (optional UAT-07-04 in Appendix D) |
+    | Journey | Scenarios in THIS file                               | MCP counterpart (mcp-uat-flow.feature) |
+    | J1      | UAT-01-00 … UAT-01-04, 01-01b, 01-03b               | MCP-00 (token wire)                    |
+    | J3      | UAT-03-00 … UAT-03-03 + CRUDL splits                 | MCP-01/02/03                           |
+    | J3B     | UAT-03-05, UAT-03-05b (GUI visibility isolation)     | MCP-01b (MCP author-scoping proof)     |
+    | J5      | UAT-05-00, UAT-05-01                                 | MCP-06 (release), MCP-07 (guard)       |
+    | J6 GUI  | UAT-06-00, UAT-06-01-neg, UAT-06-02, UAT-06-06      | MCP-08/08b/08c/09                      |
+    | J7      | UAT-07-01, UAT-07-02                                 | MCP-11 (post-finalize inventory)       |
 
   ==============================================================================
   OPERATOR SCRIPT CONTRACT
   ==============================================================================
     STEP — short title (in `# STEP` comment block)
-    DO — one Browser navigation OR one CallMcpTool invocation (BASE_URL prefixed URLs)
-    SEE — one observable: exact Django flash string, `[data-testid=\"…\"]`, MCP JSON invariant
-    RECORD — annotate placeholder filled from SEE for downstream substitution
+    DO — one browser navigation or form interaction (BASE_URL prefixed URLs)
+    SEE — one observable: exact Django flash string or `[data-testid="…"]`
+    RECORD — annotate placeholder filled from SEE for downstream steps
     IF DIFFER — file defect citing Scenario + STEP id (`Expected …; got …`)
     BUG TEMPLATE — reuse IF DIFFER line in tracker title/body
     BASE_URL — http://127.0.0.1:8000
     SELECTOR PRIORITY — data-testid → name/id attribute → readable label substring
-    FLASH — Django messages use `[data-testid=\"alert-message\"]` wrapper in ``base.html``
+    FLASH — Django messages use `[data-testid="alert-message"]` wrapper in ``base.html``
+    CURSOR_PROMPT — manual one-time IDE action; agent STOPS and waits for confirmation
 
   ==============================================================================
   DEVIATIONS (user journey narrative ↔ shipped MVP)
   ==============================================================================
     | Narrative expectation | MVP truth for this replay |
     | Congratulations + MCP token onboarding page after verify | Token only on `/auth/user/profile/` (UAT-01-04). |
-    | Guided MCP onboarding screen | Operators paste Docker JSON manually (UAT-02-01). |
+    | Guided MCP onboarding screen | Agent runs mcp-uat-flow MCP-00 after UAT-01-04. |
     | Activate playbook tile | Out of scope — skip. |
     | Notifications / Teams / GUI import/export | Skip or assert disabled only. |
-    | Family/Homebase playbook sharing GUI | Deferred; FOB MVP uses **Private** vs **Public** (public browse on playbook list) + MCP author-scoped reads (UAT-03-04). |
+    | Family/Homebase playbook sharing GUI | Deferred; FOB MVP uses Private vs Public. |
     | Submit PIP UX lock until changes | Browser may allow click; SEE server `Add at least one Change before submitting.` |
 
   ==============================================================================
   PLACEHOLDER REGISTRY
   ==============================================================================
     <UAT_EMAIL> <UAT_USERNAME> <UAT_PASSWORD> — operator / UAT-01-01
-    <UAT_TOKEN> — UAT-01-04 profile RECORD
-    <ADMIN_TOKEN> — admin user token ONLY for MCP swap during UAT-03-04
+    <UAT_TOKEN>           — UAT-01-04 profile RECORD; passed to mcp-uat-flow MCP-00
+    <ADMIN_TOKEN>         — admin DRF token (UAT-03-05b GUI toggle + mcp-uat-flow MCP-01b token swap)
+    <ADMIN_PUBLIC_PB_ID>  — public playbook created by admin in UAT-03-05 (used in MCP-01b)
+    <ADMIN_PRIVATE_PB_ID> — private playbook created by admin in UAT-03-05
     <GUI_PLAYBOOK_ID> <GUI_WORKFLOW_ID> — wizard UAT-03-01
     <GUI_PHASE_PK> <ACT_ALPHA_PK> <ACT_BETA_PK> <GUI_AGENT_PK>
     <GUI_SKILL_PK> <GUI_ARTIFACT_PK> <GUI_RULE_PK> — GUI CRUDL splits
-    <ARTIFACT_INPUT_PK> — MCP link RECORD (UAT-04-01)
-    <PIP_NEG_PK> optional throwaway negatives (UAT-06-01-neg)
-    <PIP_GUI_PK> <PIP_MCP_PK> — accepted journey PIPs
-    <PIP_DISPOSABLE_PK> <DISPOSABLE_CHANGE_PK> — MCP cancel/remove drill
-    <PIP_NEG_DRAFT_PB_ID> — MCP draft-only playbook for UAT-06-03-neg (never release)
-    <MCP_EXPORT_DIR> — host temp dir (e.g. `/tmp/mimir-uat-export`)
-    <MCP_SANDBOX_*>, <MCP_ACT1_PK>, <MCP_ACT2_PK>, … — sandbox marathon (UAT-04-02)
+    <PIP_NEG_PK>          — throwaway PIP for UAT-06-01-neg editor validations
+    <PIP_GUI_PK>          — browser PIP RECORD (UAT-06-02)
+    <PIP_MCP_PK>          — MCP PIP RECORD from mcp-uat-flow MCP-08 (used in UAT-06-06/07-01/07-02)
 
-  SHARED ACTORS: uat_user (primary GUI/MCP TOKEN); admin (Django admin + optional MCP admin TOKEN).
+  SHARED ACTORS: uat_user (browser); admin (Django admin J7). MCP actor in mcp-uat-flow.feature.
 
-  PRECONDITIONS: runserver reachable; SES if verifying Gmail paths; createsuperuser `admin`; ``GALDR_EAGER=True`` recommended.
+  PRECONDITIONS: runserver reachable; SES if verifying Gmail; createsuperuser `admin`; GALDR_EAGER=True recommended.
 
-  OUT OF SCOPE: teams UI, bell notifications, MCP snippet designer page, import-playbook MVP,
-  activate playbook, corruption recovery tooling, exhaustive API-only sharing paths.
-
+  OUT OF SCOPE (this file): all CallMcpTool invocations, token swap, MCP sandbox, export/import,
+  PIP MCP lifecycle, MCP isolation tests — all in mcp-uat-flow.feature.
 #############################################################################
 # Journey 1 — Registration + verify + profile token
 ############################################################################
@@ -125,45 +134,12 @@ Feature: Mimir E2E UAT — strict linear operator script (browser + CallMcpTool 
     # STEP D — regenerate wrong-password branch
     # DO: fill `[data-testid=\"profile-token-regenerate-password\"]` literal `incorrect-password-uat`; submit `[data-testid=\"profile-token-regenerate-submit\"]`
     # SEE: flash `[data-testid=\"alert-message\"]` EXACT `Incorrect password. Your API token was not changed.`
-
 #############################################################################
-# Journey 2 — MCP TOKEN wiring + smoke negatives
-############################################################################
-
-  @manual @uat @act-12-setup
-  Scenario: UAT-02-01 Cursor / IDE MCP snippet (REFERENCE — operator pastes TOKEN)
-    # DO: update MCP server args block per README facade pattern with `-e TOKEN=<UAT_TOKEN>` and matching BASE_URL routing (`host.docker.internal` vs `localhost`)
-    # SEE: IDE reconnect acknowledges server without crashing transport handler
-    # REFERENCE_TEMPLATE (preserve literal tokens — paste into MCP config as raw JSON):
-    # {
-    #   "mcpServers": {
-    #     "mimir": {
-    #       "command": "docker",
-    #       "args": [
-    #         "run", "--rm", "-i",
-    #         "-e", "BASE_URL=http://host.docker.internal:8000",
-    #         "-e", "TOKEN=<UAT_TOKEN>",
-    #         "-e", "MCP_TRANSPORT=stdio",
-    #         "public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest"
-    #       ]
-    #     }
-    #   }
-    # }
-
-  @manual @uat @act-12-setup
-  Scenario: UAT-02-02 MCP list_playbooks draft + all statuses
-    # STEP drafted
-    # DO: CallMcpTool `"user-mimir"` toolName `"list_playbooks"` arguments `{"status":"draft"}`
-    # SEE: tool JSON payload parses to array element structure (no MCP-level fatal auth error payload)
-    # STEP all statuses
-    # DO: `"list_playbooks"` arguments `{"status":"all"}`
-    # SEE: still success array (possibly longer)
-
-  @manual @uat @act-12-setup
-  Scenario: UAT-02-03 MCP TOKEN sabotage diagnostics
-    # DO: deliberately mis-set TOKEN=`invalid`; invoke `list_playbooks`
-    # SEE: client reports auth/transport failure substring (facet-specific → RECORD actual substring inside run-notes IF DIFFER)
-
+# Journey 2 — MCP token wiring + smoke negatives → see mcp-uat-flow.feature
+#############################################################################
+  # MCP-00: wire mcp.json with UAT token (scripts/mcp_token_swap.py)
+  # MCP-01: list_playbooks smoke + bad-token HTTP diagnostics
+  # Run mcp-uat-flow.feature MCP-00 and MCP-01 before proceeding to Journey 3.
 #############################################################################
 # Journey 3 — Playbook wizard + split GUI CRUDL + nav smoke + MCP owner denial
 ############################################################################
@@ -274,490 +250,91 @@ Feature: Mimir E2E UAT — strict linear operator script (browser + CallMcpTool 
     # DO: navbar `[data-testid=\"nav-pips\"]` → `/pips/`
     # SEE: `[data-testid=\"pip-list-page\"]`; optional badge `[data-testid=\"pip-list-count\"]` textual `PIPs (`
     # DO: playbook list locate `[data-testid=\"playbook-book-card-<GUI_PLAYBOOK_ID>\"]`
-    # SEE: quick stats still ≥2 Activities until later MCP merges (post PIP bumps)
-
-  @manual @uat @mcp-owner
-  Scenario: UAT-03-04 Admin MCP cannot read alien playbook RECORD swap + rollback
-    # STEP obtain admin token RECORD <ADMIN_TOKEN> (REST / profile regenerate for `admin`).
-    # DO: repoint MCP client TOKEN `<ADMIN_TOKEN>` (restart MCP host).
-    # DO: CallMcpTool `"get_playbook"` arguments JSON object `{\"playbook_id\":<GUI_PLAYBOOK_ID_INTEGER>}`
-    # SEE: ValueError-derived payload includes substring `Playbook <GUI_PLAYBOOK_ID> not found` (privacy semantics).
-    # DO: revert MCP TOKEN to `<UAT_TOKEN>` before proceeding Journey 4
-    # SEE: `list_playbooks` succeeds again hinting TOKEN restored
-
+    # SEE: quick stats still ≥2 Activities (post-PIP bumps come after mcp-uat-flow MCP-08)
 
 #############################################################################
-# Journey 4A — MCP precondition diagnostics + GUI-tool pass prelude
-############################################################################
-
-  @manual @uat @mcp-full
-  Scenario: UAT-04-00 MCP not-found rejects (uat_user TOKEN)
-    # STEP missing playbook
-    # DO: CallMcpTool `"get_playbook"` arguments `{\"playbook_id\":999999}`
-    # SEE: error text `Playbook 999999 not found`
-    # STEP missing activity mutation
-    # DO: `"update_activity"` arguments `{\"activity_id\":990000001,\"guidance\":\"## phantom\"}`
-    # SEE: error substring `990000001 not found`
-
-  @manual @uat @mcp-full @act-12
-  Scenario: UAT-04-01 MCP verbs against GUI playbook (RECORD <ARTIFACT_INPUT_PK>)
-    # Preconditions: MCP TOKEN restored `<UAT_TOKEN>` owns GUI entities; writable `<MCP_EXPORT_DIR>` path exists OS-level.
-
-    # STEP GUI-01
-    # DO: CallMcpTool server "user-mimir" toolName "get_playbook" arguments {"playbook_id":"<GUI_PLAYBOOK_ID>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: `id`: `<GUI_PLAYBOOK_ID>` numeric; `name` `UAT Journey Playbook`
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-01`
-
-    # STEP GUI-02
-    # DO: CallMcpTool server "user-mimir" toolName "list_workflows" arguments {"playbook_id":"<GUI_PLAYBOOK_ID>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: list includes wf id/name `UAT Workflow`
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-02`
-
-    # STEP GUI-03
-    # DO: CallMcpTool server "user-mimir" toolName "list_activities" arguments {"workflow_id":"<GUI_WORKFLOW_ID>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: entries for Alpha + Beta placeholders
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-03`
-
-    # STEP GUI-04
-    # DO: CallMcpTool server "user-mimir" toolName "get_activity" arguments {"activity_id":"<ACT_ALPHA_PK>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: keys `agent`,`skill`,`output_artifacts`
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-04`
-
-    # STEP GUI-05
-    # DO: CallMcpTool server "user-mimir" toolName "update_activity" arguments {"activity_id":"<ACT_ALPHA_PK>","guidance":"## Alpha\\n\\nMCP-updated guidance (pre-PIP)."}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: `id`: `<ACT_ALPHA_PK>` persistence
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-05`
-
-    # STEP GUI-06
-    # DO: CallMcpTool server "user-mimir" toolName "set_predecessor" arguments {"activity_id":"<ACT_BETA_PK>","predecessor_id":"<ACT_ALPHA_PK>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: `updated`: true
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-06`
-
-    # STEP GUI-07
-    # DO: CallMcpTool server "user-mimir" toolName "list_phases" arguments {"playbook_id":"<GUI_PLAYBOOK_ID>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: `id` `<GUI_PHASE_PK>` present
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-07`
-
-    # STEP GUI-08
-    # DO: CallMcpTool server "user-mimir" toolName "list_skills" arguments {"playbook_id":"<GUI_PLAYBOOK_ID>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: skill pk
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-08`
-
-    # STEP GUI-09
-    # DO: CallMcpTool server "user-mimir" toolName "list_agents" arguments {"playbook_id":"<GUI_PLAYBOOK_ID>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: agent pk
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-09`
-
-    # STEP GUI-10
-    # DO: CallMcpTool server "user-mimir" toolName "list_artifacts" arguments {"playbook_id":"<GUI_PLAYBOOK_ID>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: artifact pk
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-10`
-
-    # STEP GUI-11
-    # DO: CallMcpTool server "user-mimir" toolName "list_rules" arguments {"playbook_id":"<GUI_PLAYBOOK_ID>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: rule pk
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-11`
-
-    # STEP GUI-12
-    # DO: CallMcpTool server "user-mimir" toolName "link_skill_to_activity" arguments {"activity_id":"<ACT_ALPHA_PK>","skill_id":"<GUI_SKILL_PK>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: link ok
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-12`
-
-    # STEP GUI-13
-    # DO: CallMcpTool server "user-mimir" toolName "unlink_skill_from_activity" arguments {"activity_id":"<ACT_ALPHA_PK>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: echo activity Alpha
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-13`
-
-    # STEP GUI-14
-    # DO: CallMcpTool server "user-mimir" toolName "link_agent_to_activity" arguments {"activity_id":"<ACT_ALPHA_PK>","agent_id":"<GUI_AGENT_PK>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: accepted
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-14`
-
-    # STEP GUI-15
-    # DO: CallMcpTool server "user-mimir" toolName "unlink_agent_from_activity" arguments {"activity_id":"<ACT_ALPHA_PK>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: ok
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-15`
-
-    # STEP GUI-16
-    # DO: CallMcpTool server "user-mimir" toolName "link_artifact_to_activity" arguments {"artifact_id":"<GUI_ARTIFACT_PK>","activity_id":"<ACT_BETA_PK>","is_required":true}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: RECORD `<ARTIFACT_INPUT_PK>` JSON field `id`
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-16`
-
-    # STEP GUI-17
-    # DO: CallMcpTool server "user-mimir" toolName "unlink_artifact_from_activity" arguments {"artifact_input_id":"<ARTIFACT_INPUT_PK>"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-17`
-
-    # STEP GUI-18
-    # DO: CallMcpTool server "user-mimir" toolName "set_activity_rules" arguments {"activity_id":"<ACT_ALPHA_PK>","rule_ids":["<GUI_RULE_PK>"]}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: `activity_id` Alpha
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-18`
-
-    # STEP GUI-19
-    # DO: CallMcpTool server "user-mimir" toolName "export_workflow_to_local" arguments {"workflow_id":"<GUI_WORKFLOW_ID>","target_directory":"<MCP_EXPORT_DIR>/gui-workflow"}
-    # NOTE: substitute angle-bracket placeholders with integers in JSON.
-    # SEE: `files_written` or `export_path` present
-    # IF DIFFER: Bug — cite UAT-04-01 `GUI-19`
-
-  @manual @uat @mcp-full @sandbox
-  Scenario: UAT-04-02 MCP sandbox playbook — 53 lifecycle tools + export/import + teardown deletes sandbox only
-    # Preconditions / cautions — TOKEN `<UAT_TOKEN>` MUST remain isolated to disposable IDs below; canonical GUI playbook survives post-run.
-    # Operator ensures `<MCP_EXPORT_DIR>` directory exists writable on host invoking MCP facade.
-
-    # STEP SB-01
-    # DO: CallMcpTool server "user-mimir" toolName "create_playbook" arguments {"name":"MCP Sandbox Playbook","description":"Disposable UAT sandbox","category":"development"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: JSON `status`=`draft`; RECORD `<MCP_SANDBOX_PB_ID>` from `.id` integer
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-01`
-
-    # STEP SB-02
-    # DO: CallMcpTool server "user-mimir" toolName "list_playbooks" arguments {"status":"draft"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: array rows include playbook id numeric match after substitution
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-02`
-
-    # STEP SB-03
-    # DO: CallMcpTool server "user-mimir" toolName "get_playbook" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `name`: `MCP Sandbox Playbook`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-03`
-
-    # STEP SB-04
-    # DO: CallMcpTool server "user-mimir" toolName "update_playbook" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>","description":"Updated sandbox"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `id` equals substituted sandbox pk
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-04`
-
-    # STEP SB-05
-    # DO: CallMcpTool server "user-mimir" toolName "create_workflow" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>","name":"MCP Sandbox Workflow","description":"Sandbox wf"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_SANDBOX_WF_ID>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-05`
-
-    # STEP SB-06
-    # DO: CallMcpTool server "user-mimir" toolName "list_workflows" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: includes workflow id placeholder
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-06`
-
-    # STEP SB-07
-    # DO: CallMcpTool server "user-mimir" toolName "get_workflow" arguments {"workflow_id":"<MCP_SANDBOX_WF_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: name canonical
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-07`
-
-    # STEP SB-08
-    # DO: CallMcpTool server "user-mimir" toolName "update_workflow" arguments {"workflow_id":"<MCP_SANDBOX_WF_ID>","description":"Updated wf"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: accepted
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-08`
-
-    # STEP SB-09
-    # DO: CallMcpTool server "user-mimir" toolName "create_phase" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>","name":"MCP Phase A","description":"A"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_PHASE_A_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-09`
-
-    # STEP SB-10
-    # DO: CallMcpTool server "user-mimir" toolName "create_phase" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>","name":"MCP Phase B","description":"B"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_PHASE_B_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-10`
-
-    # STEP SB-11
-    # DO: CallMcpTool server "user-mimir" toolName "list_phases" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: both sandbox phase ids enumerated
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-11`
-
-    # STEP SB-12
-    # DO: CallMcpTool server "user-mimir" toolName "get_phase" arguments {"phase_id":"<MCP_PHASE_A_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `id`: `<MCP_PHASE_A_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-12`
-
-    # STEP SB-13
-    # DO: CallMcpTool server "user-mimir" toolName "update_phase" arguments {"phase_id":"<MCP_PHASE_A_PK>","description":"Updated phase"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: accepted
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-13`
-
-    # STEP SB-14
-    # DO: CallMcpTool server "user-mimir" toolName "reorder_phases" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>","phase_order":["<MCP_PHASE_B_PK>","<MCP_PHASE_A_PK>"]}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `reordered`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-14`
-
-    # STEP SB-15
-    # DO: CallMcpTool server "user-mimir" toolName "create_activity" arguments {"workflow_id":"<MCP_SANDBOX_WF_ID>","name":"MCP Act 1","guidance":"g1","phase_id":"<MCP_PHASE_A_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_ACT1_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-15`
-
-    # STEP SB-16
-    # DO: CallMcpTool server "user-mimir" toolName "create_activity" arguments {"workflow_id":"<MCP_SANDBOX_WF_ID>","name":"MCP Act 2","guidance":"g2","predecessor_id":"<MCP_ACT1_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_ACT2_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-16`
-
-    # STEP SB-17
-    # DO: CallMcpTool server "user-mimir" toolName "list_activities" arguments {"workflow_id":"<MCP_SANDBOX_WF_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: ≥2 rows with both activity ids substituted
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-17`
-
-    # STEP SB-18
-    # DO: CallMcpTool server "user-mimir" toolName "get_activity" arguments {"activity_id":"<MCP_ACT1_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: keys contain `agent`, `skill`, `output_artifacts`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-18`
-
-    # STEP SB-19
-    # DO: CallMcpTool server "user-mimir" toolName "update_activity" arguments {"activity_id":"<MCP_ACT1_PK>","guidance":"Updated g1"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: persistent change
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-19`
-
-    # STEP SB-20
-    # DO: CallMcpTool server "user-mimir" toolName "set_predecessor" arguments {"activity_id":"<MCP_ACT2_PK>","predecessor_id":"<MCP_ACT1_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `updated`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-20`
-
-    # STEP SB-21
-    # DO: CallMcpTool server "user-mimir" toolName "create_skill" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>","title":"MCP Skill","content":"c","capability_domain":"GUI_FORM","technology_stack":"React"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_SKILL_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-21`
-
-    # STEP SB-22
-    # DO: CallMcpTool server "user-mimir" toolName "list_skills" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: contains skill pk
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-22`
-
-    # STEP SB-23
-    # DO: CallMcpTool server "user-mimir" toolName "get_skill" arguments {"skill_id":"<MCP_SKILL_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: ok
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-23`
-
-    # STEP SB-24
-    # DO: CallMcpTool server "user-mimir" toolName "update_skill" arguments {"skill_id":"<MCP_SKILL_PK>","content":"Updated skill"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: accepted
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-24`
-
-    # STEP SB-25
-    # DO: CallMcpTool server "user-mimir" toolName "link_skill_to_activity" arguments {"activity_id":"<MCP_ACT1_PK>","skill_id":"<MCP_SKILL_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `activity_id` equals `<MCP_ACT1_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-25`
-
-    # STEP SB-26
-    # DO: CallMcpTool server "user-mimir" toolName "unlink_skill_from_activity" arguments {"activity_id":"<MCP_ACT1_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: unlink ok
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-26`
-
-    # STEP SB-27
-    # DO: CallMcpTool server "user-mimir" toolName "delete_skill" arguments {"skill_id":"<MCP_SKILL_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-27`
-
-    # STEP SB-28
-    # DO: CallMcpTool server "user-mimir" toolName "create_agent" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>","name":"MCP Agent","description":"d"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_AGENT_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-28`
-
-    # STEP SB-29
-    # DO: CallMcpTool server "user-mimir" toolName "list_agents" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: contains agent pk
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-29`
-
-    # STEP SB-30
-    # DO: CallMcpTool server "user-mimir" toolName "get_agent" arguments {"agent_id":"<MCP_AGENT_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: ok
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-30`
-
-    # STEP SB-31
-    # DO: CallMcpTool server "user-mimir" toolName "update_agent" arguments {"agent_id":"<MCP_AGENT_PK>","description":"Updated agent"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: accepted
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-31`
-
-    # STEP SB-32
-    # DO: CallMcpTool server "user-mimir" toolName "link_agent_to_activity" arguments {"activity_id":"<MCP_ACT1_PK>","agent_id":"<MCP_AGENT_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: accepted
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-32`
-
-    # STEP SB-33
-    # DO: CallMcpTool server "user-mimir" toolName "unlink_agent_from_activity" arguments {"activity_id":"<MCP_ACT1_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: ok
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-33`
-
-    # STEP SB-34
-    # DO: CallMcpTool server "user-mimir" toolName "delete_agent" arguments {"agent_id":"<MCP_AGENT_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-34`
-
-    # STEP SB-35
-    # DO: CallMcpTool server "user-mimir" toolName "create_artifact" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>","produced_by_id":"<MCP_ACT1_PK>","name":"MCP Artifact","description":"d","type":"Document","is_required":true}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_ARTIFACT_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-35`
-
-    # STEP SB-36
-    # DO: CallMcpTool server "user-mimir" toolName "list_artifacts" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: artifact row present
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-36`
-
-    # STEP SB-37
-    # DO: CallMcpTool server "user-mimir" toolName "get_artifact" arguments {"artifact_id":"<MCP_ARTIFACT_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: ok
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-37`
-
-    # STEP SB-38
-    # DO: CallMcpTool server "user-mimir" toolName "update_artifact" arguments {"artifact_id":"<MCP_ARTIFACT_PK>","description":"Updated artifact"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: ok
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-38`
-
-    # STEP SB-39
-    # DO: CallMcpTool server "user-mimir" toolName "link_artifact_to_activity" arguments {"artifact_id":"<MCP_ARTIFACT_PK>","activity_id":"<MCP_ACT2_PK>","is_required":true}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_ARTIFACT_INPUT_PK>` JSON `.id`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-39`
-
-    # STEP SB-40
-    # DO: CallMcpTool server "user-mimir" toolName "unlink_artifact_from_activity" arguments {"artifact_input_id":"<MCP_ARTIFACT_INPUT_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-40`
-
-    # STEP SB-41
-    # DO: CallMcpTool server "user-mimir" toolName "delete_artifact" arguments {"artifact_id":"<MCP_ARTIFACT_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-41`
-
-    # STEP SB-42
-    # DO: CallMcpTool server "user-mimir" toolName "create_rule" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>","title":"MCP Rule","content":"Rule content","always_apply":true}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: RECORD `<MCP_RULE_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-42`
-
-    # STEP SB-43
-    # DO: CallMcpTool server "user-mimir" toolName "list_rules" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: contains rule pk
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-43`
-
-    # STEP SB-44
-    # DO: CallMcpTool server "user-mimir" toolName "get_rule" arguments {"rule_id":"<MCP_RULE_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: ok
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-44`
-
-    # STEP SB-45
-    # DO: CallMcpTool server "user-mimir" toolName "update_rule" arguments {"rule_id":"<MCP_RULE_PK>","content":"Updated rule"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: accepted
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-45`
-
-    # STEP SB-46
-    # DO: CallMcpTool server "user-mimir" toolName "set_activity_rules" arguments {"activity_id":"<MCP_ACT1_PK>","rule_ids":["<MCP_RULE_PK>"]}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: echo `<MCP_ACT1_PK>`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-46`
-
-    # STEP SB-47
-    # DO: CallMcpTool server "user-mimir" toolName "delete_rule" arguments {"rule_id":"<MCP_RULE_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-47`
-
-    # STEP SB-48
-    # DO: CallMcpTool server "user-mimir" toolName "export_workflow_to_local" arguments {"workflow_id":"<MCP_SANDBOX_WF_ID>","target_directory":"<MCP_EXPORT_DIR>/sandbox"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: directory with markdown tree; RECORD `<MCP_SANDBOX_EXPORT_SUBDIR>` path having `_Upload_Protocol.md`
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-48`
-
-    # STEP SB-49
-    # DO: CallMcpTool server "user-mimir" toolName "import_workflow_from_local" arguments {"workflow_id":"<MCP_SANDBOX_WF_ID>","source_directory":"<MCP_SANDBOX_EXPORT_SUBDIR>","auto_apply":false}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `changes_count` or diff keys
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-49`
-
-    # STEP SB-50
-    # DO: CallMcpTool server "user-mimir" toolName "apply_upload_protocol" arguments {"protocol_file":"<MCP_SANDBOX_EXPORT_SUBDIR>/_Upload_Protocol.md"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `changes_applied` or analogous success markers
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-50`
-
-    # STEP SB-51
-    # DO: CallMcpTool server "user-mimir" toolName "delete_activity" arguments {"activity_id":"<MCP_ACT2_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-51`
-
-    # STEP SB-52
-    # DO: CallMcpTool server "user-mimir" toolName "delete_activity" arguments {"activity_id":"<MCP_ACT1_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-52`
-
-    # STEP SB-53
-    # DO: CallMcpTool server "user-mimir" toolName "delete_phase" arguments {"phase_id":"<MCP_PHASE_A_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-53`
-
-    # STEP SB-54
-    # DO: CallMcpTool server "user-mimir" toolName "delete_phase" arguments {"phase_id":"<MCP_PHASE_B_PK>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-54`
-
-    # STEP SB-55
-    # DO: CallMcpTool server "user-mimir" toolName "delete_workflow" arguments {"workflow_id":"<MCP_SANDBOX_WF_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-55`
-
-    # STEP SB-56
-    # DO: CallMcpTool server "user-mimir" toolName "delete_playbook" arguments {"playbook_id":"<MCP_SANDBOX_PB_ID>"}
-    # NOTE: replace `<…PK/B_ID…>` tokens in JSON with bare integer literals before calling.
-    # SEE: `deleted`: true — GUI canonical playbook unaffected
-    # IF DIFFER: Bug — snapshot MCP JSON/error; cite UAT-04-02 `SB-56`
-
+# Journey 3B — Visibility isolation: public vs private playbooks in GUI
+#############################################################################
+
+  @manual @uat @act-2 @visibility
+  Scenario: UAT-03-05 Other-user public vs private playbook appears/blocked in GUI list + detail
+    # Pre: admin is a separate Django user (createsuperuser). UAT user is logged in as uat_user.
+    # STEP admin-create-public
+    # DO: in a separate browser session, login as admin; GET `/playbooks/create/`
+    # DO: name `Admin Public Playbook`; description ≥40 chars; visibility `public`; complete wizard
+    # RECORD `<ADMIN_PUBLIC_PB_ID>` from detail URL
+    # STEP admin-create-private
+    # DO: still as admin, create another playbook: name `Admin Private Playbook`; visibility `private`
+    # RECORD `<ADMIN_PRIVATE_PB_ID>` from detail URL
+    # STEP list-public-visible
+    # DO: as uat_user, GET `/playbooks/`
+    # SEE: `[data-testid="public-playbooks-section"]` (or equivalent section heading) contains card referencing `Admin Public Playbook`
+    # IF DIFFER: UAT-03-05 list-public-visible
+    # STEP list-private-absent
+    # SEE: `Admin Private Playbook` is absent from entire page
+    # IF DIFFER: UAT-03-05 list-private-absent
+    # STEP public-detail-200
+    # DO: GET `/playbooks/<ADMIN_PUBLIC_PB_ID>/`
+    # SEE: playbook detail renders (HTTP 200); `[data-testid="edit-playbook-btn"]` and `[data-testid="delete-playbook-btn"]` are NOT present (read-only view for non-owner)
+    # IF DIFFER: UAT-03-05 public-detail-200
+    # STEP public-workflow-200
+    # DO: GET the URL of a workflow inside `<ADMIN_PUBLIC_PB_ID>` (from workflows table on detail page)
+    # SEE: workflow detail renders (HTTP 200)
+    # IF DIFFER: UAT-03-05 public-workflow-200
+    # STEP private-detail-404
+    # DO: GET `/playbooks/<ADMIN_PRIVATE_PB_ID>/`
+    # SEE: HTTP 404 (or Django permission redirect — document actual response IF DIFFER)
+    # IF DIFFER: UAT-03-05 private-detail-404
+    # STEP private-workflow-404
+    # DO: GET any workflow URL inside `<ADMIN_PRIVATE_PB_ID>` (construct from known PK pattern if needed)
+    # SEE: HTTP 404
+    # IF DIFFER: UAT-03-05 private-workflow-404
+
+  @manual @uat @act-2 @visibility
+  Scenario: UAT-03-05b Toggle own playbook Private → Public → Private; nested routes follow visibility
+    # Pre: uat_user owns `<GUI_PLAYBOOK_ID>` (currently Private from UAT-03-01).
+    # STEP toggle-to-public
+    # DO: GET `/playbooks/<GUI_PLAYBOOK_ID>/edit/`; change `[data-testid="playbook-visibility-select"]` to `public`; submit
+    # SEE: playbook detail `[data-testid="visibility-badge"]` (or equivalent) shows `Public`
+    # IF DIFFER: UAT-03-05b toggle-to-public
+    # STEP admin-sees-public-detail
+    # DO: in admin browser session, GET `/playbooks/<GUI_PLAYBOOK_ID>/`
+    # SEE: HTTP 200, playbook detail renders; no Edit/Delete controls visible for admin (non-owner)
+    # IF DIFFER: UAT-03-05b admin-sees-public-detail
+    # STEP admin-sees-public-workflow
+    # DO: admin browser GET URL of `UAT Workflow` inside `<GUI_PLAYBOOK_ID>`
+    # SEE: HTTP 200
+    # IF DIFFER: UAT-03-05b admin-sees-public-workflow
+    # STEP revert-to-private
+    # DO: as uat_user, edit `<GUI_PLAYBOOK_ID>` → visibility `private`; submit
+    # SEE: visibility badge confirms `Private`
+    # IF DIFFER: UAT-03-05b revert-to-private
+    # STEP admin-blocked-after-revert
+    # DO: admin browser GET `/playbooks/<GUI_PLAYBOOK_ID>/`
+    # SEE: HTTP 404 (non-owner cannot access private playbook)
+    # IF DIFFER: UAT-03-05b admin-blocked-after-revert
+    # STEP admin-workflow-404-after-revert
+    # DO: admin browser GET the workflow URL inside `<GUI_PLAYBOOK_ID>`
+    # SEE: HTTP 404
+    # IF DIFFER: UAT-03-05b admin-workflow-404-after-revert
+    # STEP delete-warning-modal-cancel
+    # DO: as uat_user (playbook now Private), open delete modal via `[data-testid="delete-playbook-btn"]`
+    # SEE: `[data-testid="delete-modal"]` (or equivalent) renders with warning text referencing cascading deletion
+    # DO: click Cancel; playbook detail still visible; playbook not deleted
+    # NOTE: leave `<GUI_PLAYBOOK_ID>` as Private for Journey 5 (release flow)
+
+  # → MCP author-scoping proof (list_playbooks/get_playbook ignore GUI visibility)
+  #   is covered by mcp-uat-flow.feature MCP-01b.
+#############################################################################
+# Journey 4A — MCP tooling against GUI playbook → see mcp-uat-flow.feature
+#############################################################################
+  # MCP-01: not-found negative guards
+  # MCP-02: MCP read/write/link verbs against GUI entities (GUI-01 … GUI-19)
+  # MCP-03: read-back verification (list/get all entity types)
+  # Run mcp-uat-flow.feature MCP-01/02/03 after completing Journey 3.
+
+  # → MCP full lifecycle sandbox (53 tools + export/import + teardown)
+  #   is covered by mcp-uat-flow.feature MCP-02 through MCP-05.
 #############################################################################
 # Journey 5 — Release GUI playbook v1.0 + Released edit prohibition
 ############################################################################
@@ -778,21 +355,14 @@ Feature: Mimir E2E UAT — strict linear operator script (browser + CallMcpTool 
     # STEP Forbidden edit AFTER release canonical message
     # DO: revisit `/playbooks/<GUI_PLAYBOOK_ID>/edit/`
     # SEE: redirects detail with Django flash `[data-testid=\"alert-message\"]` EXACT `You don't have permission to edit this playbook.`
-
-
 #############################################################################
-# Journey 4B — Post-release MCP denial (execute after UAT-05-01)
-############################################################################
-
-  @manual @uat @act-12 @mcp-full
-  Scenario: UAT-04-03 Released playbook mutation MCP denial
-    # DO: MCP TOKEN `<UAT_TOKEN>`
-    # DO: CallMcpTool `"update_activity"` JSON (substitute ints) `{\"activity_id\":<ACT_ALPHA_PK>,\"guidance\":\"## post-release illicit edit\"}`
-    # SEE: MCP tool error substring `Cannot modify released playbook` AND `Use create_pip instead`
-
-
+# Journey 4B — Post-release MCP mutation guard → see mcp-uat-flow.feature
 #############################################################################
-# Journey 6 — PIPs UI + MCP drill + Galdr badges
+  # MCP-07: update_activity on released playbook must fail with
+  #         "Cannot modify released playbook — use create_pip instead".
+  # Run mcp-uat-flow.feature MCP-07 immediately after UAT-05-01.
+#############################################################################
+# Journey 6 — PIPs browser UI + Galdr badges (MCP PIP lifecycle in mcp-uat-flow.feature)
 ############################################################################
 
   @manual @uat @act-9-list
@@ -842,52 +412,28 @@ Feature: Mimir E2E UAT — strict linear operator script (browser + CallMcpTool 
     # DO: `[data-testid=\"pip-submit-review\"]` POST form `[data-testid=\"pip-submit-form\"]`
     # SEE: redirected `/pips/<PIP_GUI_PK>/`; banner `[data-testid=\"pip-status-banner\"]` substring `Submitted — awaiting Galdr processing.` (text from ``PIP_DETAIL_STATIC_BANNERS[submitted]``)
 
-  @manual @uat @mcp-pip-neg
-  Scenario: UAT-06-03-neg MCP lifecycle negatives on ephemeral draft playbook
-    # Pre: create MCP `create_playbook` disposable name `PIP Neg Draft MCP` RECORD `<PIP_NEG_DRAFT_PB_ID>` NEVER release it.
-    # DO: MCP `create_pip` playbook_id substituted `<PIP_NEG_DRAFT_PB_ID>`
-    # SEE: ValueError / tool error substring `PIP targets must be Released playbooks.`
-    # DO: MCP `cancel_pip` against random unrelated id belonging to stranger (if obtainable) documenting permission text — optional skip documenting reason
-    #
-    Cleanup: MCP `delete_playbook` targeting `<PIP_NEG_DRAFT_PB_ID>` WHEN safe (no dependents). IF blocked, leave note manual admin cleanup.
-
-
-  @manual @uat @mcp-pip-positive
-  Scenario: UAT-06-04 MCP PIP ALTER Beta + ADD MCP-Gamma path RECORD <PIP_MCP_PK>
-    # DO: MCP `create_pip` arguments `{\"playbook_id\":<GUI_PLAYBOOK_ID>,\"title\":\"Act 9 acceptance — MCP ALTER Beta + ADD MCP-Gamma\",\"summary\":\"Second PIP via Mimir MCP tools.\"}`
-    # RECORD `.pip[\"id\"] as <PIP_MCP_PK>`
-    # DO: MCP `add_pip_change` ALTER Activity Beta guidance `## MCP ALTER\n\nBeta guidance updated via MCP.`
-    # DO: MCP `add_pip_change` ADD Activity name `Activity MCP-Gamma`; parent_workflow_id `<GUI_WORKFLOW_ID>`; append_to_playbook_end true ; guidance ascii snippet `MCP-Gamma`
-    # DO: MCP `get_pip` verifies status draft + TWO changes pending
-    # DO: MCP `list_pips` scope `mine` includes `<PIP_MCP_PK>`
-    # DO: MCP `submit_pip` queues Galdr pipeline
-    # SEE: stabilized status eventually `processing_galdr`/`reviewed` respecting `GALDR_EAGER` — track via MCP `get_pip` repetitions documenting timeline
-
-  @manual @uat @mcp-pip-modify-cancel
-  Scenario: UAT-06-05 MCP remove_pip_change + cancel_pip on disposable RECORD ids
-    # DO: MCP `create_pip` title `UAT disposable draft PIP`; summary filler
-    # RECORD `<PIP_DISPOSABLE_PK>`
-    # DO: MCP `add_pip_change` ADD Activity placeholder `Throwaway` minimal body binding parent workflow numeric `<GUI_WORKFLOW_ID>` append end true RECORD `<DISPOSABLE_CHANGE_PK>`
-    # DO: MCP `remove_pip_change` pip/disposable change pair
-    # DO: MCP `cancel_pip` withdrawn state
-    # SEE: MCP `get_pip` afterward raises not-found OR status withdrawn per service semantics
+  # → MCP PIP lifecycle (create_pip, add_pip_change, get_pip, list_pips, submit_pip,
+  #   remove_pip_change, cancel_pip, and negatives) is covered by:
+  #   mcp-uat-flow.feature MCP-08 (main PIP MCP flow RECORD <PIP_MCP_PK>)
+  #   mcp-uat-flow.feature MCP-08b (disposable PIP drill)
+  #   mcp-uat-flow.feature MCP-08c (create_pip on draft → error)
+  # Run those scenarios after UAT-06-02.
 
   @manual @uat @act-9-galdr-detail
   Scenario: UAT-06-06 Detail Galdr + admin accordion instrumentation (dual PIPs)
+    # NOTE: <PIP_MCP_PK> is RECORDED in mcp-uat-flow.feature MCP-08 — complete that scenario first.
     # DO: visit `/pips/<PIP_MCP_PK>/` after Galdr settles (fallback Appendix B manual promote)
     # SEE: accordion `[data-testid=\"pip-change-1\"]` etc exposes `[data-testid=\"galdr-verdict-1\"]` when populated OR absence documented; status banner transitions `Reviewed — awaiting Administrator decision.` when matched
     # DO: symmetrical pass `/pips/<PIP_GUI_PK>/`
-
-
 #############################################################################
-# Journey 7 — Admin finalize accepted + MCP/GUI confirmations
+# Journey 7 — Admin finalize accepted + GUI verify (MCP inventory in mcp-uat-flow MCP-11)
 ############################################################################
 
   @manual @uat @admin
   Scenario: UAT-07-01 Django admin Accept inline decisions + mass-finalize RECORD emails
     # DO: authenticate admin `/admin/`
     # DO: `/admin/methodology/processimprovementproposal/<PIP_GUI_PK>/change/` set status `Reviewed` if stranded; EACH inline PipChange `admin_decision` Accept SAVE
-    # DO: repeat sibling `<PIP_MCP_PK>`
+    # DO: repeat sibling `<PIP_MCP_PK>` (RECORDED in mcp-uat-flow.feature MCP-08)
     # DO: `/admin/methodology/processimprovementproposal/` select rows BOTH PIPs ACTION `Finalize reviewed PIPs (apply accepted changes + notify)` Run
     # SEE: success flash lines cite `Finalised PIP-<id>` synonyms
     # DO: Gmail `<UAT_EMAIL>` subject substring referencing PIP title(s)
@@ -899,47 +445,30 @@ Feature: Mimir E2E UAT — strict linear operator script (browser + CallMcpTool 
     # SEE: references both PIPs / history rows cross-linking bumped versions narrative
     # DO: BOTH `/pips/<PIP_GUI_PK>/` + `/pips/<PIP_MCP_PK>/` status `Accepted`; badges `[data-testid=\"admin-verdict-<order>\"]`
 
-  @manual @uat @mcp-closure
-  Scenario: UAT-07-03 MCP post-final inventories
-    # DO: `list_playbooks` released filter verifying major `3.0`
-    # DO: `list_activities` verifying ordered names textual includes `Activity Alpha`, `Activity Beta`, `Activity MCP-Gamma`, `Activity Gamma`
-    # DO: `get_pip` each `<PIP_GUI_PK>` `<PIP_MCP_PK>` status `accepted`
-
-
+  # → Post-finalize MCP inventory (list_playbooks released, list_activities,
+  #   get_pip status accepted) is covered by mcp-uat-flow.feature MCP-11.
+  # Run mcp-uat-flow.feature MCP-11 after completing UAT-07-02.
 #############################################################################
-# APPENDIX A — MCP 61-tool checklist (scenario crosswalk)
-############################################################################
-  # Tick each `[x]` alongside replay. Mirrors ``tests/integration/test_mcp_e2e_all_tools.py`` naming.
-  # Playbooks CRUDLF — UAT-04-02 + UAT-04-01 subsets + UAT-04-03 denial + UAT-04-00 negative
-  # Workflows CRUDLF — sandbox + GUI read/export
-  # Activities CRUF + predecessor — GUI+MCP interplay
-  # Phases CRUD reorder — sandbox
-  # Skills agents artifacts rules analogous — GUI + sandbox
-  # Export/import/apply protocol — sandbox
-  # ``create_pip_from_protocol`` — optional post UAT-07-03 exercised manually (released workflow export)
-  # PIP MCP eight tools — journeys 06-04 … 06-05 + negatives 06-03-neg
-
-
+# APPENDIX A — MCP 61-tool checklist → see mcp-uat-flow.feature
+#############################################################################
+  # All MCP tool coverage (Playbooks/Workflows/Activities/Phases/Skills/Agents/
+  # Artifacts/Rules CRUDLF, export/import/apply, create_pip_from_protocol,
+  # PIP 8-tool lifecycle) is exercised in mcp-uat-flow.feature.
+  # The browser-only E2E file contains no MCP calls — no checklist needed here.
 #############################################################################
 # APPENDIX B — Galdr failure / rollback workaround
 ############################################################################
   # If PIP stalls `Submitted`: set ``GALDR_EAGER=True`` + restart server OR run ``python manage.py run_galdr <pip_pk>``
   # OR Django admin forcibly transitions status `Reviewed` before finalize (annotate runbook).
-
-
 #############################################################################
 # APPENDIX C — Traceability (UAT scenarios → specs)
 ############################################################################
   # | UAT id | Representative act feature dir |
   # | UAT-01-xx | docs/features/act-0-auth/*.feature |
   # | UAT-03-xx | docs/features/act-2-playbooks + act-4 … act-8 |
-  # | UAT-06/07 | docs/features/act-9-pips + act-13-mcp |
-
-
+  # | UAT-06/07 | docs/features/act-9-pips (browser); act-13-mcp → mcp-uat-flow.feature |
 #############################################################################
 # APPENDIX D — Spec vs implementation note + optional branching
 ############################################################################
   # When SEE diverges materially, FIRST confirm whether DEVIATIONS block intentionally documents mismatch.
   # Optional exploratory branch AFTER happy path: deliberately reject single change combinations (UAT-07-04) — defer unless stakeholders request destructive admin experiment on disposable clone.
-
-

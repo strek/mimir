@@ -13,9 +13,9 @@ on:
   workflow_dispatch:
 
 env:
-  # Azure Container Registry (existing)
-  ACR_LOGIN_SERVER: acrmimir.azurecr.io
-  # AWS ECR — activate by setting AWS_ACCOUNT_ID and AWS_REGION as repository variables
+  # Docker Hub — public MCP facade image (secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN)
+  DOCKERHUB_IMAGE: featurefactory/mimir-mcp
+  # AWS ECR — activate by setting AWS_ACCOUNT_ID and AWS_REGION as repository variables (web image only)
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
 
 jobs:
@@ -107,13 +107,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ── Azure Container Registry ──────────────────────────────────────────
-      - name: Log in to Azure Container Registry
+      # ── Docker Hub (MCP facade) ───────────────────────────────────────────
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # ── AWS ECR (optional — enabled when AWS_ACCOUNT_ID variable is set) ──
       - name: Configure AWS credentials
@@ -142,20 +141,7 @@ jobs:
             echo "latest=false" >> $GITHUB_OUTPUT
           fi
 
-      # ── Web image (Dockerfile) ────────────────────────────────────────────
-      - name: Build and push web image → ACR
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          tags: |
-            ${{ env.ACR_LOGIN_SERVER }}/mimir:${{ steps.tag.outputs.suffix }}
-            ${{ steps.tag.outputs.latest == 'true' && format('{0}/mimir:latest', env.ACR_LOGIN_SERVER) || '' }}
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,scope=web,mode=max
-          platforms: linux/amd64,linux/arm64
-
+      # ── Web image (Dockerfile) — private ECR only ─────────────────────────
       - name: Build and push web image → ECR
         if: vars.AWS_ACCOUNT_ID != ''
         uses: docker/build-push-action@v5
@@ -167,33 +153,21 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/mimir:${{ steps.tag.outputs.suffix }}
             ${{ steps.tag.outputs.latest == 'true' && format('{0}/mimir:latest', steps.ecr-login.outputs.registry) || '' }}
           cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
           platforms: linux/amd64,linux/arm64
 
-      # ── MCP facade image (Dockerfile.mcp) ─────────────────────────────────
-      - name: Build and push MCP facade image → ACR
+      # ── MCP facade image (Dockerfile.mcp) — Docker Hub ───────────────────────
+      - name: Build and push MCP facade image → Docker Hub
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile.mcp
           push: true
           tags: |
-            ${{ env.ACR_LOGIN_SERVER }}/mimir-mcp-facade:${{ steps.tag.outputs.suffix }}
-            ${{ steps.tag.outputs.latest == 'true' && format('{0}/mimir-mcp-facade:latest', env.ACR_LOGIN_SERVER) || '' }}
+            ${{ env.DOCKERHUB_IMAGE }}:${{ steps.tag.outputs.suffix }}
+            ${{ steps.tag.outputs.latest == 'true' && format('{0}:latest', env.DOCKERHUB_IMAGE) || '' }}
           cache-from: type=gha,scope=mcp-facade
           cache-to: type=gha,scope=mcp-facade,mode=max
-          platforms: linux/amd64,linux/arm64
-
-      - name: Build and push MCP facade image → ECR
-        if: vars.AWS_ACCOUNT_ID != ''
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.mcp
-          push: true
-          tags: |
-            ${{ steps.ecr-login.outputs.registry }}/mimir-mcp-facade:${{ steps.tag.outputs.suffix }}
-            ${{ steps.tag.outputs.latest == 'true' && format('{0}/mimir-mcp-facade:latest', steps.ecr-login.outputs.registry) || '' }}
-          cache-from: type=gha,scope=mcp-facade
           platforms: linux/amd64,linux/arm64
 
       # ── Deployment summary ────────────────────────────────────────────────
@@ -202,10 +176,10 @@ jobs:
           TAG="${{ steps.tag.outputs.suffix }}"
           echo "## 🚀 Docker Images Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Image | ACR Tag | ECR Tag |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|---------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **web** | \`${{ env.ACR_LOGIN_SERVER }}/mimir:${TAG}\` | \`${{ vars.AWS_ACCOUNT_ID != '' && format('{0}/mimir:{1}', steps.ecr-login.outputs.registry, steps.tag.outputs.suffix) || 'not configured' }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **mcp-facade** | \`${{ env.ACR_LOGIN_SERVER }}/mimir-mcp-facade:${TAG}\` | \`${{ vars.AWS_ACCOUNT_ID != '' && format('{0}/mimir-mcp-facade:{1}', steps.ecr-login.outputs.registry, steps.tag.outputs.suffix) || 'not configured' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | Docker Hub (MCP facade) | Private ECR (web only) |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------------------------|-------------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **web** | — | \`${{ vars.AWS_ACCOUNT_ID != '' && format('{0}/mimir:{1}', steps.ecr-login.outputs.registry, steps.tag.outputs.suffix) || 'not configured' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **mcp-facade** | \`${{ env.DOCKERHUB_IMAGE }}:${TAG}\` | — |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Quick start with docker compose:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
@@ -259,7 +233,7 @@ jobs:
       - name: Generate docker-compose.yml from template
         env:
           IMAGE_WEB: ${{ steps.ecr-login.outputs.registry }}/mimir:${{ steps.version.outputs.suffix }}
-          IMAGE_MCP: ${{ steps.ecr-login.outputs.registry }}/mimir-mcp-facade:${{ steps.version.outputs.suffix }}
+          IMAGE_MCP: ${{ env.DOCKERHUB_IMAGE }}:${{ steps.version.outputs.suffix }}
         run: |
           envsubst '$IMAGE_WEB $IMAGE_MCP' < deploy/docker-compose.tmpl.yml > docker-compose.yml
           echo "=== Deployment manifest ===" && cat docker-compose.yml
@@ -332,4 +306,4 @@ jobs:
           echo "| **Version label** | \`${LABEL}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Environment** | \`${{ env.EB_ENV }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Web image** | \`${{ steps.ecr-login.outputs.registry }}/mimir:${{ steps.version.outputs.suffix }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **MCP image** | \`${{ steps.ecr-login.outputs.registry }}/mimir-mcp-facade:${{ steps.version.outputs.suffix }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **MCP image** | \`${{ env.DOCKERHUB_IMAGE }}:${{ steps.version.outputs.suffix }}\` |" >> $GITHUB_STEP_SUMMARY

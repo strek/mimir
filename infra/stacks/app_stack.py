@@ -24,7 +24,8 @@ class MimirApp(Stack):
     deployment (Docker image SHA) is handled by the CI/CD pipeline.
 
     Resource names match existing AWS resources for easy ``cdk import``:
-        ECR repos   mimir, mimir-mcp-facade  (already exist — imported, not created)
+        ECR repo    mimir          (private — EB web container)
+                    mimir-mcp-facade  (legacy artifact; MCP facade ships from Docker Hub: featurefactory/mimir-mcp)
         EB app      mimir
         EB envs     mimir-blue, mimir-green
         IAM roles   aws-elasticbeanstalk-ec2-role / aws-elasticbeanstalk-service-role

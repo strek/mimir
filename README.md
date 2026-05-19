@@ -97,7 +97,7 @@ curl -s -X POST http://localhost:8000/api/auth/token/ \
 
 ### Step 3 — Configure MCP in your IDE
 
-The MCP facade is a **public image** — no registry auth needed.
+The MCP facade is published as a **public Docker Hub image** (`featurefactory/mimir-mcp`) — no registry login needed.
 
 **Windsurf** (`~/.codeium/windsurf/mcp_config.json`), **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`), **Cursor** (`~/.cursor/mcp.json`):
 
@@ -111,7 +111,7 @@ The MCP facade is a **public image** — no registry auth needed.
         "-e", "BASE_URL=http://localhost:8000",
         "-e", "TOKEN=<your-token>",
         "-e", "MCP_TRANSPORT=stdio",
-        "public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest"
+        "featurefactory/mimir-mcp:latest"
       ]
     }
   }
@@ -124,9 +124,7 @@ Replace `<your-token>` with the token from Step 2. Restart your IDE after saving
 
 See [docs/DOCKER_QUICK_START.md](docs/DOCKER_QUICK_START.md) for docker-compose setup and full reference.
 
----
-
-## Installation (For Development)
+Maintainers publishing from CI configure GitHub Actions secrets **`DOCKERHUB_USERNAME`** and **`DOCKERHUB_TOKEN`** — the workflow builds `Dockerfile.mcp` as **`featurefactory/mimir-mcp`** on each qualifying push (`main`, `release/**`, `feat/**`, releases, workflow dispatch). Legacy Azure Container Registry **`acrmimir`** was removed from the pipeline; when it is unused, tear it down in Azure (e.g. `az login` then `az acr delete --name acrmimir --yes`) and remove GitHub secrets **`ACR_USERNAME`** / **`ACR_PASSWORD`** if still present.
 
 ### Prerequisites
 
@@ -250,7 +248,7 @@ Register at [mimir.featurefactory.io](https://mimir.featurefactory.io/auth/regis
         "-e", "BASE_URL=https://mimir.featurefactory.io",
         "-e", "TOKEN=<your-token>",
         "-e", "MCP_TRANSPORT=stdio",
-        "public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest"
+        "featurefactory/mimir-mcp:latest"
       ]
     }
   }
@@ -349,7 +347,7 @@ All tools support async operations and validate user permissions automatically.
      -e BASE_URL=http://localhost:8000 \
      -e TOKEN=<your-token> \
      -e MCP_TRANSPORT=stdio \
-     public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest
+     featurefactory/mimir-mcp:latest
    ```
    Send `{"jsonrpc":"2.0","method":"tools/list","id":1}` — you should get a list of 53 tools.
 
@@ -359,7 +357,7 @@ All tools support async operations and validate user permissions automatically.
    - **Cursor**: Check IDE console for MCP connection errors
 
 4. **Common issues:**
-   - **"Image not found"**: Run `docker pull public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest`
+   - **"Image not found"**: Run `docker pull featurefactory/mimir-mcp:latest`
    - **"Unauthorized"**: Token expired — regenerate at your profile page
    - **"Connection refused"**: FOB not running — check `docker ps | grep mimir-fob`
 

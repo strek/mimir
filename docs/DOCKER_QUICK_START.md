@@ -5,7 +5,7 @@ Two containers make up the Mimir stack:
 | Container | Image | Purpose |
 |-----------|-------|---------|
 | **FOB** (web app) | `411113550285.dkr.ecr.us-east-1.amazonaws.com/mimir:latest` | Django UI + REST API |
-| **MCP Facade** | `public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest` | Connects your AI IDE to FOB |
+| **MCP Facade** | `featurefactory/mimir-mcp:latest` | Connects your AI IDE to FOB |
 
 ---
 
@@ -65,7 +65,9 @@ Copy the token — you'll need it for the MCP facade and your IDE config.
 
 ## Connecting Your IDE to the MCP Facade
 
-The MCP facade (`public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest`) is a public image — no registry auth needed.
+The MCP facade (`featurefactory/mimir-mcp:latest`) is a public Docker Hub image — no registry login needed.
+
+> **Note:** Older guides referenced `public.ecr.aws/h1b6q4p0/mimir-mcp-facade`; use Docker Hub (`featurefactory/mimir-mcp`) instead.
 
 ### Windsurf — `~/.codeium/windsurf/mcp_config.json`
 
@@ -79,7 +81,7 @@ The MCP facade (`public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest`) is a public i
         "-e", "BASE_URL=https://mimir.featurefactory.io",
         "-e", "TOKEN=<your-token>",
         "-e", "MCP_TRANSPORT=stdio",
-        "public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest"
+        "featurefactory/mimir-mcp:latest"
       ]
     }
   }
@@ -98,7 +100,7 @@ The MCP facade (`public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest`) is a public i
         "-e", "BASE_URL=https://mimir.featurefactory.io",
         "-e", "TOKEN=<your-token>",
         "-e", "MCP_TRANSPORT=stdio",
-        "public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest"
+        "featurefactory/mimir-mcp:latest"
       ]
     }
   }
@@ -117,7 +119,7 @@ The MCP facade (`public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest`) is a public i
         "-e", "BASE_URL=https://mimir.featurefactory.io",
         "-e", "TOKEN=<your-token>",
         "-e", "MCP_TRANSPORT=stdio",
-        "public.ecr.aws/h1b6q4p0/mimir-mcp-facade:latest"
+        "featurefactory/mimir-mcp:latest"
       ]
     }
   }
@@ -168,7 +170,8 @@ docker stop mimir-fob
 # Update to latest
 docker stop mimir-fob && docker rm mimir-fob
 docker pull 411113550285.dkr.ecr.us-east-1.amazonaws.com/mimir:latest
-# re-run with same docker run command above
+docker pull featurefactory/mimir-mcp:latest
+# re-run with same docker run command above for FOB; IDE/container uses latest MCP image on next `docker run`
 ```
 
 ## Troubleshooting
