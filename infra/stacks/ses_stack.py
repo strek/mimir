@@ -134,7 +134,12 @@ class MimirSes(Stack):
                     sid="AllowSESSend",
                     effect=iam.Effect.ALLOW,
                     actions=["ses:SendEmail", "ses:SendRawEmail"],
-                    resources=[_SES_IDENTITY_ARN],
+                    resources=[
+                        _SES_IDENTITY_ARN,
+                        # django-ses passes the configuration set on every send;
+                        # SES requires the config-set ARN to also be in the resource list.
+                        f"arn:aws:ses:{REGION}:{ACCOUNT_ID}:configuration-set/mimir-transactional",
+                    ],
                 ),
                 # django-ses calls ses:GetSendQuota on every send to throttle
                 # outbound rate. This action is account-scoped (no resource ARN).
