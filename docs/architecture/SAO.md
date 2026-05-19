@@ -2071,6 +2071,86 @@ Improved PIP proposals next time
 - **Tyr AI**: Task planning and work order generation
 - **Saga AI**: Retrospection and improvement suggestions
 
+## CI/CD Pipeline
+
+### Overview
+
+Mimir uses a single GitHub Actions workflow (`.github/workflows/build-and-deploy.yml`) that
+runs on every push and on published GitHub Releases. It has three sequential jobs:
+
+```
+push / release event
+       │
+       ▼
+  ┌─────────┐     ┌──────────────────┐     ┌──────────────┐
+  │  Tests  │────▶│ Build & Push     │────▶│ Deploy to EB │
+  │ pytest  │     │ Docker images    │     │ (release only)│
+  └─────────┘     └──────────────────┘     └──────────────┘
+```
+
+### Trigger Matrix
+
+| Event | Tests | Docker build+push | EB deploy |
+|-------|-------|-------------------|-----------|
+| Push to `feat/**` | ✅ | ✅ | ❌ |
+| Push to `main` | ✅ | ✅ | ❌ |
+| Push to `release/**` | ✅ | ✅ | ❌ |
+| **GitHub Release published** | ✅ | ✅ | **✅** |
+| `workflow_dispatch` | ✅ | ✅ | ✅ |
+
+**Key rule:** only a published GitHub Release (or manual dispatch) deploys to Elastic Beanstalk.
+`release/**` pushes build and test but never deploy — this eliminates the race condition where
+a push-triggered run and a release-event run would both attempt `UpdateEnvironment` simultaneously
+and one would fail with `InvalidParameterValue: Must be Ready`.
+
+### Docker Images
+
+Two images are built on every qualifying push:
+
+| Image | Registry | Purpose |
+|-------|----------|---------|
+| `featurefactory/mimir-mcp:<tag>` | Docker Hub (public) | MCP facade for end-users |
+| `<ecr>/mimir:<tag>` | AWS ECR (private) | Web app deployed to EB |
+
+Tag format: `{branch-slug}-{short-sha}` (e.g. `release-0.0.6-fb4ea55`).
+On `main`, images are also tagged `:latest`.
+
+### Release Process
+
+```
+# 1. Create release branch from current work
+git checkout -b release/X.Y.Z
+
+# 2. Push (CI runs tests + builds Docker images — no deploy yet)
+git push -u origin release/X.Y.Z
+
+# 3. Publish the GitHub Release (this is the sole deploy trigger)
+gh release create vX.Y.Z --title "..." --target release/X.Y.Z --notes "..."
+
+# 4. Merge release branch into main
+git checkout main && git merge release/X.Y.Z && git push origin main
+```
+
+### Elastic Beanstalk Deployment
+
+- **Application**: `mimir`
+- **Environment**: `mimir-blue`
+- **Region**: `us-east-1`
+- **Deploy mechanism**: docker-compose bundle uploaded to S3, applied via `update-environment`
+- **Version label format**: `v-{branch}-{sha}-r{run_number}` (run_number ensures uniqueness on retries)
+- **Health polling**: 15 s interval, 10-minute timeout, fails if environment stays non-Ready
+
+The deploy job generates `docker-compose.yml` from `deploy/docker-compose.tmpl.yml` by
+substituting `$IMAGE_WEB` (ECR) and `$IMAGE_MCP` (Docker Hub) with the exact SHA-tagged
+images built in the preceding job.
+
+### Known Operational Notes
+
+| Issue | Root Cause | Fix applied |
+|-------|-----------|-------------|
+| ELB health checks returning 400 (Red for 8+ days) | Django `ALLOWED_HOSTS` did not include the EC2 instance's private IP; ELB target-group health checker uses `Host: <instance-ip>` | `prod.py` now fetches the private IP from IMDSv2 at startup and appends it to `ALLOWED_HOSTS` |
+| `UpdateEnvironment: Must be Ready` on release runs | Push-triggered run and release-event run both reaching the deploy step at the same time | Deploy job now only fires on `release` / `workflow_dispatch` events — `release/**` pushes never deploy |
+
 ## Email Architecture
 
 ### Overview
