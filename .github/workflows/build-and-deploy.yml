@@ -191,15 +191,11 @@ jobs:
     name: Deploy to Elastic Beanstalk (mimir-blue)
     needs: build-and-push
     runs-on: ubuntu-latest
-    # Prevent concurrent EB deploys — queue them so only one runs at a time.
-    concurrency:
-      group: eb-deploy-mimir-blue
-      cancel-in-progress: false
-    # Only deploy from release branches, published releases, or manual dispatch.
-    # AWS_ACCOUNT_ID variable must be set; feat/** pushes intentionally excluded.
+    # Only deploy on a published GitHub release or manual dispatch.
+    # release/** pushes intentionally excluded — they just build+test.
+    # This prevents the push and release events from racing each other to EB.
     if: >
       vars.AWS_ACCOUNT_ID != '' && (
-        (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release/')) ||
         github.event_name == 'release' ||
         github.event_name == 'workflow_dispatch'
       )
