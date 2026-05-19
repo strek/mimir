@@ -75,6 +75,11 @@
                             <img src="{% static 'images/cursor.svg' %}" height="16" alt="" class="brand-icon me-1" style="vertical-align: text-top;"> Cursor
                         </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-source" data-bs-toggle="tab" data-bs-target="#pane-source" type="button" role="tab">
+                            <i class="fab fa-github me-1"></i> Get Source Code
+                        </button>
+                    </li>
                 </ul>
 
                 <div class="tab-content" id="mcpTabsContent">
@@ -128,6 +133,20 @@
     }
   }
 }</code></pre>
+                    </div>
+                    <div class="tab-pane fade" id="pane-source" role="tabpanel">
+                        <p class="text-muted small mb-2">Self-host Mimir using Docker Compose — web app + MCP facade in one command.</p>
+                        <pre class="bg-dark text-light rounded p-3 small"><code>git clone https://github.com/phainestai/mimir.git
+cd mimir
+cp .env.example .env   # set MIMIR_USER and MIMIR_PASSWORD
+docker compose up -d
+
+# FOB web UI:  http://localhost:8000
+# MCP SSE:     http://localhost:8001/sse</code></pre>
+                        <p class="text-muted small mt-2 mb-0">
+                            Then point your IDE config at <code>MIMIR_SERVER_URL=http://localhost:8000</code> with a locally obtained token.
+                            See <a href="https://github.com/phainestai/mimir/blob/main/docs/DOCKER_QUICK_START.md" target="_blank">DOCKER_QUICK_START.md</a> for full details.
+                        </p>
                     </div>
                 </div>
 
