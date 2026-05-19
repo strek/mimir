@@ -23,6 +23,20 @@ from methodology.services.playbook_service import PlaybookService
 logger = logging.getLogger(__name__)
 
 
+def _playbook_readable_or_404(request, pk):
+    """Return playbook if the logged-in user may view it (owner or public); else Http404."""
+    playbook = get_object_or_404(Playbook, pk=pk)
+    if not playbook.can_view(request.user):
+        logger.info(
+            "User %s denied view on playbook id=%s (visibility=%s)",
+            request.user.username,
+            pk,
+            playbook.visibility,
+        )
+        raise Http404()
+    return playbook
+
+
 # ==================== LIST ====================
 
 @login_required
@@ -37,8 +51,18 @@ def playbook_list(request):
     :return: Rendered list template
     """
     playbooks = PlaybookService.list_playbooks(author=request.user)
-    logger.info(f"User {request.user.username} viewing playbook list ({len(playbooks)} playbooks)")
-    return render(request, 'playbooks/list.html', {'playbooks': playbooks})
+    public_playbooks = PlaybookService.list_public_playbooks(request.user)
+    logger.info(
+        "User %s viewing playbook list (%s owned, %s public by others)",
+        request.user.username,
+        len(playbooks),
+        len(public_playbooks),
+    )
+    return render(
+        request,
+        "playbooks/list.html",
+        {"playbooks": playbooks, "public_playbooks": public_playbooks},
+    )
 
 
 # ==================== CREATE WIZARD ====================
@@ -197,7 +221,7 @@ def playbook_detail(request, pk):
     :param pk: Playbook primary key
     :return: Rendered detail template
     """
-    playbook = get_object_or_404(Playbook, pk=pk)
+    playbook = _playbook_readable_or_404(request, pk)
     workflows = Workflow.objects.filter(playbook=playbook).order_by('order', 'created_at')
     quick_stats = playbook.get_quick_stats()
     can_edit = playbook.can_edit(request.user)
@@ -226,7 +250,7 @@ def playbook_detail(request, pk):
 @login_required
 def playbook_version_snapshot(request, pk, version_slug):
     """Pretty-print one historical ``PlaybookVersion.snapshot_data`` (S13)."""
-    playbook = get_object_or_404(Playbook, pk=pk)
+    playbook = _playbook_readable_or_404(request, pk)
     vn = Decimal(str(version_slug.replace("_", ".")))
 
     from methodology.services.playbook_history_service import get_playbook_version_by_number
@@ -250,7 +274,7 @@ def playbook_version_snapshot(request, pk, version_slug):
 @login_required
 def playbook_versions_compare(request, pk):
     """Split view of two snapshots (JSON) for HISTORY compare (S14)."""
-    playbook = get_object_or_404(Playbook, pk=pk)
+    playbook = _playbook_readable_or_404(request, pk)
     left_slug = request.GET.get("left", "").strip()
     right_slug = request.GET.get("right", "").strip()
     if not left_slug or not right_slug:
@@ -326,9 +350,10 @@ def playbook_edit(request, pk):
             logger.info(f"Playbook {pk} updated by {request.user.username}")
             return redirect('playbook_detail', pk=pk)
         except ValidationError as e:
+            err_msg = e.messages[0] if getattr(e, "messages", None) else str(e)
             return render(request, 'playbooks/edit.html', {
                 'playbook': playbook,
-                'errors': {'name': str(e.message)},
+                'errors': {'name': err_msg},
                 'form_data': request.POST,
                 'tags_string': request.POST.get('tags', ''),
             })
@@ -434,6 +459,15 @@ def playbook_export(request, pk):
     from django.utils.text import slugify
 
     playbook = get_object_or_404(Playbook, pk=pk)
+    if not playbook.is_owned_by(request.user):
+        messages.error(request, "You don't have permission to export this playbook.")
+        logger.info(
+            "User %s denied export on playbook id=%s (not owner)",
+            request.user.username,
+            pk,
+        )
+        return redirect("playbook_list")
+
     logger.info(f"User {request.user.username} exporting playbook {pk}")
 
     data = {

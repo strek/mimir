@@ -30,9 +30,8 @@ class Playbook(models.Model):
     ]
     
     VISIBILITY_CHOICES = [
-        ('private', 'Private (only me)'),
-        ('family', 'Family'),  # TODO: Implement family sharing
-        ('local', 'Local only (not uploaded to Homebase)'),  # TODO: Implement Homebase
+        ('private', 'Private'),
+        ('public', 'Public'),
     ]
     
     STATUS_CHOICES = [
@@ -81,7 +80,13 @@ class Playbook(models.Model):
     
     def is_owned_by(self, user):
         return self.author == user
-    
+
+    def can_view(self, user):
+        """Authenticated owner always sees their playbook; public is readable by any user."""
+        if self.author_id == getattr(user, "pk", None):
+            return True
+        return self.visibility == 'public'
+
     def can_edit(self, user):
         """
         Check if user can directly edit this playbook.

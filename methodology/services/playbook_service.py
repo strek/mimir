@@ -12,6 +12,15 @@ from methodology.models import Playbook, PlaybookVersion, VersionSource, Workflo
 
 logger = logging.getLogger(__name__)
 
+_PLAYBOOK_VISIBILITY_ALLOWED = frozenset({"private", "public"})
+
+
+def _validate_playbook_visibility(visibility: str) -> None:
+    """Raise ValidationError if visibility is not allowed for GUI/MCP creates and updates."""
+    if visibility not in _PLAYBOOK_VISIBILITY_ALLOWED:
+        logger.warning("Rejected playbook visibility value %r (allowed=%s)", visibility, _PLAYBOOK_VISIBILITY_ALLOWED)
+        raise ValidationError("Visibility must be private or public.")
+
 
 def _playbook_release_snapshot(playbook: Playbook) -> dict:
     """JSON-serializable snapshot of playbook structure for PlaybookVersion."""
@@ -45,7 +54,7 @@ class PlaybookService:
         :param category: Category (product/development/research/design/other)
         :param author: User instance
         :param status: draft/active/released/disabled (default: draft)
-        :param visibility: private/family/local (default: private)
+        :param visibility: private or public (default: private)
         :param source: owned/downloaded (default: owned)
         :returns: Created Playbook instance
         :raises ValidationError: If validation fails
@@ -64,7 +73,9 @@ class PlaybookService:
         if not name or not name.strip():
             logger.warning(f"Playbook creation failed: empty name")
             raise ValidationError("Playbook name cannot be empty")
-        
+
+        _validate_playbook_visibility(visibility)
+
         # Set initial version based on status
         initial_version = Decimal('1.0') if status in ['released', 'active'] else Decimal('0.1')
         
@@ -134,7 +145,29 @@ class PlaybookService:
         playbooks = list(queryset)
         logger.info(f"Found {len(playbooks)} playbooks")
         return playbooks
-    
+
+    @staticmethod
+    def list_public_playbooks(exclude_author):
+        """
+        Public playbooks authored by other users (FOB browse section).
+
+        :param exclude_author: Current user; their own public playbooks appear under My Playbooks.
+        :returns: List of Playbook instances, newest first
+        """
+        qs = (
+            Playbook.objects.filter(visibility="public")
+            .exclude(author=exclude_author)
+            .select_related("author")
+            .order_by("-updated_at")
+        )
+        rows = list(qs)
+        logger.info(
+            "Listed %s public playbooks for user id=%s (excluding own)",
+            len(rows),
+            getattr(exclude_author, "pk", exclude_author),
+        )
+        return rows
+
     @staticmethod
     @transaction.atomic
     def update_playbook(playbook_id, **data):
@@ -156,7 +189,10 @@ class PlaybookService:
         logger.info(f"Updating playbook {playbook_id}")
         
         playbook = Playbook.objects.get(pk=playbook_id)
-        
+
+        if "visibility" in data:
+            _validate_playbook_visibility(data["visibility"])
+
         # Check for duplicate name if changing name
         if 'name' in data and data['name'] != playbook.name:
             if Playbook.objects.filter(author=playbook.author, name=data['name']).exists():

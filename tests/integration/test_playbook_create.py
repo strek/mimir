@@ -182,7 +182,7 @@ class TestPlaybookCreateWizard:
         assert response.status_code == 200
         assert b'Must be 10-500 characters' in response.content or b'500 characters' in response.content
     
-    # PB-CREATE-07: Visibility — owner-only help and deferred family/local
+    # PB-CREATE-07: Visibility — Private / Public MVP
     def test_select_visibility_private(self):
         """Test selecting private visibility."""
         data = {
@@ -197,17 +197,58 @@ class TestPlaybookCreateWizard:
         session = self.client.session
         assert session['wizard_data']['visibility'] == 'private'
 
-    def test_visibility_help_and_disabled_options_on_step1(self):
-        """Step 1 shows owner-only help; family/local are coming soon."""
+    def test_select_visibility_public(self):
+        """Test selecting public visibility on Step 1."""
+        data = {
+            'name': 'Public Playbook Test',
+            'description': 'Test description here',
+            'category': 'product',
+            'visibility': 'public',
+        }
+        response = self.client.post(reverse('playbook_create'), data=data)
+
+        assert response.status_code == 302
+        session = self.client.session
+        assert session['wizard_data']['visibility'] == 'public'
+
+    def test_create_playbook_with_public_visibility_full_wizard(self):
+        """Completing wizard with public saves visibility on playbook."""
+        step1_data = {
+            'name': 'Public Wizard PB',
+            'description': 'Test description here with enough characters',
+            'category': 'product',
+            'visibility': 'public',
+        }
+        self.client.post(reverse('playbook_create'), data=step1_data)
+        self.client.post(reverse('playbook_create_step2'), data={'skip': 'true'})
+        response = self.client.post(reverse('playbook_create_step3'), data={'status': 'draft'})
+        assert response.status_code == 302
+        pb = Playbook.objects.get(name='Public Wizard PB')
+        assert pb.visibility == 'public'
+
+    def test_visibility_help_text_on_step1(self):
+        """Step 1 shows Private/Public help text."""
         response = self.client.get(reverse('playbook_create'))
 
         assert response.status_code == 200
         content = response.content.decode('utf-8')
         assert 'data-testid="visibility-help"' in content
-        assert 'only you (the owner)' in content
-        assert 'Family (coming soon)' in content
-        assert 'Local only (coming soon)' in content
-        assert 'disabled' in content
+        assert 'Private' in content
+        assert 'Public' in content
+        assert 'authenticated user' in content.lower()
+
+    def test_legacy_family_visibility_rejected_on_step1(self):
+        """Invalid visibility values are rejected by the ModelForm."""
+        data = {
+            'name': 'Test Playbook',
+            'description': 'Test description here',
+            'category': 'product',
+            'visibility': 'family',
+        }
+        response = self.client.post(reverse('playbook_create'), data=data)
+
+        assert response.status_code == 200
+        assert 'visibility' in response.context['form'].errors
     
     # PB-CREATE-08: Add optional tags
     def test_add_tags(self):
@@ -332,7 +373,8 @@ class TestPlaybookCreateWizard:
         assert b'Test Playbook' in response.content
         assert b'Test description' in response.content
         assert b'data-testid="summary-card"' in response.content
-        assert b'owner-only access' in response.content
+        assert b'data-testid="wizard-summary-visibility"' in response.content
+        assert b'Private' in response.content
         assert b'Released' in response.content
         assert b'Draft' in response.content
     
@@ -370,20 +412,15 @@ class TestPlaybookCreateWizard:
         response = self.client.get(reverse('playbook_list'))
         assert b'Test Playbook' in response.content
     
-    # PB-CREATE-19/20: Family/local visibility deferred in GUI
-    def test_family_visibility_option_deferred(self):
-        """Family option is disabled (coming soon)."""
+    # PB-CREATE-19/20: Legacy Homebase visibilities removed from model — invalid on forms
+    def test_invalid_visibility_choice_not_in_step1_options(self):
+        """Wizard Step 1 only offers Private and Public (no family/local options)."""
         response = self.client.get(reverse('playbook_create'))
         content = response.content.decode('utf-8')
-        assert 'Family (coming soon)' in content
-        assert 'value="family"' in content and 'disabled' in content
-
-    def test_local_visibility_option_deferred(self):
-        """Local option is disabled (coming soon)."""
-        response = self.client.get(reverse('playbook_create'))
-        content = response.content.decode('utf-8')
-        assert 'Local only (coming soon)' in content
-        assert 'value="local"' in content and 'disabled' in content
+        assert 'value="private"' in content
+        assert 'value="public"' in content
+        assert 'value="family"' not in content
+        assert 'value="local"' not in content
     
     # PB-CREATE-21: Auto-increment version on creation
     def test_version_auto_increment(self):

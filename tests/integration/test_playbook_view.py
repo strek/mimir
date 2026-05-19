@@ -1,5 +1,7 @@
 """Integration tests for Playbook VIEW operations."""
 
+from decimal import Decimal
+
 import pytest
 from django.test import Client
 from django.urls import reverse
@@ -79,3 +81,46 @@ class TestPlaybookView:
         
         assert response.status_code == 200
         assert b'data-testid="workflows-section"' in response.content
+
+
+@pytest.mark.django_db
+class TestPlaybookViewVisibility:
+    """Cross-user read access for public vs private playbooks."""
+
+    def test_non_owner_can_view_public_playbook(self):
+        mike = User.objects.create_user(username="mike_view", password="x")
+        maria = User.objects.create_user(username="maria_view", password="x")
+        pb = Playbook.objects.create(
+            name="Public Detail PB",
+            description="Readable by any authenticated user member",
+            category="development",
+            author=mike,
+            visibility="public",
+            status="released",
+            version=Decimal("1.0"),
+        )
+        client = Client()
+        client.force_login(maria)
+        response = client.get(reverse("playbook_detail", kwargs={"pk": pb.pk}))
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert 'data-testid="visibility-badge"' in content
+        assert "Public" in content
+        assert 'data-testid="delete-button"' not in content
+
+    def test_non_owner_gets_404_for_private_playbook(self):
+        mike = User.objects.create_user(username="mike_priv", password="x")
+        maria = User.objects.create_user(username="maria_priv", password="x")
+        pb = Playbook.objects.create(
+            name="Private Detail PB",
+            description="Only owner should open this playbook ok",
+            category="development",
+            author=mike,
+            visibility="private",
+            status="draft",
+            version=Decimal("0.1"),
+        )
+        client = Client()
+        client.force_login(maria)
+        response = client.get(reverse("playbook_detail", kwargs={"pk": pb.pk}))
+        assert response.status_code == 404

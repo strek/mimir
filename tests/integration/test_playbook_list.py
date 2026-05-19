@@ -1,5 +1,7 @@
 """Integration tests for Playbook LIST operation."""
 
+from decimal import Decimal
+
 import pytest
 from django.test import Client
 from django.urls import reverse
@@ -176,3 +178,48 @@ class TestPlaybookList:
         # Should redirect to login
         assert response.status_code == 302
         assert '/auth/user/login/' in response.url
+
+
+@pytest.mark.django_db
+class TestPlaybookListPublicSection:
+    """Public playbooks from other authors appear in browse section."""
+
+    def test_public_playbook_from_other_author_visible(self):
+        maria = User.objects.create_user(username="maria", password="x")
+        mike = User.objects.create_user(username="mike", password="x")
+        Playbook.objects.create(
+            name="Mike Public Methodology",
+            description="Shared methodology description text here",
+            category="development",
+            author=mike,
+            visibility="public",
+            status="draft",
+            version=Decimal("0.1"),
+        )
+        client = Client()
+        client.force_login(maria)
+        response = client.get(reverse("playbook_list"))
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert 'data-testid="public-playbooks-section"' in content
+        assert "Mike Public Methodology" in content
+        assert "mike" in content.lower()
+
+    def test_private_playbook_from_other_author_not_in_public_section(self):
+        maria = User.objects.create_user(username="maria", password="x")
+        mike = User.objects.create_user(username="mike", password="x")
+        Playbook.objects.create(
+            name="Mike Private PB",
+            description="Private methodology description text here",
+            category="development",
+            author=mike,
+            visibility="private",
+            status="draft",
+            version=Decimal("0.1"),
+        )
+        client = Client()
+        client.force_login(maria)
+        response = client.get(reverse("playbook_list"))
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert "Mike Private PB" not in content

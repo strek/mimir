@@ -37,7 +37,7 @@ Feature: Mimir E2E UAT — strict linear operator script (browser + CallMcpTool 
     | Guided MCP onboarding screen | Operators paste Docker JSON manually (UAT-02-01). |
     | Activate playbook tile | Out of scope — skip. |
     | Notifications / Teams / GUI import/export | Skip or assert disabled only. |
-    | Family/Homebase playbook sharing GUI | Metadata only; wizard visibility help + MCP owner-only guard (UAT-03-04). |
+    | Family/Homebase playbook sharing GUI | Deferred; FOB MVP uses **Private** vs **Public** (public browse on playbook list) + MCP author-scoped reads (UAT-03-04). |
     | Submit PIP UX lock until changes | Browser may allow click; SEE server `Add at least one Change before submitting.` |
 
   ==============================================================================
@@ -184,7 +184,7 @@ Feature: Mimir E2E UAT — strict linear operator script (browser + CallMcpTool 
     # SEE: `[data-testid=\"wizard-step-1\"]`
     # STEP fill fundamentals
     # DO: `[data-testid=\"name-input\"]` `UAT Journey Playbook`; `[data-testid=\"description-input\"]` ≥40 char narrative; `[data-testid=\"category-select\"]` `development`; `[data-testid=\"visibility-select\"]` `private`
-    # SEE: `[data-testid=\"visibility-help\"]` explains owner-only; Family/Local options disabled `coming soon` per template semantics
+    # SEE: `[data-testid=\"visibility-help\"]` explains Private vs Public (authenticated readers for Public); options `private` + `public` only
     # STEP advance workflows
     # DO: click Next control whose label mentions adding workflows (`Next: Add Workflows`)
     # SEE: URL `/playbooks/create/step2/`
@@ -199,7 +199,7 @@ Feature: Mimir E2E UAT — strict linear operator script (browser + CallMcpTool 
   @manual @uat @act-2
   Scenario: UAT-03-01b Visibility helper on edit shell
     # DO: GET `/playbooks/<GUI_PLAYBOOK_ID>/edit/`
-    # SEE: `[data-testid=\"playbook-visibility-select\"]` with selected `Private (only me)`; `_visibility_field_help.html` `[data-testid=\"visibility-help\"]` warns owner-only semantics; dormant Family/local entries disabled hints
+    # SEE: `[data-testid=\"playbook-visibility-select\"]` selected `Private`; `[data-testid=\"visibility-help\"]` matches Private/Public semantics (no Family/Local rows)
 
   @manual @uat @act-4
   Scenario: UAT-03-02a Phase create + `/phases/` global RECORD

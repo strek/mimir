@@ -149,5 +149,61 @@
             </a>
         </div>
     {% endif %}
+
+    {% if public_playbooks %}
+    <div class="mt-5" data-testid="public-playbooks-section">
+        <h3 class="mb-2" data-testid="public-playbooks-heading">
+            <i class="fa-solid fa-globe me-2" aria-hidden="true"></i>Public Playbooks
+        </h3>
+        <p class="text-muted small mb-4">Published by other authors — open to view (read-only).</p>
+        <div class="row">
+            {% for playbook in public_playbooks %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="playbook-book-card h-100" data-testid="public-playbook-card-{{ playbook.pk }}">
+                        <div class="card playbook-book-card-inner h-100 border-0">
+                            <div class="card-header playbook-book-card-header border-0 pb-0">
+                                <div class="d-flex align-items-start gap-2">
+                                    <span class="text-primary flex-shrink-0 mt-1" aria-hidden="true">
+                                        <i class="fa-solid fa-book-open fa-lg"></i>
+                                    </span>
+                                    <div class="flex-grow-1">
+                                        <h5 class="card-title playbook-book-card-title mb-1">
+                                            {{ playbook.name }}
+                                        </h5>
+                                        <small class="text-muted">by {{ playbook.author.username }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body pt-3 d-flex flex-column">
+                                {% if playbook.description %}
+                                    <p class="card-text text-muted small flex-grow-1 mb-3">
+                                        {{ playbook.description|truncatewords:42 }}
+                                    </p>
+                                {% else %}
+                                    <p class="card-text text-muted small flex-grow-1 mb-3 fst-italic">
+                                        No description yet.
+                                    </p>
+                                {% endif %}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-{{ playbook.get_status_badge_color }}">
+                                        {{ playbook.get_status_display }}
+                                    </span>
+                                    <small class="text-muted">v{{ playbook.version }}</small>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent border-0 pt-0">
+                                <a href="{% url 'playbook_detail' pk=playbook.pk %}"
+                                   class="btn btn-primary btn-sm w-100"
+                                   data-testid="public-playbook-view-{{ playbook.pk }}">
+                                    <i class="fa-solid fa-eye me-1"></i>View
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

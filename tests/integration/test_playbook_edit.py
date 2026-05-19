@@ -157,3 +157,37 @@ class TestPlaybookEdit:
         )
         pb.refresh_from_db()
         assert pb.tags == []
+
+    def test_edit_post_changes_visibility_to_public(self):
+        pb = self._make_playbook()
+        response = self.client.post(
+            reverse('playbook_edit', kwargs={'pk': pb.pk}),
+            {
+                'name': 'Test Playbook',
+                'description': 'Desc',
+                'category': 'development',
+                'visibility': 'public',
+                'tags': '',
+            },
+        )
+        assert response.status_code == 302
+        pb.refresh_from_db()
+        assert pb.visibility == 'public'
+
+    def test_edit_post_changes_visibility_to_private(self):
+        pb = self._make_playbook()
+        pb.visibility = 'public'
+        pb.save(update_fields=['visibility'])
+        response = self.client.post(
+            reverse('playbook_edit', kwargs={'pk': pb.pk}),
+            {
+                'name': 'Test Playbook',
+                'description': 'Desc',
+                'category': 'development',
+                'visibility': 'private',
+                'tags': '',
+            },
+        )
+        assert response.status_code == 302
+        pb.refresh_from_db()
+        assert pb.visibility == 'private'

@@ -220,12 +220,14 @@ class PhaseService:
             logger.error(f"Playbook {playbook_id} not found")
             raise ValidationError(f"Playbook with id {playbook_id} not found")
         
-        # Check permissions: owned playbooks require ownership, downloaded playbooks are viewable by all
-        if playbook.source == 'owned' and not playbook.is_owned_by(user):
-            logger.warning(f"User {user.email} attempted to list phases in owned playbook {playbook_id} they don't own")
+        # GUI read: owner always; any authenticated user may read public playbooks.
+        if not playbook.can_view(user):
+            logger.warning(
+                "User %s attempted to list phases in playbook %s without view access",
+                getattr(user, "pk", user),
+                playbook_id,
+            )
             raise PermissionDenied("You don't have permission to view this playbook")
-        
-        # Downloaded playbooks are viewable by everyone (no permission check needed)
         
         phases = Phase.objects.filter(playbook=playbook).order_by('order', 'name')
         logger.info(f"Found {phases.count()} phases in playbook {playbook_id} (source={playbook.source})")

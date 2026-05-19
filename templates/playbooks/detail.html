@@ -24,6 +24,7 @@
                 <span class="badge bg-{{ playbook.get_status_badge_color }}" data-testid="status-badge">{{ playbook.get_status_display }}</span>
                 <span class="badge bg-secondary" data-testid="version-badge">v{{ playbook.version }}</span>
                 <span class="badge bg-info">{{ playbook.get_category_display }}</span>
+                <span class="badge bg-dark" data-testid="visibility-badge">{{ playbook.get_visibility_display }}</span>
             </p>
             <p class="text-muted small">
                 <i class="fa-solid fa-user"></i> {{ playbook.author.username }}

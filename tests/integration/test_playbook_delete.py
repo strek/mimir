@@ -223,8 +223,8 @@ class TestDependencyWarnings:
 class TestAdvancedFeatures:
     """PB-DELETE-12 to PB-DELETE-15: Advanced features"""
     
-    def test_delete_family_visibility_shows_metadata_note_only(self, client):
-        """PB-DELETE-12: family visibility label shows metadata note, not member loss warning."""
+    def test_delete_public_visibility_shows_access_warning(self, client):
+        """Deleting a public playbook shows access-loss warning."""
         user = User.objects.create_user(
             username="maria",
             email="maria@example.com",
@@ -233,10 +233,10 @@ class TestAdvancedFeatures:
         client.force_login(user)
 
         playbook = Playbook.objects.create(
-            name="Family Shared Playbook",
-            description="Shared with family",
+            name="Public Shared Playbook",
+            description="Shared with everyone authenticated",
             category="development",
-            visibility="family",
+            visibility="public",
             status="disabled",
             version=1,
             source="owned",
@@ -248,9 +248,35 @@ class TestAdvancedFeatures:
 
         assert response.status_code == 200
         content = response.content.decode("utf-8")
-        assert 'data-testid="visibility-metadata-note"' in content
-        assert "metadata only" in content
-        assert "shared with your family" not in content.lower()
+        assert 'data-testid="public-delete-warning"' in content
+        assert "public" in content.lower()
+
+    def test_delete_private_visibility_no_public_warning(self, client):
+        """Private playbook delete modal does not show public access-loss alert."""
+        user = User.objects.create_user(
+            username="maria",
+            email="maria@example.com",
+            password="SecurePass123",
+        )
+        client.force_login(user)
+
+        playbook = Playbook.objects.create(
+            name="Private Playbook",
+            description="Owner only visibility test here",
+            category="development",
+            visibility="private",
+            status="disabled",
+            version=1,
+            source="owned",
+            author=user,
+        )
+
+        confirm_url = reverse("playbook_delete_confirm", kwargs={"pk": playbook.pk})
+        response = client.get(confirm_url)
+
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert 'data-testid="public-delete-warning"' not in content
     
     def test_delete_active_vs_disabled(self, maria):
         """PB-DELETE-13: Delete active vs disabled playbook"""
@@ -516,7 +542,7 @@ class TestPlaybookDeleteDetailUI:
             description="Downloaded from Homebase",
             category="development",
             tags=[],
-            visibility="private",
+            visibility="public",
             status="disabled",
             version=1,
             source="downloaded",
@@ -604,8 +630,8 @@ class TestPlaybookDeleteModalEndpoint:
         content = response.content.decode("utf-8")
         assert 'data-testid="playbook-delete-modal"' not in content
 
-    def test_modal_shows_family_metadata_note_for_family_visibility(self, client):
-        """Delete modal explains family visibility is metadata-only in FOB."""
+    def test_modal_shows_public_delete_warning_for_public_visibility(self, client):
+        """Delete modal warns when playbook is public."""
         user = User.objects.create_user(
             username="maria",
             email="maria@example.com",
@@ -614,11 +640,11 @@ class TestPlaybookDeleteModalEndpoint:
         client.force_login(user)
 
         playbook = Playbook.objects.create(
-            name="Family Shared Playbook",
-            description="Shared with family",
+            name="Public Modal Target",
+            description="Everyone can read this playbook text",
             category="development",
             tags=[],
-            visibility="family",
+            visibility="public",
             status="disabled",
             version=1,
             source="owned",
@@ -630,8 +656,7 @@ class TestPlaybookDeleteModalEndpoint:
 
         assert response.status_code == 200
         content = response.content.decode("utf-8")
-        assert 'data-testid="visibility-metadata-note"' in content
-        assert "metadata only" in content
+        assert 'data-testid="public-delete-warning"' in content
 
     def test_modal_shows_active_warning_for_active_playbook(self, client):
         user = User.objects.create_user(
