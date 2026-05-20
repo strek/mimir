@@ -30,18 +30,19 @@ def custom_exception_handler(exc, context):
     
     # If DRF handled it, format the response
     if response is not None:
+        error_msg = _not_found_message(exc, context) if response.status_code == 404 else str(exc)
         error_data = {
-            'error': str(exc),
+            'error': error_msg,
             'code': get_error_code(exc),
         }
-        
+
         # Add details if available
         if hasattr(exc, 'detail'):
             if isinstance(exc.detail, dict):
                 error_data['details'] = exc.detail
             elif isinstance(exc.detail, list):
                 error_data['details'] = {'messages': exc.detail}
-        
+
         response.data = error_data
         return response
     
@@ -85,6 +86,27 @@ def custom_exception_handler(exc, context):
     
     # Default: let Django handle it (500 error)
     return None
+
+
+def _not_found_message(exc, context) -> str:
+    """
+    Build a deterministic 'Resource {pk} not found' message for 404 responses.
+
+    Falls back to the raw exception string when pk or model name are unavailable.
+    """
+    try:
+        view = context.get('view')
+        pk = view.kwargs.get('pk') if view else None
+        model_name = None
+        if view is not None:
+            qs = getattr(view, 'queryset', None)
+            if qs is not None:
+                model_name = qs.model.__name__
+        if pk and model_name:
+            return f"{model_name} {pk} not found"
+    except Exception:
+        pass
+    return str(exc)
 
 
 def get_error_code(exc):
