@@ -315,15 +315,20 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         target_directory = request.data.get('target_directory', '.windsurf/workflows')
         folder_name = request.data.get('folder_name')
         
-        # Import service here to avoid circular imports
         from methodology.services.workflow_export_service import WorkflowExportService
-        
-        result = WorkflowExportService.export_workflow(
-            workflow_id=pk,
-            target_directory=target_directory,
-            folder_name=folder_name
-        )
-        
+
+        try:
+            result = WorkflowExportService.export_workflow(
+                workflow_id=pk,
+                target_directory=target_directory,
+                folder_name=folder_name
+            )
+        except (PermissionError, OSError) as exc:
+            return Response(
+                {'error': f'Export to filesystem not supported on hosted server: {exc}',
+                 'code': 'NOT_SUPPORTED'},
+                status=status.HTTP_501_NOT_IMPLEMENTED
+            )
         return Response(result)
     
     @action(detail=True, methods=['post'])
