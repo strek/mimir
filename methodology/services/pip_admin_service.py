@@ -36,7 +36,7 @@ class PIPAdminService:
         if actor is None or not actor.is_staff:
             raise ValidationError("Only staff administrators can finalise PIPs.")
 
-        locked = ProcessImprovementProposal.objects.select_for_update().select_related(
+        locked = ProcessImprovementProposal.objects.select_for_update(of=("self",)).select_related(
             "playbook", "created_by"
         ).get(pk=pip.pk)
 
