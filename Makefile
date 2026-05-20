@@ -114,27 +114,27 @@ backup: ## [prod] Dump prod Postgres to S3 — requires S3_BUCKET and DATABASE_U
 
 ##@ Deploy (AWS EB)
 
-# Environments
-EB_APP   ?= mimir
-EB_BLUE  ?= mimir-blue
-EB_GREEN ?= mimir-green
+# gh release → mimir-idle → make swap → mimir-prod (live)
+EB_APP    ?= mimir
+EB_IDLE   ?= mimir-idle
+EB_PROD   ?= mimir-prod
 AWS_REGION ?= us-east-1
 
 .PHONY: swap
-swap: ## Swap mimir-blue ↔ mimir-green CNAMEs (promotes staging to prod)
-	@echo "Swapping CNAMEs: $(EB_BLUE) ↔ $(EB_GREEN)"
+swap: ## [prod] Promote idle → prod (swap CNAMEs; idle becomes new prod, old prod becomes idle)
+	@echo "Promoting $(EB_IDLE) → $(EB_PROD)"
 	aws elasticbeanstalk swap-environment-cnames \
-	  --source-environment-name $(EB_BLUE) \
-	  --destination-environment-name $(EB_GREEN) \
+	  --source-environment-name $(EB_IDLE) \
+	  --destination-environment-name $(EB_PROD) \
 	  --region $(AWS_REGION)
-	@echo "Swap complete. Verify at https://mimir.featurefactory.io"
+	@echo "Swap complete. Verify: https://mimir.featurefactory.io/health/"
 
 .PHONY: eb-status
 eb-status: ## Show health and version of both EB environments
 	@aws elasticbeanstalk describe-environments \
 	  --application-name $(EB_APP) \
-	  --environment-names $(EB_BLUE) $(EB_GREEN) \
-	  --query "Environments[*].{Env:EnvironmentName,Status:Status,Health:Health,Version:VersionLabel}" \
+	  --environment-names $(EB_IDLE) $(EB_PROD) \
+	  --query "Environments[*].{Env:EnvironmentName,Status:Status,Health:Health,Version:VersionLabel,CNAME:CNAME}" \
 	  --output table --region $(AWS_REGION)
 
 ##@ Cleanup

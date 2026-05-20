@@ -188,8 +188,9 @@ jobs:
 
   # ── 3. Deploy to AWS Elastic Beanstalk ───────────────────────────────────
   deploy-to-eb:
-    name: Deploy to Elastic Beanstalk (mimir-blue)
-    # Operators: add GITHUB_TOKEN (Issues: write) + optional GITHUB_BUG_REPO on the EB
+    name: Deploy to Elastic Beanstalk (mimir-idle)
+    # Deploys to mimir-idle (staging). Run "make swap" to promote to mimir-prod (live).
+    # Add GITHUB_TOKEN (Issues: write) + optional GITHUB_BUG_REPO on the EB
     # environment so the Feedback UI and /api/feedback/report/ can create GitHub issues.
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -204,7 +205,7 @@ jobs:
 
     env:
       EB_APP: mimir
-      EB_ENV: mimir-blue
+      EB_ENV: mimir-idle
       EB_BUCKET: elasticbeanstalk-us-east-1-${{ vars.AWS_ACCOUNT_ID }}
 
     steps:
