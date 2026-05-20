@@ -20,7 +20,7 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 # SECURITY WARNING: DEBUG must be False in production
 DEBUG = False
 
-# ALLOWED_HOSTS must include the ALB hostname + CloudFront domain
+# ALLOWED_HOSTS: custom domain + wildcard EB subdomain (covers ALB health checks and idle env)
 ALLOWED_HOSTS = os.getenv(
     "DJANGO_ALLOWED_HOSTS", "mimir.featurefactory.io,.elasticbeanstalk.com,localhost"
 ).split(",")
@@ -48,21 +48,20 @@ _instance_ip = _ec2_private_ip()
 if _instance_ip:
     ALLOWED_HOSTS.append(_instance_ip)
 
-# CSRF trusted origins — include the EB direct URL so blue/green testing works.
-# In production, CloudFront always uses HTTPS; EB direct URL is HTTP only.
+# CSRF trusted origins — include both EB env URLs for idle/prod testing before and after swap.
 CSRF_TRUSTED_ORIGINS = os.getenv(
     "CSRF_TRUSTED_ORIGINS",
-    "https://mimir.featurefactory.io,http://mimir-blue.us-east-1.elasticbeanstalk.com,https://mimir-blue.us-east-1.elasticbeanstalk.com",
+    "https://mimir.featurefactory.io,http://mimir-idle.us-east-1.elasticbeanstalk.com,https://mimir-idle.us-east-1.elasticbeanstalk.com,http://mimir-prod.us-east-1.elasticbeanstalk.com,https://mimir-prod.us-east-1.elasticbeanstalk.com",
 ).split(",")
 
 
 # Security settings for production
 # https://docs.djangoproject.com/en/5.2/ref/settings/#security
 
-# Trust X-Forwarded-Proto forwarded by CloudFront custom origin header.
+# Trust X-Forwarded-Proto forwarded by the ALB.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# HTTPS is enforced by CloudFront (Viewer Protocol Policy: Redirect HTTP→HTTPS).
+# HTTPS is enforced by the ALB listener (HTTP→HTTPS redirect rule).
 # The EB origin is reached over HTTP so Django's SECURE_SSL_REDIRECT would loop.
 # Matches the proven Huginn pattern — cookies are still Secure because viewers
 # always speak HTTPS at the CloudFront edge.
