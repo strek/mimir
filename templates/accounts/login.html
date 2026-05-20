@@ -115,12 +115,9 @@
         </div>
         
         <div class="text-center mt-3">
-            <p class="text-muted">
-                Don't have an account? 
-                <a href="{% url 'register' %}" class="text-decoration-none">
-                    <i class="fa-solid fa-user-plus"></i> Sign Up
-                </a>
-            </p>
+            <a href="{% url 'register' %}" class="btn btn-success w-100" data-testid="login-signup-button">
+                <i class="fa-solid fa-user-plus me-1"></i> Sign Up
+            </a>
         </div>
     </div>
 </div>

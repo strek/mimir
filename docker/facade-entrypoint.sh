@@ -12,49 +12,63 @@ TRANSPORT="${MCP_TRANSPORT:-sse}"
 PORT="${MCP_PORT:-8001}"
 HOST="${MCP_HOST:-0.0.0.0}"
 
-echo "═══════════════════════════════════════════════════════"
-echo "🔌 Mimir MCP Facade"
-echo "═══════════════════════════════════════════════════════"
-echo "  Web service : $SERVER_URL"
-echo "  Transport   : $TRANSPORT  ($HOST:$PORT)"
-echo "═══════════════════════════════════════════════════════"
+# When running stdio transport stdout is the MCP JSON channel — all diagnostic
+# output must go to stderr to avoid corrupting the protocol stream.
+if [ "$TRANSPORT" = "stdio" ]; then
+    exec 3>&1 1>&2
+fi
+
+log() { echo "$@"; }
+
+log "═══════════════════════════════════════════════════════"
+log "🔌 Mimir MCP Facade"
+log "═══════════════════════════════════════════════════════"
+log "  Web service : $SERVER_URL"
+log "  Transport   : $TRANSPORT  ($HOST:$PORT)"
+log "═══════════════════════════════════════════════════════"
 
 # ── 1. Wait for the web service to become healthy ────────────────────────────
-echo ""
-echo "⏳ Waiting for web service at $SERVER_URL/health/ ..."
+log ""
+log "⏳ Waiting for web service at $SERVER_URL/health/ ..."
 MAX_WAIT=120
 ELAPSED=0
 until curl -sf "$SERVER_URL/health/" > /dev/null 2>&1; do
     if [ "$ELAPSED" -ge "$MAX_WAIT" ]; then
-        echo "❌ Web service did not become healthy after ${MAX_WAIT}s. Aborting."
+        log "❌ Web service did not become healthy after ${MAX_WAIT}s. Aborting."
         exit 1
     fi
-    echo "   ... still waiting (${ELAPSED}s elapsed)"
+    log "   ... still waiting (${ELAPSED}s elapsed)"
     sleep 5
     ELAPSED=$((ELAPSED + 5))
 done
-echo "✅ Web service is healthy"
+log "✅ Web service is healthy"
 
 # ── 2. Obtain a DRF token if one was not explicitly provided ─────────────────
 if [ -z "$TOKEN" ]; then
-    echo ""
-    echo "🔑 Fetching auth token for user '$USER' ..."
+    log ""
+    log "🔑 Fetching auth token for user '$USER' ..."
     RESPONSE=$(curl -sf -X POST "$SERVER_URL/api/auth/token/" \
         -d "username=$USER&password=$PASSWORD" 2>&1) || {
-        echo "❌ Token request failed: $RESPONSE"
+        log "❌ Token request failed: $RESPONSE"
         exit 1
     }
     TOKEN=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])" 2>/dev/null) || {
-        echo "❌ Could not parse token from response: $RESPONSE"
+        log "❌ Could not parse token from response: $RESPONSE"
         exit 1
     }
-    echo "✅ Token obtained (${#TOKEN} chars)"
+    log "✅ Token obtained (${#TOKEN} chars)"
 fi
 
 # ── 3. Launch the facade server ──────────────────────────────────────────────
-echo ""
-echo "🚀 Starting MCP facade server ..."
-echo "═══════════════════════════════════════════════════════"
+log ""
+log "🚀 Starting MCP facade server ..."
+log "═══════════════════════════════════════════════════════"
+
+# Restore stdout for the MCP process when transport is stdio.
+if [ "$TRANSPORT" = "stdio" ]; then
+    exec 1>&3 3>&-
+fi
+
 exec python -m mcp_integration.facade.server \
     --token="$TOKEN" \
     --server="$SERVER_URL" \
