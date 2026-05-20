@@ -30,6 +30,25 @@ from methodology.services.activity_service import ActivityService
 logger = logging.getLogger(__name__)
 
 
+def _accessible_playbook_ids(user):
+    """
+    Return a set of playbook PKs the user may read:
+    their own playbooks (any status/visibility) plus public non-draft
+    playbooks authored by others.
+
+    Mirrors PlaybookViewSet.get_queryset() so that all resource viewsets
+    honour the same access contract (bug #115 fix).
+    """
+    from django.db.models import Q
+    owned_ids = set(
+        Playbook.objects.filter(
+            Q(author=user) | Q(shared_with_groups__in=user.groups.all())
+        ).distinct().values_list("pk", flat=True)
+    )
+    public_ids = {p.pk for p in PlaybookService.list_public_playbooks(user)}
+    return owned_ids | public_ids
+
+
 class PlaybookViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Playbook resource.
@@ -244,14 +263,14 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
     
     def get_queryset(self):
-        """Get workflows for playbooks owned by current user."""
-        queryset = Workflow.objects.filter(playbook__author=self.request.user)
-        
-        # Filter by playbook_id if provided
+        """Workflows for playbooks accessible to the current user (owned or public non-draft)."""
+        accessible = _accessible_playbook_ids(self.request.user)
+        queryset = Workflow.objects.filter(playbook_id__in=accessible)
+
         playbook_id = self.request.query_params.get('playbook_id')
         if playbook_id:
             queryset = queryset.filter(playbook_id=playbook_id)
-        
+
         return queryset.order_by('order')
     
     def create(self, request):
@@ -428,14 +447,14 @@ class ActivityViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
     
     def get_queryset(self):
-        """Get activities for workflows owned by current user."""
-        queryset = Activity.objects.filter(workflow__playbook__author=self.request.user)
-        
-        # Filter by workflow_id if provided
+        """Activities for workflows in playbooks accessible to the current user."""
+        accessible = _accessible_playbook_ids(self.request.user)
+        queryset = Activity.objects.filter(workflow__playbook_id__in=accessible)
+
         workflow_id = self.request.query_params.get('workflow_id')
         if workflow_id:
             queryset = queryset.filter(workflow_id=workflow_id)
-        
+
         return queryset.order_by('order')
     
     def create(self, request):

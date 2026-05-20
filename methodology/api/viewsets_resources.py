@@ -24,6 +24,7 @@ from methodology.api.serializers import (
     PIPSerializer, PIPListSerializer
 )
 from methodology.api.permissions import IsOwnerOrReadOnly, IsDraftPlaybook
+from methodology.api.viewsets import _accessible_playbook_ids
 
 logger = logging.getLogger(__name__)
 
@@ -40,29 +41,26 @@ class SkillViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
     
     def get_queryset(self):
-        """Get skills for playbooks owned by current user."""
-        queryset = Skill.objects.filter(playbook__author=self.request.user)
-        
-        # Filter by playbook_id if provided
+        """Skills for playbooks accessible to the current user (owned or public non-draft)."""
+        accessible = _accessible_playbook_ids(self.request.user)
+        queryset = Skill.objects.filter(playbook_id__in=accessible)
+
         playbook_id = self.request.query_params.get('playbook_id')
         if playbook_id:
             queryset = queryset.filter(playbook_id=playbook_id)
-        
-        # Filter by domain if provided
+
         domain = self.request.query_params.get('domain')
         if domain:
             queryset = queryset.filter(capability_domain=domain)
-        
-        # Filter by stack if provided
+
         stack = self.request.query_params.get('stack')
         if stack:
             queryset = queryset.filter(technology_stack=stack)
-        
-        # Search if provided
+
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(title__icontains=search)
-        
+
         return queryset.order_by('title')
 
 
@@ -78,19 +76,18 @@ class AgentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
     
     def get_queryset(self):
-        """Get agents for playbooks owned by current user."""
-        queryset = Agent.objects.filter(playbook__author=self.request.user)
-        
-        # Filter by playbook_id if provided
+        """Agents for playbooks accessible to the current user (owned or public non-draft)."""
+        accessible = _accessible_playbook_ids(self.request.user)
+        queryset = Agent.objects.filter(playbook_id__in=accessible)
+
         playbook_id = self.request.query_params.get('playbook_id')
         if playbook_id:
             queryset = queryset.filter(playbook_id=playbook_id)
-        
-        # Search if provided
+
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(name__icontains=search)
-        
+
         return queryset.order_by('name')
 
 
@@ -106,8 +103,9 @@ class ArtifactViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
     
     def get_queryset(self):
-        """Get artifacts for playbooks owned by current user."""
-        queryset = Artifact.objects.filter(playbook__author=self.request.user)
+        """Artifacts for playbooks accessible to the current user (owned or public non-draft)."""
+        accessible = _accessible_playbook_ids(self.request.user)
+        queryset = Artifact.objects.filter(playbook_id__in=accessible)
 
         playbook_id = self.request.query_params.get('playbook_id')
         if playbook_id:
@@ -220,8 +218,9 @@ class PhaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
 
     def get_queryset(self):
-        """Get phases for playbooks owned by current user."""
-        queryset = Phase.objects.filter(playbook__author=self.request.user)
+        """Phases for playbooks accessible to the current user (owned or public non-draft)."""
+        accessible = _accessible_playbook_ids(self.request.user)
+        queryset = Phase.objects.filter(playbook_id__in=accessible)
 
         playbook_id = self.request.query_params.get('playbook_id')
         if playbook_id:
@@ -264,8 +263,9 @@ class RuleViewSet(viewsets.ModelViewSet):
     resource_name = "Rule"
 
     def get_queryset(self):
-        """Get rules for playbooks owned by current user."""
-        queryset = Rule.objects.filter(playbook__author=self.request.user)
+        """Rules for playbooks accessible to the current user (owned or public non-draft)."""
+        accessible = _accessible_playbook_ids(self.request.user)
+        queryset = Rule.objects.filter(playbook_id__in=accessible)
 
         playbook_id = self.request.query_params.get('playbook_id')
         if playbook_id:
