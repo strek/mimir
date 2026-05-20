@@ -353,10 +353,9 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         # Import service here to avoid circular imports
         from methodology.services.workflow_import_service import WorkflowImportService
         
-        result = WorkflowImportService.import_workflow(
+        result = WorkflowImportService.import_workflow_from_markdown(
             workflow_id=pk,
             source_directory=source_directory,
-            auto_apply=auto_apply
         )
         
         return Response(result)
@@ -380,9 +379,9 @@ class WorkflowViewSet(viewsets.ModelViewSet):
             )
         
         # Import service here to avoid circular imports
-        from methodology.services.workflow_import_service import WorkflowImportService
-        
-        result = WorkflowImportService.apply_upload_protocol(protocol_file)
+        from methodology.services.workflow_protocol_service import WorkflowProtocolService
+
+        result = WorkflowProtocolService.apply_upload_protocol(protocol_file)
         
         return Response(result)
     
