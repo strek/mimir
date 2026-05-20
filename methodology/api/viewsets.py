@@ -37,7 +37,8 @@ class PlaybookViewSet(viewsets.ModelViewSet):
     Maps to MCP tools: create_playbook, list_playbooks, get_playbook,
     update_playbook, delete_playbook.
     """
-    
+
+    resource_name = "Playbook"
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
     
     def get_serializer_class(self):
@@ -237,7 +238,8 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     update_workflow, delete_workflow, export_workflow_to_local,
     import_workflow_from_local, apply_upload_protocol, create_pip_from_protocol.
     """
-    
+
+    resource_name = "Workflow"
     serializer_class = WorkflowSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
     
@@ -413,7 +415,8 @@ class ActivityViewSet(viewsets.ModelViewSet):
     Maps to MCP tools: create_activity, list_activities, get_activity,
     update_activity, delete_activity, set_predecessor.
     """
-    
+
+    resource_name = "Activity"
     serializer_class = ActivitySerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
     

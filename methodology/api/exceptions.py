@@ -92,18 +92,14 @@ def _not_found_message(exc, context) -> str:
     """
     Build a deterministic 'Resource {pk} not found' message for 404 responses.
 
-    Falls back to the raw exception string when pk or model name are unavailable.
+    Falls back to the raw exception string when pk or resource_name are unavailable.
     """
     try:
         view = context.get('view')
         pk = view.kwargs.get('pk') if view else None
-        model_name = None
-        if view is not None:
-            qs = getattr(view, 'queryset', None)
-            if qs is not None:
-                model_name = qs.model.__name__
-        if pk and model_name:
-            return f"{model_name} {pk} not found"
+        resource_name = getattr(view, 'resource_name', None) if view else None
+        if pk and resource_name:
+            return f"{resource_name} {pk} not found"
     except Exception:
         pass
     return str(exc)
