@@ -172,31 +172,33 @@ No workflow ID here
         with pytest.raises(ValidationError, match="Protocol file does not exist"):
             WorkflowProtocolService.apply_upload_protocol('/nonexistent/protocol.md')
     
-    def test_create_pip_from_protocol(self, workflow_released, protocol_file):
-        """Test creating PIP from protocol."""
+    def test_create_pip_from_protocol(self, workflow_released, protocol_dir):
+        """Test creating PIP from protocol creates a real PIP in the DB."""
         protocol_content = f"""# Upload Protocol
 
 **Workflow ID**: {workflow_released.id}
 
 ## Change Summary
 
-- **New Activities**: 2
-- **Modified Activities**: 1
+- **New Activities**: 0
+- **Modified Activities**: 0
 - **Deleted Activities**: 0
-- **Reordered Activities**: 1
-- **Total Changes**: 4
+- **Reordered Activities**: 0
+- **Total Changes**: 0
 """
+        protocol_file = str(Path(protocol_dir) / '_Upload_Protocol.md')
         Path(protocol_file).write_text(protocol_content)
-        
+
         result = WorkflowProtocolService.create_pip_from_protocol(
             protocol_file,
-            pip_title='Improve workflow structure'
+            pip_title='Improve workflow structure',
+            actor=workflow_released.playbook.author,
         )
-        
-        assert result['status'] == 'pending_review'
+
+        assert result['status'] == 'draft'
         assert result['title'] == 'Improve workflow structure'
         assert result['workflow_id'] == workflow_released.id
-        assert 'pip_id' in result
+        assert isinstance(result['pip_id'], int)
     
     def test_create_pip_nonexistent_file(self):
         """Test creating PIP with nonexistent file."""

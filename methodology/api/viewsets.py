@@ -407,7 +407,9 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         from methodology.services.pip_service import PIPService
 
         try:
-            result = PIPService.create_pip_from_protocol(protocol_file, pip_title)
+            result = PIPService.create_pip_from_protocol(
+                protocol_file, pip_title, actor=request.user
+            )
         except (ValidationError, ValueError) as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(result, status=status.HTTP_201_CREATED)

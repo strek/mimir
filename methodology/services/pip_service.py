@@ -202,21 +202,23 @@ class PIPService:
     """CRUD-ish workflow helpers for ProcessImprovementProposal records."""
 
     @staticmethod
-    def create_pip_from_protocol(protocol_file: str, pip_title: str) -> dict:
+    def create_pip_from_protocol(protocol_file: str, pip_title: str, actor=None) -> dict:
         """
         MCP / API façade for WorkflowProtocolService (protocol-path PIPs).
 
         :param protocol_file: Path passed to WorkflowProtocolService.
         :param pip_title: Caller-provided proposal title.
+        :param actor: Django user creating the PIP.
         :return: Service result dictionary.
         """
         from methodology.services.workflow_protocol_service import (
             WorkflowProtocolService,
         )
 
-        logger.info("PIPService.create_pip_from_protocol title=%s", pip_title)
+        logger.info("PIPService.create_pip_from_protocol title=%s actor=%s",
+                    pip_title, getattr(actor, 'pk', None))
         return WorkflowProtocolService.create_pip_from_protocol(
-            protocol_file, pip_title
+            protocol_file, pip_title, actor=actor
         )
 
     @staticmethod

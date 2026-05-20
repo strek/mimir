@@ -309,10 +309,12 @@ Test guidance
         
         result = WorkflowProtocolService.create_pip_from_protocol(
             protocol_file,
-            pip_title='Improve workflow'
+            pip_title='Improve workflow',
+            actor=workflow_released.playbook.author,
         )
-        
-        assert result['status'] == 'pending_review'
+
+        assert result['status'] == 'draft'
+        assert isinstance(result['pip_id'], int)
         assert 'pip_id' in result
     
     def test_scenario_15_full_cycle_draft(self, workflow_draft, activities, temp_dir):
