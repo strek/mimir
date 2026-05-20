@@ -40,14 +40,6 @@ services:
       MIMIR_GIT_REVISION: ${MIMIR_GIT_REVISION:-unknown}
     restart: unless-stopped
 
-  mcp-facade:
-    image: ${IMAGE_MCP}
-    ports:
-      - "8001:8001"
-    environment:
-      MCP_TRANSPORT: sse
-      MCP_PORT: "8001"
-      MIMIR_SERVER_URL: "http://web:8000"
-    restart: unless-stopped
-    depends_on:
-      - web
+  # mcp-facade is a client-side image (Docker Hub: featurefactory/mimir-mcp).
+  # End users run it locally in their IDE pointing at the production URL.
+  # It is NOT deployed on EB.
