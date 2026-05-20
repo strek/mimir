@@ -64,11 +64,16 @@ class WorkflowSerializer(serializers.ModelSerializer):
 
 class ActivitySerializer(serializers.ModelSerializer):
     """Serializer for Activity model."""
-    
+
+    workflow_id = serializers.IntegerField()
+    phase_id = serializers.IntegerField(allow_null=True, required=False)
+    predecessor_id = serializers.IntegerField(allow_null=True, required=False)
+    agent_id = serializers.IntegerField(allow_null=True, required=False)
+    skill_id = serializers.IntegerField(allow_null=True, required=False)
     predecessor_name = serializers.CharField(source='predecessor.name', read_only=True)
     agent_name = serializers.CharField(source='agent.name', read_only=True)
     skill_title = serializers.CharField(source='skill.title', read_only=True)
-    
+
     class Meta:
         model = Activity
         fields = [

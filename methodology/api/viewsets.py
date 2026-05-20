@@ -442,18 +442,14 @@ class ActivityViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        # Get workflow and verify ownership
-        # Note: DRF stores FK as source key ('workflow'), so use request.data for the raw id
-        if hasattr(serializer.validated_data.get('workflow'), 'id'):
-            workflow_id = serializer.validated_data['workflow'].id
-        else:
-            workflow_id = request.data.get('workflow_id')
+        # workflow_id is now writable via explicit IntegerField on ActivitySerializer
+        workflow_id = serializer.validated_data.get('workflow_id') or request.data.get('workflow_id')
         workflow = get_object_or_404(
             Workflow,
             id=workflow_id,
             playbook__author=request.user
         )
-        
+
         # Check draft status
         if workflow.playbook.status != 'draft':
             return Response(
@@ -461,7 +457,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
                  'code': 'PERMISSION_DENIED'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Create activity using service (takes workflow object, not workflow_id)
         activity = ActivityService.create_activity(
             workflow=workflow,
