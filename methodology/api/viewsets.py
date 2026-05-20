@@ -318,10 +318,10 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         from methodology.services.workflow_export_service import WorkflowExportService
 
         try:
-            result = WorkflowExportService.export_workflow(
+            result = WorkflowExportService.export_workflow_to_markdown(
                 workflow_id=pk,
                 target_directory=target_directory,
-                folder_name=folder_name
+                folder_name=folder_name,
             )
         except (PermissionError, OSError) as exc:
             return Response(
