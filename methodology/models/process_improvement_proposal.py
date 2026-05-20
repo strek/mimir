@@ -21,6 +21,7 @@ class ProcessImprovementProposal(models.Model):
     STATUS_ACCEPTED = "accepted"
     STATUS_ACCEPTED_PARTIAL = "accepted_partial"
     STATUS_REJECTED = "rejected"
+    STATUS_WITHDRAWN = "withdrawn"
     STATUS_CHOICES = [
         (STATUS_DRAFT, "Draft"),
         (STATUS_SUBMITTED, "Submitted"),
@@ -29,6 +30,7 @@ class ProcessImprovementProposal(models.Model):
         (STATUS_ACCEPTED, "Accepted"),
         (STATUS_ACCEPTED_PARTIAL, "Partially Accepted"),
         (STATUS_REJECTED, "Rejected"),
+        (STATUS_WITHDRAWN, "Withdrawn"),
     ]
 
     STATUS_BADGE_CLASSES = {
@@ -39,6 +41,7 @@ class ProcessImprovementProposal(models.Model):
         STATUS_ACCEPTED: "bg-success",
         STATUS_ACCEPTED_PARTIAL: "bg-success",
         STATUS_REJECTED: "bg-danger",
+        STATUS_WITHDRAWN: "bg-dark",
     }
 
     playbook = models.ForeignKey(

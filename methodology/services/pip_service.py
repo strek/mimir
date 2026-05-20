@@ -328,16 +328,16 @@ class PIPService:
     @transaction.atomic
     def withdraw_pip(pip: ProcessImprovementProposal, actor) -> None:
         """
-        Delete proposals still in editable / pre-review Galdr queues.
+        Mark a PIP as withdrawn (status=withdrawn) for proposals still in editable / pre-review queues.
 
         :raises ValidationError: if already progressed past Galdr inbox.
         """
         _pip_require_submitter_for_submitter_tools(pip, actor)
         if pip.status not in _WITHDRAW_ALLOWED:
             raise ValidationError("This PIP can no longer be withdrawn.")
-        pid = pip.pk
-        pip.delete()
-        logger.info("PIPService.withdraw_pip deleted pip=%s actor=%s", pid, actor.pk)
+        pip.status = ProcessImprovementProposal.STATUS_WITHDRAWN
+        pip.save(update_fields=["status"])
+        logger.info("PIPService.withdraw_pip set pip=%s to withdrawn actor=%s", pip.pk, actor.pk)
 
     cancel_pip = withdraw_pip
 
