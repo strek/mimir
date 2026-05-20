@@ -108,30 +108,46 @@ class ArtifactViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Get artifacts for playbooks owned by current user."""
         queryset = Artifact.objects.filter(playbook__author=self.request.user)
-        
-        # Filter by playbook_id if provided
+
         playbook_id = self.request.query_params.get('playbook_id')
         if playbook_id:
             queryset = queryset.filter(playbook_id=playbook_id)
-        
-        # Filter by type if provided
+
         type_filter = self.request.query_params.get('type')
         if type_filter:
             queryset = queryset.filter(type=type_filter)
-        
-        # Filter by required if provided
+
         required_filter = self.request.query_params.get('required')
         if required_filter == 'true':
             queryset = queryset.filter(is_required=True)
         elif required_filter == 'false':
             queryset = queryset.filter(is_required=False)
-        
-        # Search if provided
+
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(name__icontains=search)
-        
+
         return queryset.order_by('name')
+
+    def create(self, request):
+        """
+        Create artifact via service, catching model-level ValidationError.
+
+        Maps to: create_artifact MCP tool
+        """
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        logger.info('API: create_artifact user=%s data=%s', request.user.pk, request.data)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            artifact = serializer.save()
+        except DjangoValidationError as exc:
+            return Response(
+                {'error': exc.message_dict if hasattr(exc, 'message_dict') else str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(ArtifactSerializer(artifact).data, status=status.HTTP_201_CREATED)
     
     @action(detail=True, methods=['post'])
     def consumers(self, request, pk=None):

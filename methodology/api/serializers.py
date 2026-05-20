@@ -136,7 +136,7 @@ class ArtifactSerializer(serializers.ModelSerializer):
     
     def get_consumer_count(self, obj):
         """Get count of activities consuming this artifact."""
-        return obj.consumed_by.count()
+        return obj.inputs.count()
 
 
 class ArtifactInputSerializer(serializers.ModelSerializer):
