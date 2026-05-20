@@ -26,6 +26,8 @@ from methodology.models import (
     Workflow,
 )
 
+from methodology.services.playbook_service import PlaybookService
+
 logger = logging.getLogger(__name__)
 
 _WITHDRAW_ALLOWED = frozenset(
@@ -348,7 +350,12 @@ class PIPService:
         title: str,
         summary: str = "",
     ) -> ProcessImprovementProposal:
-        playbook = Playbook.objects.get(pk=playbook_id)
+        try:
+            playbook = PlaybookService.get_playbook(playbook_id, actor)
+        except Playbook.DoesNotExist:
+            raise ValidationError(f"Playbook with id {playbook_id} does not exist.")
+        except PermissionError as exc:
+            raise ValidationError(str(exc)) from exc
         if playbook.status != "released":
             raise ValidationError("PIP targets must be Released playbooks.")
         ttl = title.strip()

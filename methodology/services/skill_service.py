@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Q, QuerySet
 
 from methodology.models import Skill
+from methodology.services.playbook_service import PlaybookService
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,16 @@ class SkillService:
             >>> skill = SkillService.get_skill(42)
         """
         return Skill.objects.select_related('playbook').get(pk=skill_id)
+
+    @staticmethod
+    def get_skill_for_user(skill_id: int, user, *, write: bool = False):
+        """Return skill if requesting user may view (or own for write) the parent playbook."""
+        skill = Skill.objects.select_related("playbook").get(pk=skill_id)
+        if write:
+            PlaybookService.get_owned_playbook(skill.playbook_id, user)
+        else:
+            PlaybookService.get_playbook(skill.playbook_id, user)
+        return skill
 
     @staticmethod
     def list_skills_for_playbook(

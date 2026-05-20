@@ -21,7 +21,7 @@ class PlaybookSerializer(serializers.ModelSerializer):
         model = Playbook
         fields = [
             'id', 'name', 'description', 'category', 'status', 'version',
-            'author_id', 'created_at', 'updated_at', 'workflow_count'
+            'visibility', 'author_id', 'created_at', 'updated_at', 'workflow_count'
         ]
         read_only_fields = ['id', 'status', 'version', 'author_id', 'created_at', 'updated_at']
     
@@ -37,7 +37,7 @@ class PlaybookListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Playbook
-        fields = ['id', 'name', 'status', 'version', 'category', 'workflow_count']
+        fields = ['id', 'name', 'status', 'version', 'category', 'visibility', 'workflow_count']
     
     def get_workflow_count(self, obj):
         """Get count of workflows in playbook."""

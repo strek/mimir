@@ -10,6 +10,7 @@ from django.db import IntegrityError
 from django.db import models
 from django.core.exceptions import ValidationError
 from methodology.models import Activity, Skill, Agent, Rule, Playbook
+from methodology.services.playbook_service import PlaybookService
 
 logger = logging.getLogger(__name__)
 
@@ -182,11 +183,11 @@ class ActivityService:
         :returns: QuerySet ordered by workflow order then activity order (empty if no access)
         """
         try:
-            playbook = Playbook.objects.get(pk=playbook_id)
+            PlaybookService.get_playbook(playbook_id, user)
         except Playbook.DoesNotExist:
             logger.warning("list_activities_for_playbook: playbook id=%s not found", playbook_id)
             return Activity.objects.none()
-        if not playbook.can_view(user):
+        except PermissionError:
             logger.info(
                 "list_activities_for_playbook: user id=%s denied playbook id=%s",
                 getattr(user, "pk", user),
@@ -605,6 +606,7 @@ class ActivityService:
             old_agent_id, activity_id, activity.name,
         )
         return activity
+
     @staticmethod
     def set_activity_artifact_inputs(activity_id: int, artifact_ids: list[int]) -> int:
         """
@@ -632,3 +634,49 @@ class ActivityService:
             logger.info(f"Artifact {artifact_id} linked as input to activity {activity_id}")
         
         return count
+
+    @staticmethod
+    def get_activity_for_user(
+        activity_id: int,
+        user,
+        *,
+        write: bool = False,
+        with_full_detail: bool = False,
+    ):
+        """
+        Load activity and enforce playbook access via :meth:`PlaybookService.get_playbook`
+        (read) or :meth:`PlaybookService.get_owned_playbook` (write).
+
+        :param activity_id: Activity primary key
+        :param user: Django user
+        :param write: Require ownership for mutations
+        :param with_full_detail: Prefetch rules and artifact relations for MCP ``get_activity``
+        :returns: Activity instance
+        """
+        qs = Activity.objects.select_related(
+            "predecessor",
+            "successor",
+            "workflow",
+            "workflow__playbook",
+            "agent",
+            "skill",
+            "phase",
+        )
+        if with_full_detail:
+            qs = qs.prefetch_related(
+                "output_artifacts",
+                "input_artifacts__artifact",
+                "rules",
+            )
+        activity = qs.get(pk=activity_id)
+        playbook_id = activity.workflow.playbook_id
+        if write:
+            PlaybookService.get_owned_playbook(playbook_id, user)
+        else:
+            PlaybookService.get_playbook(playbook_id, user)
+        return activity
+
+    @staticmethod
+    def get_activity_in_workflow_for_owner(workflow, predecessor_id: int):
+        """Return predecessor activity in the same workflow (owner path; used when linking)."""
+        return Activity.objects.get(pk=predecessor_id, workflow=workflow)

@@ -9,6 +9,7 @@ import logging
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from methodology.models import Artifact, ArtifactInput
+from methodology.services.playbook_service import PlaybookService
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,27 @@ class ArtifactService:
         return Artifact.objects.select_related(
             "produced_by", "produced_by__workflow", "playbook"
         ).get(pk=artifact_id)
+
+    @staticmethod
+    def get_artifact_for_user(artifact_id, user, *, write: bool = False):
+        """Return artifact if user may view or own the parent playbook."""
+        artifact = Artifact.objects.select_related(
+            "produced_by", "produced_by__workflow", "playbook"
+        ).get(pk=artifact_id)
+        if write:
+            PlaybookService.get_owned_playbook(artifact.playbook_id, user)
+        else:
+            PlaybookService.get_playbook(artifact.playbook_id, user)
+        return artifact
+
+    @staticmethod
+    def get_artifact_input_for_owner(artifact_input_id, user):
+        """
+        Load ArtifactInput and require caller to own the artifact's playbook (mutations).
+        """
+        ai = ArtifactInput.objects.select_related("artifact__playbook").get(pk=artifact_input_id)
+        PlaybookService.get_owned_playbook(ai.artifact.playbook_id, user)
+        return ai
 
     @staticmethod
     def get_artifacts_for_playbook(playbook, type_filter=None, required_filter=None):

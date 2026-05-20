@@ -48,26 +48,28 @@ class PlaybookViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """
-        Get playbooks owned by current user OR shared via groups.
-        
-        Phase 4: Returns playbooks where user is owner OR member of shared group.
+        Playbooks the user may access: owned, shared via groups, or public (others, non-draft).
         """
         from django.db.models import Q
-        
+
         user = self.request.user
-        
-        # Get playbooks where:
-        # 1. User is the author, OR
-        # 2. User is in one of the shared groups
-        queryset = Playbook.objects.filter(
-            Q(author=user) | Q(shared_with_groups__in=user.groups.all())
-        ).distinct()
-        
-        # Filter by status if provided
+
+        owned_or_shared = (
+            Playbook.objects.filter(
+                Q(author=user) | Q(shared_with_groups__in=user.groups.all())
+            )
+            .distinct()
+            .values_list("pk", flat=True)
+        )
+        public_ids = [p.pk for p in PlaybookService.list_public_playbooks(user)]
+        all_ids = set(owned_or_shared) | set(public_ids)
+
+        queryset = Playbook.objects.filter(pk__in=all_ids).distinct()
+
         status_filter = self.request.query_params.get('status')
         if status_filter and status_filter != 'all':
             queryset = queryset.filter(status=status_filter)
-        
+
         return queryset.order_by('-updated_at')
     
     def create(self, request):
@@ -80,19 +82,18 @@ class PlaybookViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
-        # Create playbook with current user as author
-        playbook = Playbook.objects.create(
-            author=request.user,
+
+        playbook = PlaybookService.create_playbook(
             name=serializer.validated_data['name'],
             description=serializer.validated_data['description'],
             category=serializer.validated_data.get('category', 'general'),
+            author=request.user,
             status='draft',
-            version=Decimal('0.1')
+            visibility=serializer.validated_data.get('visibility', 'private'),
         )
-        
+
         logger.info(f'API: Created playbook id={playbook.id}, version={playbook.version}')
-        
+
         response_serializer = self.get_serializer(playbook)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
     
@@ -104,26 +105,31 @@ class PlaybookViewSet(viewsets.ModelViewSet):
         """
         logger.info(f'API: update_playbook called - id={pk}')
         
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
         playbook = self.get_object()
-        
-        # Permission check handled by IsDraftPlaybook permission class
+
         serializer = self.get_serializer(playbook, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        
-        # Track if any changes made
+
         old_version = playbook.version
-        changed = False
-        
-        for field in ['name', 'description', 'category']:
+        update_payload = {}
+        for field in ('name', 'description', 'category', 'visibility'):
             if field in serializer.validated_data:
-                setattr(playbook, field, serializer.validated_data[field])
-                changed = True
-        
+                update_payload[field] = serializer.validated_data[field]
+
+        changed = bool(update_payload)
         if changed:
+            try:
+                playbook = PlaybookService.update_playbook(pk, **update_payload)
+            except DjangoValidationError as e:
+                from rest_framework.exceptions import ValidationError as DRFValidationError
+                raise DRFValidationError(detail=getattr(e, 'message_dict', str(e)))
+
             playbook.version += Decimal('0.1')
             playbook.save()
             logger.info(f'API: Updated playbook, version {old_version} → {playbook.version}')
-        
+
         response_serializer = self.get_serializer(playbook)
         return Response(response_serializer.data)
     

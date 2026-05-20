@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from methodology.models import Agent
+from methodology.services.playbook_service import PlaybookService
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,16 @@ class AgentService:
             >>> agent = AgentService.get_agent(42)
         """
         return Agent.objects.select_related('playbook', 'playbook__author').get(pk=agent_id)
+
+    @staticmethod
+    def get_agent_for_user(agent_id, user, *, write: bool = False):
+        """Return agent if user may view or own the parent playbook."""
+        agent = Agent.objects.select_related("playbook").get(pk=agent_id)
+        if write:
+            PlaybookService.get_owned_playbook(agent.playbook_id, user)
+        else:
+            PlaybookService.get_playbook(agent.playbook_id, user)
+        return agent
 
     @staticmethod
     def list_agents_for_playbook(playbook_id):

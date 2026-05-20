@@ -113,16 +113,63 @@ class PlaybookService:
             raise ValidationError(f"Playbook '{name}' already exists") from e
     
     @staticmethod
-    def get_playbook(playbook_id):
+    def get_playbook(playbook_id, user, *, prefetch_workflows: bool = False):
         """
-        Get playbook by ID.
-        
+        Get playbook by ID if ``user`` may view it (owner or public non-draft per ``can_view``).
+
         :param playbook_id: Playbook ID
+        :param user: Requesting Django user
+        :param prefetch_workflows: When True, prefetch ``workflows`` for list/detail responses
         :returns: Playbook instance
-        :raises Playbook.DoesNotExist: If not found
+        :raises Playbook.DoesNotExist: If playbook row is missing
+        :raises PermissionError: If user may not view this playbook (treated as not found by MCP)
         """
-        logger.info(f"Retrieving playbook {playbook_id}")
-        return Playbook.objects.get(pk=playbook_id)
+        qs = Playbook.objects
+        if prefetch_workflows:
+            qs = qs.prefetch_related("workflows")
+        logger.info(
+            "Retrieving playbook id=%s for user id=%s (prefetch_workflows=%s)",
+            playbook_id,
+            getattr(user, "pk", user),
+            prefetch_workflows,
+        )
+        try:
+            playbook = qs.get(pk=playbook_id)
+        except Playbook.DoesNotExist:
+            logger.info("Playbook id=%s not found", playbook_id)
+            raise
+        if not playbook.can_view(user):
+            logger.info(
+                "User id=%s denied view on playbook id=%s (visibility=%s)",
+                getattr(user, "pk", user),
+                playbook_id,
+                playbook.visibility,
+            )
+            raise PermissionError(f"Playbook {playbook_id} not found")
+        return playbook
+
+    @staticmethod
+    def get_owned_playbook(playbook_id, user):
+        """
+        Return playbook only if ``user`` is the author (for mutating operations).
+
+        :param playbook_id: Playbook primary key
+        :param user: Django user
+        :returns: Playbook instance
+        :raises Playbook.DoesNotExist: If missing or not owned by user
+        """
+        try:
+            playbook = Playbook.objects.get(pk=playbook_id, author=user)
+        except Playbook.DoesNotExist:
+            logger.info(
+                "get_owned_playbook: playbook id=%s not found for user id=%s",
+                playbook_id,
+                getattr(user, "pk", user),
+            )
+            raise Playbook.DoesNotExist(
+                f"Playbook with id={playbook_id} does not exist."
+            ) from None
+        return playbook
     
     @staticmethod
     def list_playbooks(author, status=None):

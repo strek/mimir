@@ -31,7 +31,11 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
         # Check if user is in any of the shared groups
         user_groups = set(user.groups.all())
         shared_groups = set(playbook.shared_with_groups.all())
-        return bool(user_groups & shared_groups)
+        if user_groups & shared_groups:
+            return True
+
+        # Public (non-draft) playbooks: same visibility as web UI (can_view)
+        return playbook.can_view(user)
     
     def has_object_permission(self, request, view, obj):
         """

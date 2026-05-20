@@ -216,6 +216,9 @@ class TestPIPEmailLocmem:
     def test_email_06_no_email_when_submitter_has_no_email(self, admin_user, playbook_with_activity):
         """FOB-PIP-EMAIL-06: submitter without email address → no crash, no email."""
         pb, _wf, act = playbook_with_activity
+        # Non-owner may create a PIP only if they can view the playbook (e.g. public released).
+        pb.visibility = "public"
+        pb.save(update_fields=["visibility"])
         no_email_user = User.objects.create_user(
             username="pip_email_noemail", password="pw", email=""
         )

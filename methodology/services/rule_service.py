@@ -8,6 +8,7 @@ from django.db.models import Count, Q, QuerySet
 from django.utils.text import slugify
 
 from methodology.models import Rule
+from methodology.services.playbook_service import PlaybookService
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,16 @@ class RuleService:
     def get_rule(rule_id: int):
         """Get rule by ID with playbook prefetched."""
         return Rule.objects.select_related('playbook').get(pk=rule_id)
+
+    @staticmethod
+    def get_rule_for_user(rule_id: int, user, *, write: bool = False):
+        """Return rule if user may view or own the parent playbook accordingly."""
+        rule = Rule.objects.select_related("playbook").get(pk=rule_id)
+        if write:
+            PlaybookService.get_owned_playbook(rule.playbook_id, user)
+        else:
+            PlaybookService.get_playbook(rule.playbook_id, user)
+        return rule
 
     @staticmethod
     def list_rules_for_playbook(

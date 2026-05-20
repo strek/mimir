@@ -20,18 +20,27 @@ logger = logging.getLogger(__name__)
 # PLAYBOOK TOOLS (5)
 # ============================================================================
 
-def create_playbook(name: str, description: str, category: str) -> dict:
+def create_playbook(
+    name: str,
+    description: str,
+    category: str,
+    visibility: Literal["private", "public"] = "private",
+) -> dict:
     """
     Create draft playbook.
 
     :param name: Playbook name. Example: "React Development"
     :param description: Description. Example: "Modern React patterns"
     :param category: Category. Example: "development"
+    :param visibility: private or public (default private)
     :return: Created playbook dict
     """
     logger.info(f'HTTP Tool: create_playbook name="{name}"')
     r = get_client().post("/api/playbooks/", json={
-        "name": name, "description": description, "category": category
+        "name": name,
+        "description": description,
+        "category": category,
+        "visibility": visibility,
     })
     return check_response(r, "create_playbook")
 
@@ -66,7 +75,8 @@ def update_playbook(
     playbook_id: int,
     name: str = None,
     description: str = None,
-    category: str = None
+    category: str = None,
+    visibility: Optional[Literal["private", "public"]] = None,
 ) -> dict:
     """
     Update DRAFT playbook. Auto-increments version.
@@ -75,11 +85,13 @@ def update_playbook(
     :param name: New name or None
     :param description: New description or None
     :param category: New category or None
+    :param visibility: New visibility or None
     :return: Updated playbook dict
     """
     logger.info(f'HTTP Tool: update_playbook id={playbook_id}')
     payload = {k: v for k, v in {
-        "name": name, "description": description, "category": category
+        "name": name, "description": description, "category": category,
+        "visibility": visibility,
     }.items() if v is not None}
     r = get_client().patch(f"/api/playbooks/{playbook_id}/", json=payload)
     return check_response(r, "update_playbook")

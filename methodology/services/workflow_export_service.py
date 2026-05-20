@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 from django.core.exceptions import ObjectDoesNotExist
 from methodology.models import Workflow
+from methodology.services.workflow_service import WorkflowService
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,8 @@ class WorkflowExportService:
     def export_workflow_to_markdown(
         workflow_id: int,
         target_directory: str,
-        folder_name: Optional[str] = None
+        folder_name: Optional[str] = None,
+        user=None,
     ) -> dict:
         """
         Export workflow and activities as markdown files.
@@ -25,17 +27,26 @@ class WorkflowExportService:
         :param workflow_id: Workflow ID. Example: 42
         :param target_directory: Target directory path. Example: ".windsurf/workflows"
         :param folder_name: Folder name. Example: "FFE" (defaults to workflow slug)
+        :param user: When set, only export if user may view the parent playbook
         :return: Export result dict with file paths and counts
         :raises ObjectDoesNotExist: If workflow does not exist
+        :raises PermissionError: If user may not view workflow playbook
         :raises PermissionError: If directory not writable
         """
         logger.info(f"Exporting workflow {workflow_id} to {target_directory}")
         
         try:
-            workflow = Workflow.objects.select_related('playbook').get(pk=workflow_id)
+            if user is not None:
+                workflow = WorkflowService.get_workflow_for_user(
+                    workflow_id, user, write=False, prefetch_activities=False
+                )
+            else:
+                workflow = Workflow.objects.select_related('playbook').get(pk=workflow_id)
         except ObjectDoesNotExist:
             logger.error(f"Workflow {workflow_id} not found")
             raise ObjectDoesNotExist(f"Workflow with ID {workflow_id} does not exist")
+        except PermissionError:
+            raise
         
         # Fetch activities with agent, skill, artifacts, and rules
         activities = list(

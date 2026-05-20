@@ -4,7 +4,8 @@ import logging
 from typing import Optional, List
 from django.db import transaction, models
 from django.core.exceptions import ValidationError
-from methodology.models import Workflow, Playbook
+from methodology.models import Workflow
+from methodology.services.playbook_service import PlaybookService
 
 logger = logging.getLogger(__name__)
 
@@ -108,3 +109,27 @@ class WorkflowService:
         
         logger.info(f"Workflow duplicated as {duplicate.pk}")
         return duplicate
+
+    @staticmethod
+    def get_workflow_for_user(workflow_id, user, *, write: bool = False, prefetch_activities: bool = False):
+        """
+        Load workflow and enforce playbook access: ``can_view`` for reads, owner for writes.
+
+        :param workflow_id: Workflow primary key
+        :param user: Django user
+        :param write: When True, require playbook author == user
+        :param prefetch_activities: When True, prefetch ``activities`` for read tooling
+        :returns: Workflow instance
+        :raises Workflow.DoesNotExist: If workflow row is missing
+        :raises PermissionError: If read access denied
+        :raises Playbook.DoesNotExist: If write path and playbook not owned
+        """
+        qs = Workflow.objects.select_related("playbook")
+        if prefetch_activities:
+            qs = qs.prefetch_related("activities")
+        workflow = qs.get(pk=workflow_id)
+        if write:
+            PlaybookService.get_owned_playbook(workflow.playbook_id, user)
+        else:
+            PlaybookService.get_playbook(workflow.playbook_id, user)
+        return workflow

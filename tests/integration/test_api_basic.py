@@ -4,6 +4,8 @@ Basic integration tests for DRF API.
 Smoke tests to verify API endpoints are accessible and return expected formats.
 """
 
+from decimal import Decimal
+
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -125,6 +127,77 @@ class TestPlaybookAPI:
         assert response.data['id'] == playbook.id
         assert response.data['name'] == 'Test Playbook'
         assert 'workflows' in response.data or 'workflow_count' in response.data
+
+    def test_api_list_includes_other_users_public_released(self):
+        """Non-owner sees other users' public released playbooks in list (Path 2: REST)."""
+        owner = User.objects.create_user(
+            username="api_owner_lst", email="aol@test.com", password="testpass123"
+        )
+        viewer = User.objects.create_user(
+            username="api_viewer_lst", email="avl@test.com", password="testpass123"
+        )
+        pb = Playbook.objects.create(
+            name="API Public Other",
+            description="d",
+            category="development",
+            status="released",
+            version=Decimal("1.0"),
+            author=owner,
+            visibility="public",
+        )
+        token = Token.objects.create(user=viewer)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        response = client.get("/api/playbooks/")
+        assert response.status_code == 200
+        ids = {row["id"] for row in response.data["results"]}
+        assert pb.id in ids
+
+    def test_api_get_public_released_as_non_owner(self):
+        """Non-owner can retrieve another user's public released playbook."""
+        owner = User.objects.create_user(
+            username="api_owner_get", email="aog@test.com", password="testpass123"
+        )
+        viewer = User.objects.create_user(
+            username="api_viewer_get", email="avg@test.com", password="testpass123"
+        )
+        pb = Playbook.objects.create(
+            name="API Public Get",
+            description="d",
+            category="development",
+            status="released",
+            version=Decimal("1.0"),
+            author=owner,
+            visibility="public",
+        )
+        token = Token.objects.create(user=viewer)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        response = client.get(f"/api/playbooks/{pb.id}/")
+        assert response.status_code == 200
+        assert response.data["id"] == pb.id
+        assert response.data["visibility"] == "public"
+
+    def test_api_create_with_visibility(self):
+        user = User.objects.create_user(
+            username="api_vis_user", email="avu@test.com", password="testpass123"
+        )
+        token = Token.objects.create(user=user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        response = client.post(
+            "/api/playbooks/",
+            {
+                "name": "Visible Playbook",
+                "description": "d",
+                "category": "development",
+                "visibility": "public",
+            },
+            format="json",
+        )
+        assert response.status_code == 201
+        assert response.data["visibility"] == "public"
+        assert response.data["status"] == "draft"
 
 
 @pytest.mark.django_db

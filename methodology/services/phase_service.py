@@ -10,6 +10,7 @@ from django.db import transaction
 from django.db import models
 
 from methodology.models import Phase, Playbook
+from methodology.services.playbook_service import PlaybookService
 
 logger = logging.getLogger(__name__)
 
@@ -261,9 +262,13 @@ class PhaseService:
             logger.error(f"Phase {phase_id} not found")
             raise ValidationError(f"Phase with id {phase_id} not found")
         
-        # Check permissions
-        if not phase.is_owned_by(user):
-            logger.warning(f"User {user.email} attempted to view phase {phase_id} they don't own")
+        if not phase.playbook.can_view(user):
+            logger.warning(
+                "User %s denied view on phase %s (playbook id=%s)",
+                getattr(user, "pk", user),
+                phase_id,
+                phase.playbook_id,
+            )
             raise PermissionDenied("You don't have permission to view this phase")
         
         # Get activities grouped by workflow
@@ -340,3 +345,19 @@ class PhaseService:
             
             logger.info(f"Reordered {len(updated_phases)} phases in playbook {playbook_id}")
             return updated_phases
+
+    @staticmethod
+    def get_phase_for_user(phase_id, user, *, write: bool = False):
+        """
+        Load a phase and enforce playbook access (``can_view`` or owner for writes).
+
+        :param phase_id: Phase primary key
+        :param user: Django user
+        :param write: When True, require user to own the playbook
+        """
+        phase = Phase.objects.select_related("playbook").get(pk=phase_id)
+        if write:
+            PlaybookService.get_owned_playbook(phase.playbook_id, user)
+        else:
+            PlaybookService.get_playbook(phase.playbook_id, user)
+        return phase

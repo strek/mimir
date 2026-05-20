@@ -90,19 +90,70 @@ class TestPlaybookServiceCreate:
 
 @pytest.mark.django_db
 class TestPlaybookServiceGet:
-    """Tests for PlaybookService.get_playbook."""
-    
-    def test_get_playbook_success(self, draft_playbook):
-        """Test retrieving an existing playbook."""
-        playbook = PlaybookService.get_playbook(draft_playbook.id)
-        
+    """Tests for PlaybookService.get_playbook and get_owned_playbook."""
+
+    def test_get_playbook_success(self, draft_playbook, maria):
+        """Owner can retrieve draft playbook."""
+        playbook = PlaybookService.get_playbook(draft_playbook.id, maria)
+
         assert playbook.id == draft_playbook.id
         assert playbook.name == draft_playbook.name
-    
-    def test_get_playbook_not_found_raises_error(self):
-        """Test retrieving non-existent playbook raises error."""
+
+    def test_get_playbook_not_found_raises_error(self, maria):
+        """Missing playbook raises DoesNotExist."""
         with pytest.raises(Playbook.DoesNotExist):
-            PlaybookService.get_playbook(99999)
+            PlaybookService.get_playbook(99999, maria)
+
+    def test_non_owner_can_get_public_released(self, db, maria):
+        other = User.objects.create_user(username="other", email="o@test.com")
+        pb = Playbook.objects.create(
+            name="Pub",
+            description="d",
+            category="development",
+            status="released",
+            version=Decimal("1.0"),
+            author=other,
+            visibility="public",
+        )
+        got = PlaybookService.get_playbook(pb.id, maria)
+        assert got.id == pb.id
+
+    def test_non_owner_cannot_get_public_draft(self, db, maria):
+        other = User.objects.create_user(username="other2", email="o2@test.com")
+        pb = Playbook.objects.create(
+            name="PubDraft",
+            description="d",
+            category="development",
+            status="draft",
+            version=Decimal("0.1"),
+            author=other,
+            visibility="public",
+        )
+        with pytest.raises(PermissionError):
+            PlaybookService.get_playbook(pb.id, maria)
+
+    def test_non_owner_cannot_get_private(self, db, maria):
+        other = User.objects.create_user(username="other3", email="o3@test.com")
+        pb = Playbook.objects.create(
+            name="Priv",
+            description="d",
+            category="development",
+            status="released",
+            version=Decimal("1.0"),
+            author=other,
+            visibility="private",
+        )
+        with pytest.raises(PermissionError):
+            PlaybookService.get_playbook(pb.id, maria)
+
+    def test_get_owned_playbook_success(self, draft_playbook, maria):
+        pb = PlaybookService.get_owned_playbook(draft_playbook.id, maria)
+        assert pb.id == draft_playbook.id
+
+    def test_get_owned_playbook_wrong_user(self, draft_playbook, db):
+        other = User.objects.create_user(username="intruder", email="i@test.com")
+        with pytest.raises(Playbook.DoesNotExist):
+            PlaybookService.get_owned_playbook(draft_playbook.id, other)
 
 
 @pytest.mark.django_db

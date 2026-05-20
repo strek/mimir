@@ -121,56 +121,62 @@ Feature: Mimir MCP UAT — all 61 tools exercised end-to-end in agent mode
 
 
 #############################################################################
-# MCP-01b — MCP list/get are author-scoped regardless of GUI visibility
+# MCP-01b — MCP list/get follow can_view (same as web: public released cross-user; draft/other rules)
 #############################################################################
 
   @manual @uat @mcp-visibility
-  Scenario: MCP-01b MCP list_playbooks and get_playbook are author-scoped regardless of GUI visibility
-    # Pre: <ADMIN_PUBLIC_PB_ID> exists as a Public Released playbook owned by admin (from e2e-uat-flow UAT-03-05).
-    # Pre: GUI `/playbooks/` shows admin's released public playbook to uat_user, but never draft public playbooks from others.
-    # MCP token is <UAT_TOKEN>.
+  Scenario: MCP-01b MCP list_playbooks and get_playbook follow Playbook.can_view (not author-only)
+    # Aligns MCP with GUI: any authenticated user may list and get another user's playbook when
+    # visibility=public AND status is not draft. Public+draft from others stays hidden; private
+    # from others is denied (get → not found style error).
     #
-    # STEP list-no-admin-public
+    # Pre: <ADMIN_PUBLIC_PB_ID> — admin-owned, visibility public, status released (e2e UAT-03-05).
+    # Optional Pre: <ADMIN_PUBLIC_DRAFT_PB_ID> — admin-owned, visibility public, status draft (for negative get).
+    # MCP token is <UAT_TOKEN> (uat_user).
+    #
+    # STEP list-includes-admin-public-released
     # DO: CallMcpTool server "user-mimir" toolName "list_playbooks" arguments {"status": "all"}
-    # SEE: result does NOT contain an entry with id equal to <ADMIN_PUBLIC_PB_ID>
-    # IF DIFFER: MCP-01b list-no-admin-public
+    # SEE: result contains an entry with `id` equal to <ADMIN_PUBLIC_PB_ID> and `visibility` `public`
+    # IF DIFFER: MCP-01b list-includes-admin-public-released
     #
-    # STEP get-admin-public-not-found
-    # DO: CallMcpTool server "user-mimir" toolName "get_playbook" arguments {"playbook_id": "<ADMIN_PUBLIC_PB_ID>"}
+    # STEP get-admin-public-released-ok
+    # DO: CallMcpTool server "user-mimir" toolName "get_playbook" arguments {"playbook_id": <ADMIN_PUBLIC_PB_ID>}
+    # SEE: JSON `id` = <ADMIN_PUBLIC_PB_ID>; `visibility` = `public`; `status` is not `draft`
+    # IF DIFFER: MCP-01b get-admin-public-released-ok
+    #
+    # STEP get-admin-public-draft-not-found (skip if optional pre missing)
+    # DO: CallMcpTool server "user-mimir" toolName "get_playbook" arguments {"playbook_id": <ADMIN_PUBLIC_DRAFT_PB_ID>}
     # SEE: error payload contains substring `not found`
-    # IF DIFFER: MCP-01b get-admin-public-not-found
+    # IF DIFFER: MCP-01b get-admin-public-draft-not-found
     #
-    # STEP create-own-public
-    # DO: CallMcpTool server "user-mimir" toolName "create_playbook" arguments {"name": "UAT Public Visibility Test", "description": "Temporary playbook to test MCP author-scoping with public visibility.", "category": "development", "visibility": "public"}
+    # STEP create-uat-public-draft
+    # DO: CallMcpTool server "user-mimir" toolName "create_playbook" arguments {"name": "UAT Public Visibility Test", "description": "Temporary playbook for MCP can_view UAT.", "category": "development", "visibility": "public"}
     # SEE: JSON `status` = `draft`; `visibility` = `public`; RECORD `<UAT_PUBLIC_PB_ID>` from `.id`
-    # IF DIFFER: MCP-01b create-own-public
+    # IF DIFFER: MCP-01b create-uat-public-draft
     #
-    # STEP get-own-public-found
-    # DO: CallMcpTool server "user-mimir" toolName "get_playbook" arguments {"playbook_id": "<UAT_PUBLIC_PB_ID>"}
-    # SEE: `id` equals <UAT_PUBLIC_PB_ID>; `visibility` = `public`
-    # IF DIFFER: MCP-01b get-own-public-found
+    # STEP get-own-public-draft-ok
+    # DO: CallMcpTool server "user-mimir" toolName "get_playbook" arguments {"playbook_id": <UAT_PUBLIC_PB_ID>}
+    # SEE: `id` equals <UAT_PUBLIC_PB_ID>; owner always passes can_view
+    # IF DIFFER: MCP-01b get-own-public-draft-ok
     #
-    # STEP admin-token-list-no-uat-public
+    # STEP admin-token-get-uat-public-draft-not-found
     # DO: Shell → python scripts/mcp_token_swap.py --token <ADMIN_TOKEN> --server http://localhost:8000
     # DO: CURSOR_PROMPT: toggle mimir MCP OFF → ON to reload with admin token; confirm when done
-    # DO: CallMcpTool server "user-mimir" toolName "list_playbooks" arguments {"status": "all"}
-    # SEE: result does NOT contain an entry with id equal to <UAT_PUBLIC_PB_ID>
-    # IF DIFFER: MCP-01b admin-token-list-no-uat-public
+    # DO: CallMcpTool server "user-mimir" toolName "get_playbook" arguments {"playbook_id": <UAT_PUBLIC_PB_ID>}
+    # SEE: error payload contains substring `not found` (non-owner cannot view others' public draft)
+    # IF DIFFER: MCP-01b admin-token-get-uat-public-draft-not-found
     #
-    # STEP admin-token-get-uat-public-not-found
-    # DO: CallMcpTool server "user-mimir" toolName "get_playbook" arguments {"playbook_id": "<UAT_PUBLIC_PB_ID>"}
-    # SEE: error payload contains substring `not found`
-    # IF DIFFER: MCP-01b admin-token-get-uat-public-not-found
+    # STEP admin-token-list-includes-uat-when-released (optional follow-up)
+    # After uat_user releases <UAT_PUBLIC_PB_ID> via GUI/PIP (not in this flow), admin token should
+    # list/get that playbook; out of scope if still draft.
     #
     # STEP restore-uat-token
     # DO: Shell → python scripts/mcp_token_swap.py --token <UAT_TOKEN> --server http://localhost:8000
     # DO: CURSOR_PROMPT: toggle mimir MCP OFF → ON to reload with UAT token; confirm when done
-    # DO: CallMcpTool server "user-mimir" toolName "list_playbooks" arguments {"status": "all"}
-    # SEE: result contains entry with id equal to <UAT_PUBLIC_PB_ID> (uat_user owns it again)
     # IF DIFFER: MCP-01b restore-uat-token
     #
     # STEP cleanup-delete-uat-public
-    # DO: CallMcpTool server "user-mimir" toolName "delete_playbook" arguments {"playbook_id": "<UAT_PUBLIC_PB_ID>"}
+    # DO: CallMcpTool server "user-mimir" toolName "delete_playbook" arguments {"playbook_id": <UAT_PUBLIC_PB_ID>}
     # SEE: `deleted`: true
     # IF DIFFER: MCP-01b cleanup-delete-uat-public
 

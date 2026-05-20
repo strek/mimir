@@ -55,6 +55,7 @@ class TestMCPPlaybookCreate:
         assert result['id'] is not None
         assert result['version'] == '0.1'
         assert result['status'] == 'draft'
+        assert result.get('visibility') == 'private'
         
         # Verify in database
         playbook = await sync_to_async(Playbook.objects.select_related('author').get)(id=result['id'])
@@ -108,3 +109,119 @@ class TestMCPPlaybookDelete:
         assert result['deleted'] is True
         exists = await sync_to_async(Playbook.objects.filter(id=created['id']).exists)()
         assert not exists
+
+
+@pytest.mark.django_db(transaction=True)
+class TestMCPPlaybookVisibility:
+    """Cross-user visibility: can_view matches Playbook model (local MCP path / tools.py)."""
+
+    @pytest.mark.asyncio
+    async def test_non_owner_can_get_public_released(self, db):
+        owner = User.objects.create_user(username="owner_vis", email="o@test.com", password="test123")
+        viewer = User.objects.create_user(username="viewer_vis", email="v@test.com", password="test123")
+        pb = Playbook.objects.create(
+            name="Public Released",
+            description="d",
+            category="development",
+            status="released",
+            version=Decimal("1.0"),
+            author=owner,
+            visibility="public",
+        )
+        set_current_user(viewer)
+        result = await get_playbook(playbook_id=pb.id)
+        assert result["id"] == pb.id
+        assert result["visibility"] == "public"
+        assert result["status"] == "released"
+
+    @pytest.mark.asyncio
+    async def test_non_owner_cannot_get_public_draft(self, db):
+        owner = User.objects.create_user(username="owner_pd", email="opd@test.com", password="test123")
+        viewer = User.objects.create_user(username="viewer_pd", email="vpd@test.com", password="test123")
+        pb = Playbook.objects.create(
+            name="Public Draft",
+            description="d",
+            category="development",
+            status="draft",
+            version=Decimal("0.1"),
+            author=owner,
+            visibility="public",
+        )
+        set_current_user(viewer)
+        with pytest.raises(ValueError, match="not found"):
+            await get_playbook(playbook_id=pb.id)
+
+    @pytest.mark.asyncio
+    async def test_non_owner_cannot_get_private(self, db):
+        owner = User.objects.create_user(username="owner_pr", email="opr@test.com", password="test123")
+        viewer = User.objects.create_user(username="viewer_pr", email="vpr@test.com", password="test123")
+        pb = Playbook.objects.create(
+            name="Private Rel",
+            description="d",
+            category="development",
+            status="released",
+            version=Decimal("1.0"),
+            author=owner,
+            visibility="private",
+        )
+        set_current_user(viewer)
+        with pytest.raises(ValueError, match="not found"):
+            await get_playbook(playbook_id=pb.id)
+
+    @pytest.mark.asyncio
+    async def test_list_includes_public_from_others(self, db):
+        owner = User.objects.create_user(username="owner_lst", email="ol@test.com", password="test123")
+        viewer = User.objects.create_user(username="viewer_lst", email="vl@test.com", password="test123")
+        pb = Playbook.objects.create(
+            name="Other Public",
+            description="d",
+            category="development",
+            status="released",
+            version=Decimal("1.0"),
+            author=owner,
+            visibility="public",
+        )
+        set_current_user(viewer)
+        rows = await list_playbooks(status="all")
+        ids = {r["id"] for r in rows}
+        assert pb.id in ids
+
+    @pytest.mark.asyncio
+    async def test_list_excludes_public_draft_from_others(self, db):
+        """Others' visibility=public + status=draft must not appear in MCP list."""
+        owner = User.objects.create_user(username="owner_pd_lst", email="opdl@test.com", password="test123")
+        viewer = User.objects.create_user(username="viewer_pd_lst", email="vpdl@test.com", password="test123")
+        draft_pub = Playbook.objects.create(
+            name="Others Public Draft",
+            description="d",
+            category="development",
+            status="draft",
+            version=Decimal("0.1"),
+            author=owner,
+            visibility="public",
+        )
+        set_current_user(viewer)
+        for status_arg in ("all", "draft"):
+            rows = await list_playbooks(status=status_arg)
+            ids = {r["id"] for r in rows}
+            assert draft_pub.id not in ids
+
+    @pytest.mark.asyncio
+    async def test_create_with_visibility_public(self, db):
+        u = User.objects.create_user(username="vis_create", email="vc@test.com", password="test123")
+        set_current_user(u)
+        result = await create_playbook(
+            name="Vis Create",
+            description="x",
+            category="development",
+            visibility="public",
+        )
+        assert result["visibility"] == "public"
+        assert result["status"] == "draft"
+
+    @pytest.mark.asyncio
+    async def test_create_defaults_visibility_private(self, db):
+        u = User.objects.create_user(username="vis_def", email="vd@test.com", password="test123")
+        set_current_user(u)
+        result = await create_playbook(name="Default Vis", description="x", category="development")
+        assert result["visibility"] == "private"

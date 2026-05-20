@@ -54,11 +54,50 @@ def _handle_validation_error(e: ValidationError, tool_name: str) -> None:
     raise ValueError(msg)
 
 
+async def _playbook_for_read(
+    playbook_id: int, user, *, prefetch_workflows: bool = False
+):
+    """Resolve playbook if user may view it; normalize errors to ValueError."""
+    from methodology.models import Playbook
+    from methodology.services.playbook_service import PlaybookService
+
+    def _run():
+        try:
+            return PlaybookService.get_playbook(
+                playbook_id, user, prefetch_workflows=prefetch_workflows
+            )
+        except Playbook.DoesNotExist:
+            raise ValueError(f'Playbook {playbook_id} not found') from None
+        except PermissionError:
+            raise ValueError(f'Playbook {playbook_id} not found') from None
+
+    return await sync_to_async(_run)()
+
+
+async def _playbook_for_write(playbook_id: int, user):
+    """Resolve playbook if user owns it; normalize errors to ValueError."""
+    from methodology.models import Playbook
+    from methodology.services.playbook_service import PlaybookService
+
+    def _run():
+        try:
+            return PlaybookService.get_owned_playbook(playbook_id, user)
+        except Playbook.DoesNotExist:
+            raise ValueError(f'Playbook {playbook_id} not found') from None
+
+    return await sync_to_async(_run)()
+
+
 # ============================================================================
 # PLAYBOOK MCP TOOLS
 # ============================================================================
 
-async def create_playbook(name: str, description: str, category: str) -> dict:
+async def create_playbook(
+    name: str,
+    description: str,
+    category: str,
+    visibility: Literal["private", "public"] = "private",
+) -> dict:
     """
     Create draft playbook.
     
@@ -81,7 +120,10 @@ async def create_playbook(name: str, description: str, category: str) -> dict:
         >>> result['version']
         '0.1'
     """
-    logger.info(f'MCP Tool: create_playbook called - name="{name}", category={category}')
+    logger.info(
+        f'MCP Tool: create_playbook called - name="{name}", category={category}, '
+        f'visibility={visibility}'
+    )
     
     # Phase 5: Get user from MCP context
     user = await sync_to_async(get_current_user)()
@@ -94,7 +136,8 @@ async def create_playbook(name: str, description: str, category: str) -> dict:
             description=description,
             category=category,
             author=user,
-            status='draft'  # MCP always creates drafts
+            status='draft',  # MCP always creates drafts
+            visibility=visibility,
         )
     except ValidationError as e:
         _handle_validation_error(e, 'create_playbook')
@@ -106,6 +149,7 @@ async def create_playbook(name: str, description: str, category: str) -> dict:
         'category': playbook.category,
         'status': playbook.status,
         'version': str(playbook.version),
+        'visibility': playbook.visibility,
     }
     logger.info(f'MCP Tool: Created playbook id={playbook.id}, version={playbook.version}')
     return result
@@ -124,8 +168,17 @@ async def list_playbooks(status: Literal["draft", "released", "active", "all"] =
     
     from methodology.services.playbook_service import PlaybookService
     status_filter = None if status == "all" else status
-    playbooks = await sync_to_async(PlaybookService.list_playbooks)(user, status=status_filter)
-    
+    owned = await sync_to_async(PlaybookService.list_playbooks)(user, status=status_filter)
+    public_others = await sync_to_async(PlaybookService.list_public_playbooks)(user)
+    if status_filter:
+        public_others = [p for p in public_others if p.status == status_filter]
+    combined = list(owned) + public_others
+
+    def sort_key(p):
+        return (p.updated_at is None, p.updated_at or p.created_at)
+
+    combined.sort(key=sort_key, reverse=True)
+
     result = [
         {
             'id': p.id,
@@ -134,8 +187,9 @@ async def list_playbooks(status: Literal["draft", "released", "active", "all"] =
             'category': p.category,
             'status': p.status,
             'version': str(p.version),
+            'visibility': p.visibility,
         }
-        for p in playbooks
+        for p in combined
     ]
     logger.info(f'MCP Tool: Returning {len(result)} playbooks')
     return result
@@ -152,17 +206,9 @@ async def get_playbook(playbook_id: int) -> dict:
     logger.info(f'MCP Tool: get_playbook called - id={playbook_id}')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Playbook
-    try:
-        playbook = await sync_to_async(Playbook.objects.prefetch_related('workflows').get)(
-            id=playbook_id,
-            author=user
-        )
-    except Playbook.DoesNotExist:
-        logger.error(f'MCP Tool: Playbook id={playbook_id} not found for user')
-        raise ValueError(f'Playbook {playbook_id} not found')
-    
+
+    playbook = await _playbook_for_read(playbook_id, user, prefetch_workflows=True)
+
     workflows = await sync_to_async(list)(playbook.workflows.all())
     result = {
         'id': playbook.id,
@@ -171,6 +217,7 @@ async def get_playbook(playbook_id: int) -> dict:
         'category': playbook.category,
         'status': playbook.status,
         'version': str(playbook.version),
+        'visibility': playbook.visibility,
         'workflows': [
             {
                 'id': w.id,
@@ -185,8 +232,13 @@ async def get_playbook(playbook_id: int) -> dict:
     return result
 
 
-async def update_playbook(playbook_id: int, name: str = None,
-                        description: str = None, category: str = None) -> dict:
+async def update_playbook(
+    playbook_id: int,
+    name: str = None,
+    description: str = None,
+    category: str = None,
+    visibility: Optional[Literal["private", "public"]] = None,
+) -> dict:
     """
     Update DRAFT playbook. Auto-increments version.
     
@@ -201,19 +253,14 @@ async def update_playbook(playbook_id: int, name: str = None,
     logger.info(f'MCP Tool: update_playbook called - id={playbook_id}')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Playbook
-    try:
-        playbook = await sync_to_async(Playbook.objects.get)(id=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        logger.error(f'MCP Tool: Playbook id={playbook_id} not found for user')
-        raise ValueError(f'Playbook {playbook_id} not found')
-    
+
+    playbook = await _playbook_for_write(playbook_id, user)
+
     # Permission check
     if playbook.status == 'released':
         logger.error(f'MCP Tool: Cannot update released playbook id={playbook_id}')
         raise PermissionError(f'Cannot modify released playbook "{playbook.name}". Use create_pip instead.')
-    
+
     # Build update data
     update_data = {}
     if name is not None:
@@ -222,23 +269,25 @@ async def update_playbook(playbook_id: int, name: str = None,
         update_data['description'] = description
     if category is not None:
         update_data['category'] = category
-    
+    if visibility is not None:
+        update_data['visibility'] = visibility
+
     if update_data:
         from methodology.services.playbook_service import PlaybookService
         old_version = playbook.version
-        
+
         # Update playbook
         try:
             playbook = await sync_to_async(PlaybookService.update_playbook)(playbook_id, **update_data)
         except ValidationError as e:
             _handle_validation_error(e, 'update_playbook')
-        
+
         # Increment version
         playbook.version += Decimal('0.1')
         await sync_to_async(playbook.save)()
-        
+
         logger.info(f'MCP Tool: Updated playbook, version {old_version} → {playbook.version}')
-    
+
     return {
         'id': playbook.id,
         'name': playbook.name,
@@ -246,6 +295,7 @@ async def update_playbook(playbook_id: int, name: str = None,
         'category': playbook.category,
         'status': playbook.status,
         'version': str(playbook.version),
+        'visibility': playbook.visibility,
     }
 
 
@@ -261,22 +311,17 @@ async def delete_playbook(playbook_id: int) -> dict:
     logger.info(f'MCP Tool: delete_playbook called - id={playbook_id}')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Playbook
-    try:
-        playbook = await sync_to_async(Playbook.objects.get)(id=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        logger.error(f'MCP Tool: Playbook id={playbook_id} not found for user')
-        raise ValueError(f'Playbook {playbook_id} not found')
-    
+
+    playbook = await _playbook_for_write(playbook_id, user)
+
     # Permission check
     if playbook.status == 'released':
         logger.error(f'MCP Tool: Cannot delete released playbook id={playbook_id}')
         raise PermissionError(f'Cannot delete released playbook "{playbook.name}"')
-    
+
     playbook_name = playbook.name
     workflow_count = await sync_to_async(playbook.workflows.count)()
-    
+
     from methodology.services.playbook_service import PlaybookService
     await sync_to_async(PlaybookService.delete_playbook)(playbook_id)
     
@@ -302,14 +347,9 @@ async def create_workflow(playbook_id: int, name: str, description: str = "") ->
     logger.info(f'MCP Tool: create_workflow called - playbook_id={playbook_id}, name="{name}"')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Playbook
-    try:
-        playbook = await sync_to_async(Playbook.objects.get)(id=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        logger.error(f'MCP Tool: Playbook id={playbook_id} not found for user')
-        raise ValueError(f'Playbook {playbook_id} not found')
-    
+
+    playbook = await _playbook_for_write(playbook_id, user)
+
     # Permission check
     if playbook.status == 'released':
         logger.error(f'MCP Tool: Cannot add workflow to released playbook id={playbook_id}')
@@ -349,14 +389,9 @@ async def list_workflows(playbook_id: int) -> list:
     logger.info(f'MCP Tool: list_workflows called - playbook_id={playbook_id}')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Playbook
-    try:
-        playbook = await sync_to_async(Playbook.objects.get)(id=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        logger.error(f'MCP Tool: Playbook id={playbook_id} not found for user')
-        raise ValueError(f'Playbook {playbook_id} not found')
-    
+
+    await _playbook_for_read(playbook_id, user)
+
     from methodology.services.workflow_service import WorkflowService
     workflows = await sync_to_async(WorkflowService.get_workflows_for_playbook)(playbook_id)
     
@@ -385,17 +420,25 @@ async def get_workflow(workflow_id: int) -> dict:
     logger.info(f'MCP Tool: get_workflow called - id={workflow_id}')
     
     user = await sync_to_async(get_current_user)()
-    
+
     from methodology.models import Workflow
-    try:
-        workflow = await sync_to_async(Workflow.objects.prefetch_related('activities').get)(
-            id=workflow_id,
-            playbook__author=user
-        )
-    except Workflow.DoesNotExist:
-        logger.error(f'MCP Tool: Workflow id={workflow_id} not found for user')
-        raise ValueError(f'Workflow {workflow_id} not found')
-    
+    from methodology.services.workflow_service import WorkflowService
+
+    def _load():
+        try:
+            return WorkflowService.get_workflow_for_user(
+                workflow_id,
+                user,
+                write=False,
+                prefetch_activities=True,
+            )
+        except Workflow.DoesNotExist:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+        except PermissionError:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+
+    workflow = await sync_to_async(_load)()
+
     activities = await sync_to_async(list)(workflow.activities.all())
     result = {
         'id': workflow.id,
@@ -432,17 +475,22 @@ async def update_workflow(workflow_id: int, name: str = None,
     logger.info(f'MCP Tool: update_workflow called - id={workflow_id}')
     
     user = await sync_to_async(get_current_user)()
-    
+
     from methodology.models import Workflow
-    try:
-        workflow = await sync_to_async(Workflow.objects.select_related('playbook').get)(
-            id=workflow_id,
-            playbook__author=user
-        )
-    except Workflow.DoesNotExist:
-        logger.error(f'MCP Tool: Workflow id={workflow_id} not found for user')
-        raise ValueError(f'Workflow {workflow_id} not found')
-    
+    from methodology.services.workflow_service import WorkflowService
+
+    def _load():
+        try:
+            return WorkflowService.get_workflow_for_user(
+                workflow_id, user, write=True, prefetch_activities=False
+            )
+        except Workflow.DoesNotExist:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+        except PermissionError:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+
+    workflow = await sync_to_async(_load)()
+
     # Permission check
     if workflow.playbook.status == 'released':
         logger.error(f'MCP Tool: Cannot update workflow in released playbook')
@@ -494,28 +542,32 @@ async def delete_workflow(workflow_id: int) -> dict:
     logger.info(f'MCP Tool: delete_workflow called - id={workflow_id}')
     
     user = await sync_to_async(get_current_user)()
-    
+
     from methodology.models import Workflow
-    try:
-        workflow = await sync_to_async(Workflow.objects.select_related('playbook').get)(
-            id=workflow_id,
-            playbook__author=user
-        )
-    except Workflow.DoesNotExist:
-        logger.error(f'MCP Tool: Workflow id={workflow_id} not found for user')
-        raise ValueError(f'Workflow {workflow_id} not found')
-    
+    from methodology.services.workflow_service import WorkflowService
+
+    def _load():
+        try:
+            return WorkflowService.get_workflow_for_user(
+                workflow_id, user, write=True, prefetch_activities=False
+            )
+        except Workflow.DoesNotExist:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+        except PermissionError:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+
+    workflow = await sync_to_async(_load)()
+
     # Permission check
     if workflow.playbook.status == 'released':
         logger.error(f'MCP Tool: Cannot delete workflow in released playbook')
         raise PermissionError(f'Cannot modify released playbook "{workflow.playbook.name}". Use create_pip instead.')
-    
+
     workflow_name = workflow.name
     playbook = workflow.playbook
     activity_count = await sync_to_async(workflow.activities.count)()
     old_version = playbook.version
-    
-    from methodology.services.workflow_service import WorkflowService
+
     await sync_to_async(WorkflowService.delete_workflow)(workflow_id)
     
     # Increment parent version
@@ -547,33 +599,40 @@ async def create_activity(workflow_id: int, name: str, guidance: str = "",
     logger.info(f'MCP Tool: create_activity called - workflow_id={workflow_id}, name="{name}"')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Workflow, Activity
-    try:
-        workflow = await sync_to_async(Workflow.objects.select_related('playbook').get)(
-            id=workflow_id,
-            playbook__author=user
-        )
-    except Workflow.DoesNotExist:
-        logger.error(f'MCP Tool: Workflow id={workflow_id} not found for user')
-        raise ValueError(f'Workflow {workflow_id} not found')
-    
+
+    from methodology.models import Activity, Workflow
+    from methodology.services.workflow_service import WorkflowService
+    from methodology.services.activity_service import ActivityService
+
+    def _load_wf():
+        try:
+            return WorkflowService.get_workflow_for_user(
+                workflow_id, user, write=True, prefetch_activities=False
+            )
+        except Workflow.DoesNotExist:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+        except PermissionError:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+
+    workflow = await sync_to_async(_load_wf)()
+
     # Permission check on grandparent playbook
     if workflow.playbook.status == 'released':
         logger.error(f'MCP Tool: Cannot add activity to workflow in released playbook')
         raise PermissionError(f'Cannot modify released playbook "{workflow.playbook.name}". Use create_pip instead.')
-    
+
     # Get predecessor if specified
     predecessor = None
     if predecessor_id:
         try:
-            predecessor = await sync_to_async(Activity.objects.get)(id=predecessor_id, workflow=workflow)
+            predecessor = await sync_to_async(ActivityService.get_activity_in_workflow_for_owner)(
+                workflow, predecessor_id
+            )
         except Activity.DoesNotExist:
             logger.error(f'MCP Tool: Predecessor id={predecessor_id} not found in workflow {workflow_id}')
             raise ValueError(f'Predecessor activity {predecessor_id} not found in workflow')
-    
+
     # Call existing service
-    from methodology.services.activity_service import ActivityService
     old_version = workflow.playbook.version
     try:
         activity = await sync_to_async(ActivityService.create_activity)(
@@ -617,16 +676,24 @@ async def list_activities(workflow_id: int) -> list:
     logger.info(f'MCP Tool: list_activities called - workflow_id={workflow_id}')
     
     user = await sync_to_async(get_current_user)()
-    
+
     from methodology.models import Workflow
-    try:
-        workflow = await sync_to_async(Workflow.objects.get)(id=workflow_id, playbook__author=user)
-    except Workflow.DoesNotExist:
-        logger.error(f'MCP Tool: Workflow id={workflow_id} not found for user')
-        raise ValueError(f'Workflow {workflow_id} not found')
-    
+    from methodology.services.workflow_service import WorkflowService
     from methodology.services.activity_service import ActivityService
-    activities_qs = await sync_to_async(ActivityService.get_activities_for_workflow)(workflow_id)
+
+    def _load_wf():
+        try:
+            return WorkflowService.get_workflow_for_user(
+                workflow_id, user, write=False, prefetch_activities=False
+            )
+        except Workflow.DoesNotExist:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+        except PermissionError:
+            raise ValueError(f'Workflow {workflow_id} not found') from None
+
+    workflow = await sync_to_async(_load_wf)()
+
+    activities_qs = await sync_to_async(ActivityService.get_activities_for_workflow)(workflow)
     
     # Convert QuerySet to list
     activities = await sync_to_async(list)(activities_qs)
@@ -665,16 +732,16 @@ async def get_activity(activity_id: int) -> dict:
     # Run all database access in a single sync function
     def get_activity_data():
         from methodology.models import Activity
+        from methodology.services.activity_service import ActivityService
+
         try:
-            activity = Activity.objects.select_related(
-                'predecessor', 'successor', 'workflow__playbook', 'agent', 'skill', 'phase'
-            ).prefetch_related(
-                'output_artifacts', 'input_artifacts__artifact', 'rules'
-            ).get(
-                id=activity_id,
-                workflow__playbook__author=user
+            activity = ActivityService.get_activity_for_user(
+                activity_id, user, write=False, with_full_detail=True
             )
         except Activity.DoesNotExist:
+            logger.error(f'MCP Tool: Activity id={activity_id} not found for user')
+            raise ValueError(f'Activity {activity_id} not found')
+        except PermissionError:
             logger.error(f'MCP Tool: Activity id={activity_id} not found for user')
             raise ValueError(f'Activity {activity_id} not found')
         
@@ -811,17 +878,22 @@ async def update_activity(activity_id: int, name: str = None, guidance: str = No
     logger.info(f'MCP Tool: update_activity called - id={activity_id}')
     
     user = await sync_to_async(get_current_user)()
-    
+
     from methodology.models import Activity
-    try:
-        activity = await sync_to_async(Activity.objects.select_related('workflow__playbook').get)(
-            id=activity_id,
-            workflow__playbook__author=user
-        )
-    except Activity.DoesNotExist:
-        logger.error(f'MCP Tool: Activity id={activity_id} not found for user')
-        raise ValueError(f'Activity {activity_id} not found')
-    
+    from methodology.services.activity_service import ActivityService
+
+    def _load():
+        try:
+            return ActivityService.get_activity_for_user(
+                activity_id, user, write=True, with_full_detail=False
+            )
+        except Activity.DoesNotExist:
+            raise ValueError(f'Activity {activity_id} not found') from None
+        except PermissionError:
+            raise ValueError(f'Activity {activity_id} not found') from None
+
+    activity = await sync_to_async(_load)()
+
     # Permission check
     if activity.workflow.playbook.status == 'released':
         logger.error(f'MCP Tool: Cannot update activity in released playbook')
@@ -875,17 +947,22 @@ async def delete_activity(activity_id: int) -> dict:
     logger.info(f'MCP Tool: delete_activity called - id={activity_id}')
     
     user = await sync_to_async(get_current_user)()
-    
+
     from methodology.models import Activity
-    try:
-        activity = await sync_to_async(Activity.objects.select_related('workflow__playbook').get)(
-            id=activity_id,
-            workflow__playbook__author=user
-        )
-    except Activity.DoesNotExist:
-        logger.error(f'MCP Tool: Activity id={activity_id} not found for user')
-        raise ValueError(f'Activity {activity_id} not found')
-    
+    from methodology.services.activity_service import ActivityService
+
+    def _load():
+        try:
+            return ActivityService.get_activity_for_user(
+                activity_id, user, write=True, with_full_detail=False
+            )
+        except Activity.DoesNotExist:
+            raise ValueError(f'Activity {activity_id} not found') from None
+        except PermissionError:
+            raise ValueError(f'Activity {activity_id} not found') from None
+
+    activity = await sync_to_async(_load)()
+
     # Permission check
     if activity.workflow.playbook.status == 'released':
         logger.error(f'MCP Tool: Cannot delete activity in released playbook')
@@ -919,18 +996,26 @@ async def set_predecessor(activity_id: int, predecessor_id: int) -> dict:
     logger.info(f'MCP Tool: set_predecessor called - activity_id={activity_id}, predecessor_id={predecessor_id}')
     
     user = await sync_to_async(get_current_user)()
-    
+
     from methodology.models import Activity
-    try:
-        activity = await sync_to_async(Activity.objects.select_related('workflow__playbook').get)(
-            id=activity_id,
-            workflow__playbook__author=user
-        )
-        predecessor = await sync_to_async(Activity.objects.get)(id=predecessor_id, workflow=activity.workflow)
-    except Activity.DoesNotExist as e:
-        logger.error(f'MCP Tool: Activity not found or not in same workflow')
-        raise ValueError('Activity or predecessor not found') from e
-    
+    from methodology.services.activity_service import ActivityService
+
+    def _load():
+        try:
+            act = ActivityService.get_activity_for_user(
+                activity_id, user, write=True, with_full_detail=False
+            )
+            pred = ActivityService.get_activity_in_workflow_for_owner(
+                act.workflow, predecessor_id
+            )
+            return act, pred
+        except Activity.DoesNotExist:
+            raise ValueError('Activity or predecessor not found') from None
+        except PermissionError:
+            raise ValueError('Activity or predecessor not found') from None
+
+    activity, predecessor = await sync_to_async(_load)()
+
     # Permission check
     if activity.workflow.playbook.status == 'released':
         logger.error(f'MCP Tool: Cannot modify dependencies in released playbook')
@@ -984,11 +1069,15 @@ async def export_workflow_to_local(
     user = await sync_to_async(get_current_user)()
     
     from methodology.services.workflow_export_service import WorkflowExportService
-    result = await sync_to_async(WorkflowExportService.export_workflow_to_markdown)(
-        workflow_id=workflow_id,
-        target_directory=target_directory,
-        folder_name=folder_name
-    )
+    try:
+        result = await sync_to_async(WorkflowExportService.export_workflow_to_markdown)(
+            workflow_id=workflow_id,
+            target_directory=target_directory,
+            folder_name=folder_name,
+            user=user,
+        )
+    except PermissionError as exc:
+        raise ValueError(f'Workflow {workflow_id} not found') from exc
     
     logger.info(f'MCP Tool: Exported workflow {workflow_id} to {result["export_path"]}')
     return result
@@ -1159,11 +1248,7 @@ async def list_skills(
 
     user = await sync_to_async(get_current_user)()
 
-    from methodology.models import Playbook
-    try:
-        await sync_to_async(Playbook.objects.get)(id=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        raise ValueError(f'Playbook {playbook_id} not found')
+    await _playbook_for_read(playbook_id, user)
 
     from methodology.services.skill_service import SkillService
     skills = await sync_to_async(list)(
@@ -1202,13 +1287,16 @@ async def get_skill(skill_id: int) -> dict:
 
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Skill
     from methodology.services.skill_service import SkillService
-    try:
-        skill = await sync_to_async(SkillService.get_skill)(skill_id)
-    except Exception:
-        raise ValueError(f'Skill {skill_id} not found')
 
-    if skill.playbook.author_id != user.id:
+    try:
+        skill = await sync_to_async(SkillService.get_skill_for_user)(
+            skill_id, user, write=False
+        )
+    except Skill.DoesNotExist:
+        raise ValueError(f'Skill {skill_id} not found')
+    except PermissionError:
         raise ValueError(f'Skill {skill_id} not found')
 
     activity_count = await sync_to_async(skill.activities.count)()
@@ -1247,10 +1335,16 @@ async def update_skill(
 
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Skill
     from methodology.services.skill_service import SkillService
-    skill = await sync_to_async(SkillService.get_skill)(skill_id)
 
-    if skill.playbook.author_id != user.id:
+    try:
+        skill = await sync_to_async(SkillService.get_skill_for_user)(
+            skill_id, user, write=True
+        )
+    except Skill.DoesNotExist:
+        raise ValueError(f'Skill {skill_id} not found')
+    except PermissionError:
         raise ValueError(f'Skill {skill_id} not found')
     if skill.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook "{skill.playbook.name}".')
@@ -1298,10 +1392,16 @@ async def delete_skill(skill_id: int) -> dict:
 
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Skill
     from methodology.services.skill_service import SkillService
-    skill = await sync_to_async(SkillService.get_skill)(skill_id)
 
-    if skill.playbook.author_id != user.id:
+    try:
+        skill = await sync_to_async(SkillService.get_skill_for_user)(
+            skill_id, user, write=True
+        )
+    except Skill.DoesNotExist:
+        raise ValueError(f'Skill {skill_id} not found')
+    except PermissionError:
         raise ValueError(f'Skill {skill_id} not found')
     if skill.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook "{skill.playbook.name}".')
@@ -1332,13 +1432,10 @@ async def link_skill_to_activity(activity_id: int, skill_id: int) -> dict:
     user = await sync_to_async(get_current_user)()
 
     from methodology.services.activity_service import ActivityService
-    from methodology.models import Activity, Skill
 
-    activity = await sync_to_async(
-        Activity.objects.select_related('workflow__playbook').get
-    )(pk=activity_id)
-    if activity.workflow.playbook.author_id != user.id:
-        raise ValueError(f'Activity {activity_id} not found')
+    activity = await sync_to_async(ActivityService.get_activity_for_user)(
+        activity_id, user, write=True, with_full_detail=False
+    )
     if activity.workflow.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook.')
 
@@ -1363,13 +1460,10 @@ async def unlink_skill_from_activity(activity_id: int) -> dict:
     user = await sync_to_async(get_current_user)()
 
     from methodology.services.activity_service import ActivityService
-    from methodology.models import Activity
 
-    activity = await sync_to_async(
-        Activity.objects.select_related('workflow__playbook').get
-    )(pk=activity_id)
-    if activity.workflow.playbook.author_id != user.id:
-        raise ValueError(f'Activity {activity_id} not found')
+    activity = await sync_to_async(ActivityService.get_activity_for_user)(
+        activity_id, user, write=True, with_full_detail=False
+    )
     if activity.workflow.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook.')
 
@@ -1430,12 +1524,7 @@ async def list_rules(
     logger.info(f'MCP Tool: list_rules playbook_id={playbook_id}')
     user = await sync_to_async(get_current_user)()
 
-    from methodology.models import Playbook
-
-    try:
-        await sync_to_async(Playbook.objects.get)(id=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        raise ValueError(f'Playbook {playbook_id} not found')
+    await _playbook_for_read(playbook_id, user)
 
     from methodology.services.rule_service import RuleService
 
@@ -1461,10 +1550,16 @@ async def get_rule(rule_id: int) -> dict:
     logger.info(f'MCP Tool: get_rule rule_id={rule_id}')
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Rule
     from methodology.services.rule_service import RuleService
 
-    rule = await sync_to_async(RuleService.get_rule)(rule_id)
-    if rule.playbook.author_id != user.id:
+    try:
+        rule = await sync_to_async(RuleService.get_rule_for_user)(
+            rule_id, user, write=False
+        )
+    except Rule.DoesNotExist:
+        raise ValueError(f'Rule {rule_id} not found')
+    except PermissionError:
         raise ValueError(f'Rule {rule_id} not found')
     ac = await sync_to_async(rule.activities.count)()
     return {
@@ -1489,10 +1584,16 @@ async def update_rule(
     logger.info(f'MCP Tool: update_rule rule_id={rule_id}')
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Rule
     from methodology.services.rule_service import RuleService
 
-    rule = await sync_to_async(RuleService.get_rule)(rule_id)
-    if rule.playbook.author_id != user.id:
+    try:
+        rule = await sync_to_async(RuleService.get_rule_for_user)(
+            rule_id, user, write=True
+        )
+    except Rule.DoesNotExist:
+        raise ValueError(f'Rule {rule_id} not found')
+    except PermissionError:
         raise ValueError(f'Rule {rule_id} not found')
     if rule.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook "{rule.playbook.name}".')
@@ -1535,10 +1636,16 @@ async def delete_rule(rule_id: int) -> dict:
     logger.info(f'MCP Tool: delete_rule rule_id={rule_id}')
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Rule
     from methodology.services.rule_service import RuleService
 
-    rule = await sync_to_async(RuleService.get_rule)(rule_id)
-    if rule.playbook.author_id != user.id:
+    try:
+        rule = await sync_to_async(RuleService.get_rule_for_user)(
+            rule_id, user, write=True
+        )
+    except Rule.DoesNotExist:
+        raise ValueError(f'Rule {rule_id} not found')
+    except PermissionError:
         raise ValueError(f'Rule {rule_id} not found')
     if rule.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook "{rule.playbook.name}".')
@@ -1558,13 +1665,10 @@ async def set_activity_rules(activity_id: int, rule_ids: list) -> dict:
     user = await sync_to_async(get_current_user)()
 
     from methodology.services.activity_service import ActivityService
-    from methodology.models import Activity
 
-    activity = await sync_to_async(
-        Activity.objects.select_related('workflow__playbook').get
-    )(pk=activity_id)
-    if activity.workflow.playbook.author_id != user.id:
-        raise ValueError(f'Activity {activity_id} not found')
+    activity = await sync_to_async(ActivityService.get_activity_for_user)(
+        activity_id, user, write=True, with_full_detail=False
+    )
     if activity.workflow.playbook.status == 'released':
         raise PermissionError('Cannot modify released playbook.')
 
@@ -1572,7 +1676,9 @@ async def set_activity_rules(activity_id: int, rule_ids: list) -> dict:
         await sync_to_async(ActivityService.set_activity_rules)(activity_id, rule_ids)
     except ValidationError as e:
         _handle_validation_error(e, 'set_activity_rules')
-    updated = await sync_to_async(Activity.objects.prefetch_related('rules').get)(pk=activity_id)
+    updated = await sync_to_async(ActivityService.get_activity_for_user)(
+        activity_id, user, write=True, with_full_detail=True
+    )
     ids = await sync_to_async(lambda: list(updated.rules.values_list('id', flat=True)))()
     return {'activity_id': activity_id, 'rule_ids': ids}
 
@@ -1640,11 +1746,7 @@ async def list_agents(
 
     user = await sync_to_async(get_current_user)()
 
-    from methodology.models import Playbook
-    try:
-        await sync_to_async(Playbook.objects.get)(id=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        raise ValueError(f'Playbook {playbook_id} not found')
+    await _playbook_for_read(playbook_id, user)
 
     from methodology.services.agent_service import AgentService
     from django.db.models import Count, Q
@@ -1683,13 +1785,15 @@ async def get_agent(agent_id: int) -> dict:
 
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Agent
     from methodology.services.agent_service import AgentService
     try:
-        agent = await sync_to_async(AgentService.get_agent)(agent_id)
-    except Exception:
+        agent = await sync_to_async(AgentService.get_agent_for_user)(
+            agent_id, user, write=False
+        )
+    except Agent.DoesNotExist:
         raise ValueError(f'Agent {agent_id} not found')
-
-    if agent.playbook.author_id != user.id:
+    except PermissionError:
         raise ValueError(f'Agent {agent_id} not found')
 
     activity_count = await sync_to_async(agent.activities.count)()
@@ -1722,10 +1826,15 @@ async def update_agent(
 
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Agent
     from methodology.services.agent_service import AgentService
-    agent = await sync_to_async(AgentService.get_agent)(agent_id)
-
-    if agent.playbook.author_id != user.id:
+    try:
+        agent = await sync_to_async(AgentService.get_agent_for_user)(
+            agent_id, user, write=True
+        )
+    except Agent.DoesNotExist:
+        raise ValueError(f'Agent {agent_id} not found')
+    except PermissionError:
         raise ValueError(f'Agent {agent_id} not found')
     if agent.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook "{agent.playbook.name}".')
@@ -1767,10 +1876,15 @@ async def delete_agent(agent_id: int) -> dict:
 
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Agent
     from methodology.services.agent_service import AgentService
-    agent = await sync_to_async(AgentService.get_agent)(agent_id)
-
-    if agent.playbook.author_id != user.id:
+    try:
+        agent = await sync_to_async(AgentService.get_agent_for_user)(
+            agent_id, user, write=True
+        )
+    except Agent.DoesNotExist:
+        raise ValueError(f'Agent {agent_id} not found')
+    except PermissionError:
         raise ValueError(f'Agent {agent_id} not found')
     if agent.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook "{agent.playbook.name}".')
@@ -1801,13 +1915,10 @@ async def link_agent_to_activity(activity_id: int, agent_id: int) -> dict:
     user = await sync_to_async(get_current_user)()
 
     from methodology.services.activity_service import ActivityService
-    from methodology.models import Activity
 
-    activity = await sync_to_async(
-        Activity.objects.select_related('workflow__playbook').get
-    )(pk=activity_id)
-    if activity.workflow.playbook.author_id != user.id:
-        raise ValueError(f'Activity {activity_id} not found')
+    activity = await sync_to_async(ActivityService.get_activity_for_user)(
+        activity_id, user, write=True, with_full_detail=False
+    )
     if activity.workflow.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook.')
 
@@ -1832,13 +1943,10 @@ async def unlink_agent_from_activity(activity_id: int) -> dict:
     user = await sync_to_async(get_current_user)()
 
     from methodology.services.activity_service import ActivityService
-    from methodology.models import Activity
 
-    activity = await sync_to_async(
-        Activity.objects.select_related('workflow__playbook').get
-    )(pk=activity_id)
-    if activity.workflow.playbook.author_id != user.id:
-        raise ValueError(f'Activity {activity_id} not found')
+    activity = await sync_to_async(ActivityService.get_activity_for_user)(
+        activity_id, user, write=True, with_full_detail=False
+    )
     if activity.workflow.playbook.status == 'released':
         raise PermissionError(f'Cannot modify released playbook.')
 
@@ -1882,11 +1990,21 @@ async def create_artifact(
     playbook = await _get_draft_playbook(playbook_id, user)
 
     from methodology.models import Activity
+    from methodology.services.activity_service import ActivityService
+
     try:
-        produced_by = await sync_to_async(
-            Activity.objects.select_related('workflow').get
-        )(pk=produced_by_id, workflow__playbook=playbook)
+        produced_by = await sync_to_async(ActivityService.get_activity_for_user)(
+            produced_by_id, user, write=True, with_full_detail=False
+        )
     except Activity.DoesNotExist:
+        raise ValueError(
+            f'Activity {produced_by_id} not found in playbook {playbook_id}'
+        )
+    except PermissionError:
+        raise ValueError(
+            f'Activity {produced_by_id} not found in playbook {playbook_id}'
+        )
+    if produced_by.workflow.playbook_id != playbook.id:
         raise ValueError(
             f'Activity {produced_by_id} not found in playbook {playbook_id}'
         )
@@ -1944,13 +2062,7 @@ async def list_artifacts(
 
     user = await sync_to_async(get_current_user)()
 
-    from methodology.models import Playbook
-    try:
-        playbook = await sync_to_async(Playbook.objects.get)(
-            id=playbook_id, author=user,
-        )
-    except Playbook.DoesNotExist:
-        raise ValueError(f'Playbook {playbook_id} not found')
+    playbook = await _playbook_for_read(playbook_id, user)
 
     required = _parse_required_filter(required_filter)
 
@@ -1993,13 +2105,15 @@ async def get_artifact(artifact_id: int) -> dict:
 
     user = await sync_to_async(get_current_user)()
 
+    from methodology.models import Artifact
     from methodology.services.artifact_service import ArtifactService
     try:
-        artifact = await sync_to_async(ArtifactService.get_artifact)(artifact_id)
-    except Exception:
+        artifact = await sync_to_async(ArtifactService.get_artifact_for_user)(
+            artifact_id, user, write=False
+        )
+    except Artifact.DoesNotExist:
         raise ValueError(f'Artifact {artifact_id} not found')
-
-    if artifact.playbook.author_id != user.id:
+    except PermissionError:
         raise ValueError(f'Artifact {artifact_id} not found')
 
     consumer_count = await sync_to_async(artifact.get_consumer_count)()
@@ -2044,15 +2158,15 @@ async def update_artifact(
 
     user = await sync_to_async(get_current_user)()
 
-    from methodology.models import Artifact as ArtifactModel
+    from methodology.models import Artifact
+    from methodology.services.artifact_service import ArtifactService
     try:
-        artifact = await sync_to_async(
-            ArtifactModel.objects.select_related('playbook').get
-        )(pk=artifact_id)
-    except ArtifactModel.DoesNotExist:
+        artifact = await sync_to_async(ArtifactService.get_artifact_for_user)(
+            artifact_id, user, write=True
+        )
+    except Artifact.DoesNotExist:
         raise ValueError(f'Artifact {artifact_id} not found')
-
-    if artifact.playbook.author_id != user.id:
+    except PermissionError:
         raise ValueError(f'Artifact {artifact_id} not found')
     if artifact.playbook.status == 'released':
         raise PermissionError(
@@ -2110,15 +2224,15 @@ async def delete_artifact(artifact_id: int) -> dict:
 
     user = await sync_to_async(get_current_user)()
 
-    from methodology.models import Artifact as ArtifactModel
+    from methodology.models import Artifact
+    from methodology.services.artifact_service import ArtifactService
     try:
-        artifact = await sync_to_async(
-            ArtifactModel.objects.select_related('playbook').get
-        )(pk=artifact_id)
-    except ArtifactModel.DoesNotExist:
+        artifact = await sync_to_async(ArtifactService.get_artifact_for_user)(
+            artifact_id, user, write=True
+        )
+    except Artifact.DoesNotExist:
         raise ValueError(f'Artifact {artifact_id} not found')
-
-    if artifact.playbook.author_id != user.id:
+    except PermissionError:
         raise ValueError(f'Artifact {artifact_id} not found')
     if artifact.playbook.status == 'released':
         raise PermissionError(
@@ -2168,22 +2282,26 @@ async def link_artifact_to_activity(
 
     user = await sync_to_async(get_current_user)()
 
-    from methodology.models import Artifact as ArtifactModel, Activity
-    try:
-        artifact = await sync_to_async(
-            ArtifactModel.objects.select_related('playbook').get
-        )(pk=artifact_id)
-    except ArtifactModel.DoesNotExist:
-        raise ValueError(f'Artifact {artifact_id} not found')
-
-    if artifact.playbook.author_id != user.id:
-        raise ValueError(f'Artifact {artifact_id} not found')
+    from methodology.models import Activity, Artifact
+    from methodology.services.activity_service import ActivityService
+    from methodology.services.artifact_service import ArtifactService
 
     try:
-        activity = await sync_to_async(
-            Activity.objects.select_related('workflow__playbook').get
-        )(pk=activity_id)
+        artifact = await sync_to_async(ArtifactService.get_artifact_for_user)(
+            artifact_id, user, write=True
+        )
+    except Artifact.DoesNotExist:
+        raise ValueError(f'Artifact {artifact_id} not found')
+    except PermissionError:
+        raise ValueError(f'Artifact {artifact_id} not found')
+
+    try:
+        activity = await sync_to_async(ActivityService.get_activity_for_user)(
+            activity_id, user, write=True, with_full_detail=False
+        )
     except Activity.DoesNotExist:
+        raise ValueError(f'Activity {activity_id} not found')
+    except PermissionError:
         raise ValueError(f'Activity {activity_id} not found')
 
     if activity.workflow.playbook_id != artifact.playbook_id:
@@ -2227,18 +2345,15 @@ async def unlink_artifact_from_activity(artifact_input_id: int) -> dict:
 
     user = await sync_to_async(get_current_user)()
 
-    from methodology.models import ArtifactInput
-    try:
-        ai = await sync_to_async(
-            ArtifactInput.objects.select_related('artifact__playbook').get
-        )(pk=artifact_input_id)
-    except ArtifactInput.DoesNotExist:
-        raise ValueError(f'ArtifactInput {artifact_input_id} not found')
-
-    if ai.artifact.playbook.author_id != user.id:
-        raise ValueError(f'ArtifactInput {artifact_input_id} not found')
-
+    from methodology.models import ArtifactInput, Playbook
     from methodology.services.artifact_service import ArtifactService
+    try:
+        await sync_to_async(ArtifactService.get_artifact_input_for_owner)(
+            artifact_input_id, user
+        )
+    except (ArtifactInput.DoesNotExist, Playbook.DoesNotExist):
+        raise ValueError(f'ArtifactInput {artifact_input_id} not found')
+
     await sync_to_async(ArtifactService.remove_artifact_input)(artifact_input_id)
 
     logger.info(
@@ -2284,15 +2399,9 @@ async def create_phase(
     logger.info(f'MCP Tool: create_phase called - playbook_id={playbook_id}, name="{name}"')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Playbook
-    try:
-        playbook = await sync_to_async(
-            Playbook.objects.select_related('author').get
-        )(pk=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        raise ValueError(f'Playbook {playbook_id} not found')
-    
+
+    playbook = await _playbook_for_write(playbook_id, user)
+
     if playbook.status == 'released':
         raise PermissionError('Cannot create phases in released playbook')
     
@@ -2324,15 +2433,9 @@ async def list_phases(playbook_id: int) -> list[dict]:
     logger.info(f'MCP Tool: list_phases called - playbook_id={playbook_id}')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Playbook
-    try:
-        await sync_to_async(
-            Playbook.objects.get
-        )(pk=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        raise ValueError(f'Playbook {playbook_id} not found')
-    
+
+    await _playbook_for_read(playbook_id, user)
+
     from methodology.services.phase_service import PhaseService
     phases = await sync_to_async(PhaseService.list_phases)(playbook_id, user)
     
@@ -2355,20 +2458,16 @@ async def get_phase(phase_id: int) -> dict:
     logger.info(f'MCP Tool: get_phase called - phase_id={phase_id}')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Phase
-    try:
-        phase = await sync_to_async(
-            Phase.objects.select_related('playbook__author').get
-        )(pk=phase_id)
-    except Phase.DoesNotExist:
-        raise ValueError(f'Phase {phase_id} not found')
-    
-    if phase.playbook.author_id != user.id:
-        raise ValueError(f'Phase {phase_id} not found')
-    
+
     from methodology.services.phase_service import PhaseService
-    phase_data = await sync_to_async(PhaseService.get_phase_with_activities)(phase_id, user)
+    from django.core.exceptions import PermissionDenied
+
+    try:
+        phase_data = await sync_to_async(PhaseService.get_phase_with_activities)(phase_id, user)
+    except ValidationError:
+        raise ValueError(f'Phase {phase_id} not found')
+    except PermissionDenied:
+        raise ValueError(f'Phase {phase_id} not found')
     
     # Convert phase object to dict — serialize ORM objects to JSON-safe primitives
     raw_activities = phase_data['workflow_activities']
@@ -2420,22 +2519,20 @@ async def update_phase(
     logger.info(f'MCP Tool: update_phase called - phase_id={phase_id}')
     
     user = await sync_to_async(get_current_user)()
-    
+
     from methodology.models import Phase
+    from methodology.services.phase_service import PhaseService
+
     try:
-        phase = await sync_to_async(
-            Phase.objects.select_related('playbook__author').get
-        )(pk=phase_id)
+        phase = await sync_to_async(PhaseService.get_phase_for_user)(phase_id, user, write=True)
     except Phase.DoesNotExist:
         raise ValueError(f'Phase {phase_id} not found')
-    
-    if phase.playbook.author_id != user.id:
+    except PermissionError:
         raise ValueError(f'Phase {phase_id} not found')
-    
+
     if phase.playbook.status == 'released':
         raise PermissionError('Cannot update phases in released playbook')
-    
-    from methodology.services.phase_service import PhaseService
+
     try:
         updated_phase = await sync_to_async(PhaseService.update_phase)(
             phase_id=phase_id,
@@ -2464,22 +2561,20 @@ async def delete_phase(phase_id: int) -> dict:
     logger.info(f'MCP Tool: delete_phase called - phase_id={phase_id}')
     
     user = await sync_to_async(get_current_user)()
-    
+
     from methodology.models import Phase
+    from methodology.services.phase_service import PhaseService
+
     try:
-        phase = await sync_to_async(
-            Phase.objects.select_related('playbook__author').get
-        )(pk=phase_id)
+        phase = await sync_to_async(PhaseService.get_phase_for_user)(phase_id, user, write=True)
     except Phase.DoesNotExist:
         raise ValueError(f'Phase {phase_id} not found')
-    
-    if phase.playbook.author_id != user.id:
+    except PermissionError:
         raise ValueError(f'Phase {phase_id} not found')
-    
+
     if phase.playbook.status == 'released':
         raise PermissionError('Cannot delete phases in released playbook')
-    
-    from methodology.services.phase_service import PhaseService
+
     try:
         await sync_to_async(PhaseService.delete_phase)(phase_id, user)
     except ValidationError as e:
@@ -2502,15 +2597,9 @@ async def reorder_phases(playbook_id: int, phase_order: list[int]) -> dict:
     logger.info(f'MCP Tool: reorder_phases called - playbook_id={playbook_id}')
     
     user = await sync_to_async(get_current_user)()
-    
-    from methodology.models import Playbook
-    try:
-        playbook = await sync_to_async(
-            Playbook.objects.get
-        )(pk=playbook_id, author=user)
-    except Playbook.DoesNotExist:
-        raise ValueError(f'Playbook {playbook_id} not found')
-    
+
+    playbook = await _playbook_for_write(playbook_id, user)
+
     if playbook.status == 'released':
         raise PermissionError('Cannot reorder phases in released playbook')
     
@@ -2813,8 +2902,12 @@ async def _get_draft_playbook(playbook_id: int, user):
     :raises PermissionError: If playbook is released
     """
     from methodology.models import Playbook
+    from methodology.services.playbook_service import PlaybookService
+
     try:
-        playbook = await sync_to_async(Playbook.objects.get)(id=playbook_id, author=user)
+        playbook = await sync_to_async(PlaybookService.get_owned_playbook)(
+            playbook_id, user
+        )
     except Playbook.DoesNotExist:
         raise ValueError(f'Playbook {playbook_id} not found')
 
