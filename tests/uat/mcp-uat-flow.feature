@@ -30,13 +30,18 @@ Feature: Mimir MCP UAT — all 62 tools exercised end-to-end in agent mode
   TOOL COVERAGE MAP  (all 62 tools — tick [x] during replay)
   ==============================================================================
     Playbooks   : [ ] create  [ ] list  [ ] get  [ ] update  [ ] delete
-    Workflows   : [ ] create  [ ] list  [ ] get  [ ] update  [ ] delete
-    Phases      : [ ] create×2  [ ] list  [ ] get  [ ] update  [ ] reorder  [ ] delete×2
+    Workflows   : [ ] create  [ ] list×2  [ ] get×2  [ ] update  [ ] delete
+                  (list×2 / get×2: own playbook MCP-03 + cross-user public playbook MCP-01c)
+    Phases      : [ ] create×2  [ ] list×2  [ ] get  [ ] update  [ ] reorder  [ ] delete×2
+                  (list×2: own MCP-03 + cross-user public MCP-01c)
     Activities  : [ ] create×2  [ ] list  [ ] get  [ ] update  [ ] set_predecessor  [ ] delete×2
-    Skills      : [ ] create  [ ] list  [ ] get  [ ] update  [ ] link  [ ] unlink  [ ] delete
-    Agents      : [ ] create  [ ] list  [ ] get  [ ] update  [ ] link  [ ] unlink  [ ] delete
+    Skills      : [ ] create  [ ] list×2  [ ] get  [ ] update  [ ] link  [ ] unlink  [ ] delete
+                  (list×2: own MCP-03 + cross-user public MCP-01c)
+    Agents      : [ ] create  [ ] list×2  [ ] get  [ ] update  [ ] link  [ ] unlink  [ ] delete
+                  (list×2: own MCP-03 + cross-user public MCP-01c)
     Artifacts   : [ ] create  [ ] list  [ ] get  [ ] update  [ ] link  [ ] unlink  [ ] delete
-    Rules       : [ ] create  [ ] list  [ ] get  [ ] update  [ ] set_activity_rules  [ ] delete
+    Rules       : [ ] create  [ ] list×2  [ ] get  [ ] update  [ ] set_activity_rules  [ ] delete
+                  (list×2: own MCP-03 + cross-user public MCP-01c)
     Export/Import: [ ] export_workflow_to_local×2  [ ] import_workflow_from_local  [ ] apply_upload_protocol
     PIPs        : [ ] create×2  [ ] get×3  [ ] list  [ ] preview_pip_diff
                   [ ] add_pip_change×3  [ ] remove_pip_change  [ ] submit_pip×2  [ ] cancel_pip
@@ -79,6 +84,7 @@ Feature: Mimir MCP UAT — all 62 tools exercised end-to-end in agent mode
     <PIP_DISP_CH_PK>          — disposable change RECORD (MCP-08b step PD-02)
     <PIP_PROTO_PK>            — protocol PIP RECORD (MCP-09 step PP-02)
     <DRAFT_NEG_PB_ID>         — draft playbook for negative PIP test (MCP-08c)
+    <ADMIN_PUBLIC_WF_ID>      — any workflow id inside <ADMIN_PUBLIC_PB_ID> (MCP-01c; read from list_workflows)
 
 
 #############################################################################
@@ -180,6 +186,63 @@ Feature: Mimir MCP UAT — all 62 tools exercised end-to-end in agent mode
     # DO: CallMcpTool server "user-mimir" toolName "delete_playbook" arguments {"playbook_id": <UAT_PUBLIC_PB_ID>}
     # SEE: `deleted`: true
     # IF DIFFER: MCP-01b cleanup-delete-uat-public
+
+
+#############################################################################
+# MCP-01c — Resource access parity: public playbook resources readable cross-user (bug #115)
+#############################################################################
+
+  @manual @uat @mcp-visibility
+  Scenario: MCP-01c list_workflows / list_skills / list_agents / list_rules / list_phases work for public released playbooks owned by another user
+    # Regression guard for bug #115:
+    #   list_playbooks returned public playbooks from other users but all
+    #   subsequent resource list/get calls silently returned empty results.
+    #
+    # Pre: <ADMIN_PUBLIC_PB_ID> — admin-owned, visibility=public, status=released.
+    #      It must already have at least one workflow, skill, agent, and rule
+    #      (e.g. the FeatureFactory playbook or any seeded demo playbook).
+    # MCP token is <UAT_TOKEN> (uat_user — does NOT own <ADMIN_PUBLIC_PB_ID>).
+    #
+    # STEP cross-list-playbooks — confirm playbook still visible
+    # DO: CallMcpTool server "user-mimir" toolName "list_playbooks" arguments {"status": "all"}
+    # SEE: result contains entry with `id` = <ADMIN_PUBLIC_PB_ID>
+    # IF DIFFER: MCP-01c cross-list-playbooks — playbook missing; verify it is released + public
+    #
+    # STEP cross-list-workflows — bug #115: was returning count:0
+    # DO: CallMcpTool server "user-mimir" toolName "list_workflows" arguments {"playbook_id": <ADMIN_PUBLIC_PB_ID>}
+    # SEE: result is a non-empty array; RECORD first entry `.id` as `<ADMIN_PUBLIC_WF_ID>`
+    # IF DIFFER: MCP-01c cross-list-workflows — empty result is bug #115 regression
+    #
+    # STEP cross-get-workflow
+    # DO: CallMcpTool server "user-mimir" toolName "get_workflow" arguments {"workflow_id": <ADMIN_PUBLIC_WF_ID>}
+    # SEE: JSON `.id` = `<ADMIN_PUBLIC_WF_ID>`; no 404 / not-found error
+    # IF DIFFER: MCP-01c cross-get-workflow
+    #
+    # STEP cross-list-phases
+    # DO: CallMcpTool server "user-mimir" toolName "list_phases" arguments {"playbook_id": <ADMIN_PUBLIC_PB_ID>}
+    # SEE: HTTP 200; result is a JSON array (may be empty if playbook has no phases — that is OK;
+    #      the key check is status 200, not a specific count)
+    # IF DIFFER: MCP-01c cross-list-phases
+    #
+    # STEP cross-list-skills
+    # DO: CallMcpTool server "user-mimir" toolName "list_skills" arguments {"playbook_id": <ADMIN_PUBLIC_PB_ID>}
+    # SEE: result is a JSON array; if <ADMIN_PUBLIC_PB_ID> is FeatureFactory it should be non-empty
+    # IF DIFFER: MCP-01c cross-list-skills — empty result when owner has skills is bug #115 regression
+    #
+    # STEP cross-list-agents
+    # DO: CallMcpTool server "user-mimir" toolName "list_agents" arguments {"playbook_id": <ADMIN_PUBLIC_PB_ID>}
+    # SEE: result is a JSON array (non-empty for FeatureFactory)
+    # IF DIFFER: MCP-01c cross-list-agents
+    #
+    # STEP cross-list-rules
+    # DO: CallMcpTool server "user-mimir" toolName "list_rules" arguments {"playbook_id": <ADMIN_PUBLIC_PB_ID>}
+    # SEE: result is a JSON array (non-empty for FeatureFactory)
+    # IF DIFFER: MCP-01c cross-list-rules
+    #
+    # STEP cross-mutation-denied — read-only enforcement must hold
+    # DO: CallMcpTool server "user-mimir" toolName "update_workflow" arguments {"workflow_id": <ADMIN_PUBLIC_WF_ID>, "name": "Should fail — not owner"}
+    # SEE: error payload (403 or similar); name must NOT change
+    # IF DIFFER: MCP-01c cross-mutation-denied — visitor must NOT be able to write to others' playbook
 
 
 #############################################################################
