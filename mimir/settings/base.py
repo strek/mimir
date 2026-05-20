@@ -14,6 +14,22 @@ logger = logging.getLogger(__name__)
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+_version_file = BASE_DIR / "VERSION"
+try:
+    APP_VERSION = _version_file.read_text(encoding="utf-8").strip()
+except OSError:
+    logger.warning("VERSION file missing at %s; using 0.0.0", _version_file)
+    APP_VERSION = "0.0.0"
+
+# Bug reports filed to GitHub Issues (PyGithub). GITHUB_TOKEN required unless dry-run.
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
+GITHUB_BUG_REPO = os.environ.get("GITHUB_BUG_REPO", "phainestai/mimir").strip()
+BUG_REPORT_DRY_RUN = os.environ.get("BUG_REPORT_DRY_RUN", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
 
 def _installed_apps() -> list[str]:
     """Return INSTALLED_APPS; register django_ses only if the package is present."""
@@ -78,6 +94,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "methodology.context_processors.app_version",
                 "methodology.context_processors.pip_nav",
                 "methodology.context_processors.primary_nav_section",
             ],

@@ -1,7 +1,7 @@
 """
 MCP HTTP Facade Server — standalone entry point.
 
-Runs a FastMCP server with 53 tools that call the Mimir REST API via httpx.
+Runs a FastMCP server with tools that call the Mimir REST API via httpx.
 No Django, no ORM — only Python + httpx + fastmcp.
 
 Usage:
@@ -62,7 +62,7 @@ def _configure_logging(transport: str) -> None:
 
 
 def _build_mcp() -> FastMCP:
-    """Create and register all 61 tools with a FastMCP instance."""
+    """Create and register all MCP facade tools with a FastMCP instance."""
     mcp = FastMCP("Mimir Methodology Assistant")
 
     # Playbooks (5)
@@ -145,8 +145,9 @@ def _build_mcp() -> FastMCP:
     mcp.tool()(tools.submit_pip)
     mcp.tool()(tools.cancel_pip)
     mcp.tool()(tools.preview_pip_diff)
+    mcp.tool()(tools.report_bug)
 
-    logger.info("MCP Facade: All 61 tools registered")
+    logger.info("MCP Facade: All tools registered (incl. report_bug)")
     return mcp
 
 

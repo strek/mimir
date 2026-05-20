@@ -1,5 +1,5 @@
 @manual @uat @mcp-uat-flow
-Feature: Mimir MCP UAT — all 61 tools exercised end-to-end in agent mode
+Feature: Mimir MCP UAT — all 62 tools exercised end-to-end in agent mode
 
   Execute in AGENT MODE only. CallMcpTool is only available to the parent agent
   (Cursor IDE context). Do NOT delegate these scenarios to a browser-use subagent.
@@ -27,7 +27,7 @@ Feature: Mimir MCP UAT — all 61 tools exercised end-to-end in agent mode
     CURSOR_PROMPT — manual one-time IDE action; agent STOPS and waits for confirmation
 
   ==============================================================================
-  TOOL COVERAGE MAP  (all 61 tools — tick [x] during replay)
+  TOOL COVERAGE MAP  (all 62 tools — tick [x] during replay)
   ==============================================================================
     Playbooks   : [ ] create  [ ] list  [ ] get  [ ] update  [ ] delete
     Workflows   : [ ] create  [ ] list  [ ] get  [ ] update  [ ] delete
@@ -41,6 +41,7 @@ Feature: Mimir MCP UAT — all 61 tools exercised end-to-end in agent mode
     PIPs        : [ ] create×2  [ ] get×3  [ ] list  [ ] preview_pip_diff
                   [ ] add_pip_change×3  [ ] remove_pip_change  [ ] submit_pip×2  [ ] cancel_pip
                   [ ] create_pip_from_protocol
+    Feedback    : [ ] report_bug
     (All covered across MCP-00 → MCP-11 in scenarios below)
 
   ==============================================================================

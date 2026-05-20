@@ -37,6 +37,8 @@ from methodology.api.viewsets_resources import (
     SkillViewSet, AgentViewSet, ArtifactViewSet,
     ArtifactInputViewSet, PhaseViewSet, RuleViewSet, PIPViewSet
 )
+from methodology.api.bug_report_views import BugReportSubmitView
+from methodology import feedback_views
 
 # DRF Router for API endpoints
 router = DefaultRouter()
@@ -53,10 +55,20 @@ router.register(r'pips', PIPViewSet, basename='api-pip')
 
 urlpatterns = [
     path("health/", health_views.health_check, name="health_check"),
+    path(
+        "feedback/report/",
+        feedback_views.submit_feedback,
+        name="feedback_report",
+    ),
     path("admin/", admin.site.urls),
     # API endpoints
     path("api/", include(router.urls)),
     path("api/auth/token/", obtain_auth_token, name="api_token_auth"),
+    path(
+        "api/feedback/report/",
+        BugReportSubmitView.as_view(),
+        name="api_feedback_report",
+    ),
     path("api/auth/", include("accounts.api_urls")),  # Registration, token refresh, etc.
     path("auth/", include("accounts.urls")),  # Changed from accounts/ per SAO.md URL convention
     path("dashboard/", methodology_views.dashboard, name="dashboard"),

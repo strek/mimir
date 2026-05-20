@@ -1,0 +1,12 @@
+{% if ok %}
+<div class="alert alert-success mb-0" data-testid="feedback-submit-result" role="alert">
+    <strong>Submitted.</strong> {{ message }}
+    {% if issue_url %}
+    <div class="mt-2"><a href="{{ issue_url }}" target="_blank" rel="noopener">View issue</a></div>
+    {% endif %}
+</div>
+{% else %}
+<div class="alert alert-danger mb-0" data-testid="feedback-submit-error" role="alert">
+    {{ message }}
+</div>
+{% endif %}

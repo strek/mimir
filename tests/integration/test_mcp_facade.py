@@ -3,7 +3,7 @@ Tests for the MCP HTTP Facade server.
 
 Tests cover:
     - Facade starts and initializes via JSON-RPC
-    - ``tools/list`` returns exactly 61 tools
+    - ``tools/list`` returns exactly 62 tools
     - Bad token → tool calls return error
     - Full round-trip: create → list → delete via REST API
     - Facade server processes all tool categories (smoke test)
@@ -262,14 +262,14 @@ class TestFacadeStartup:
     def test_facade_process_alive(self, facade):
         assert facade.process.poll() is None, "Facade process should be running"
 
-    def test_facade_lists_61_tools(self, facade):
-        """tools/list must return exactly 61 tools."""
+    def test_facade_lists_62_tools(self, facade):
+        """tools/list must return exactly 62 tools."""
         response = facade.send("tools/list", {})
         assert "result" in response, f"Unexpected: {response}"
         tools = response["result"].get("tools", [])
         tool_names = sorted(t["name"] for t in tools)
-        assert len(tools) == 61, (
-            f"Expected 61 tools, got {len(tools)}. Tools: {tool_names}"
+        assert len(tools) == 62, (
+            f"Expected 62 tools, got {len(tools)}. Tools: {tool_names}"
         )
         logger.info(f"✓ facade lists {len(tools)} tools")
 
@@ -295,11 +295,12 @@ class TestFacadeStartup:
             # PIPs (8)
             "list_pips", "get_pip", "create_pip", "add_pip_change",
             "remove_pip_change", "submit_pip", "cancel_pip", "preview_pip_diff",
+            "report_bug",
         }
         response = facade.send("tools/list", {})
         actual = {t["name"] for t in response["result"]["tools"]}
         assert actual == expected, f"Missing: {expected - actual}; Extra: {actual - expected}"
-        logger.info("✓ all 61 tool names match")
+        logger.info("✓ all 62 tool names match")
 
 
 class TestFacadeAuth:

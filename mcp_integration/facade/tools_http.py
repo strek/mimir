@@ -1,9 +1,9 @@
 """
 MCP HTTP facade tools.
 
-61 synchronous functions, each mapping one MCP tool to one or more
+Synchronous functions, each mapping one MCP tool to one or more
 REST API calls via httpx.  Same tool names, same parameter signatures,
-same semantic return shapes as the ORM-based tools.py.
+same semantic return shapes as the ORM-based tools.py (where applicable).
 
 No Django, no ORM — only the standard library + httpx.
 """
@@ -1117,3 +1117,31 @@ def preview_pip_diff(pip_id: int) -> dict:
     logger.info(f'HTTP Tool: preview_pip_diff id={pip_id}')
     r = get_client().get(f"/api/pips/{pip_id}/preview/")
     return check_response(r, "preview_pip_diff")
+
+
+def report_bug(
+    description: str,
+    page_context: str = "",
+    reporter_email: str = "",
+) -> dict:
+    """
+    File a GitHub Issue with structured context (same as UI feedback; requires auth token).
+
+    :param description: What went wrong or what to improve
+    :param page_context: Optional assistant/session context
+    :param reporter_email: Optional email override; defaults to token user
+    :return: Dict with issue_url and issue_number
+    """
+    logger.info(
+        'HTTP Tool: report_bug desc_len=%s has_context=%s',
+        len(description or ''),
+        bool((page_context or '').strip()),
+    )
+    payload: dict = {
+        "description": description,
+        "page_context": page_context,
+    }
+    if (reporter_email or '').strip():
+        payload["reporter_email"] = reporter_email.strip()
+    r = get_client().post("/api/feedback/report/", json=payload)
+    return check_response(r, "report_bug")

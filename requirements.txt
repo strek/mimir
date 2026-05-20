@@ -27,6 +27,9 @@ psycopg[binary]>=3.1.0
 # HTTP Client (for Docker healthcheck)
 requests>=2.31.0
 
+# GitHub Issues (bug reports from UI / MCP)
+PyGithub>=2.1.0
+
 # Production dependencies
 whitenoise>=6.6.0
 python-json-logger>=2.0.7

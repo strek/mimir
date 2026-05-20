@@ -12,6 +12,9 @@ from .base import *  # noqa: F401, F403
 # Environment identifier
 MIMIR_ENV = 'test'
 
+# Do not call live GitHub API from integration tests; exercise real view + service paths.
+BUG_REPORT_DRY_RUN = True
+
 # Use a fixed secret key for tests
 SECRET_KEY = "django-test-secret-key-not-for-production"
 

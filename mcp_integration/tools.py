@@ -2873,6 +2873,41 @@ async def preview_pip_diff(pip_id: int) -> dict:
     return await sync_to_async(_preview)()
 
 
+async def report_bug(
+    description: str,
+    page_context: str = "",
+    reporter_email: str = "",
+) -> dict:
+    """File a GitHub Issue with structured environment and context (same backend as the web widget)."""
+
+    user = await sync_to_async(get_current_user)()
+
+    def _submit():
+        from methodology.services.bug_report_service import BugReportService
+
+        email = (reporter_email or "").strip() or (
+            getattr(user, "email", None) or ""
+        ).strip()
+        if not email:
+            raise ValueError(
+                "reporter_email is required when the MCP user has no email."
+            )
+        logger.info(
+            "MCP report_bug user_id=%s desc_len=%s has_context=%s",
+            getattr(user, "id", None),
+            len(description or ""),
+            bool((page_context or "").strip()),
+        )
+        return BugReportService.submit_bug(
+            description,
+            email,
+            source="mcp",
+            page_context=(page_context or "").strip(),
+        )
+
+    return await sync_to_async(_submit)()
+
+
 def _parse_required_filter(value: str):
     """
     Parse required_filter string to bool or None.
@@ -2927,7 +2962,7 @@ def initialize_mcp():
 
     :returns: FastMCP instance ready to run
     """
-    logger.info("MCP: Initializing FastMCP server with 49 tools")
+    logger.info("MCP: Initializing FastMCP server with 50 tools")
 
     # Register playbook tools
     mcp.tool()(create_playbook)
@@ -2966,6 +3001,7 @@ def initialize_mcp():
     mcp.tool()(submit_pip)
     mcp.tool()(cancel_pip)
     mcp.tool()(preview_pip_diff)
+    mcp.tool()(report_bug)
 
     # Register skill tools
     mcp.tool()(create_skill)
@@ -3010,6 +3046,6 @@ def initialize_mcp():
     mcp.tool()(delete_phase)
     mcp.tool()(reorder_phases)
 
-    logger.info("MCP: All tools registered (49 tools incl. PIPs + rule CRUDLF)")
+    logger.info("MCP: All tools registered (50 tools incl. PIPs + rule CRUDLF + report_bug)")
     return mcp
 
