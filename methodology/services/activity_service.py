@@ -6,7 +6,7 @@ grouping functionality, and skill/agent link management.
 """
 
 import logging
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db import models
 from django.core.exceptions import ValidationError
 from methodology.models import Activity, Skill, Agent, Rule, Playbook
@@ -57,12 +57,15 @@ class ActivityService:
             logger.warning(f"Activity creation failed: duplicate name '{name}' in workflow {workflow.id}")
             raise ValidationError(f"Activity with name '{name}' already exists in this workflow")
         
-        # Auto-assign order if not provided
+        # Auto-assign order if not provided — use SELECT FOR UPDATE to prevent
+        # concurrent MCP calls from racing and all landing on order=1.
         if order is None:
-            max_order = Activity.objects.filter(workflow=workflow).aggregate(
-                models.Max('order')
-            )['order__max']
-            order = (max_order or 0) + 1
+            with transaction.atomic():
+                Activity.objects.select_for_update().filter(workflow=workflow).exists()
+                max_order = Activity.objects.filter(workflow=workflow).aggregate(
+                    models.Max('order')
+                )['order__max']
+                order = (max_order or 0) + 1
         
         # Validate dependencies are in same workflow
         if predecessor and predecessor.workflow_id != workflow.id:
