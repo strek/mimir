@@ -28,7 +28,6 @@ class GaldrEngine:
         from django.conf import settings
 
         if getattr(settings, "GALDR_EAGER", False):
-            close_old_connections()
             try:
                 cls.assess_sync(pip_id)
             except ProcessImprovementProposal.DoesNotExist:

@@ -17,10 +17,8 @@ class TestCurrentEnvironmentSettings:
     """Test that current environment settings are correctly configured."""
 
     def test_test_environment_uses_in_memory_db(self):
-        """Test environment should use in-memory SQLite."""
-        # pytest-django configures test DB, which may differ from settings
-        # We verify the settings intent rather than the actual test DB
-        assert settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3'
+        """Test environment should use PostgreSQL (huginn-db container)."""
+        assert settings.DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql'
 
     def test_test_environment_has_debug_off(self):
         """Test environment should have DEBUG=False (closer to prod)."""
