@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}What can Mimir do for you?{% endblock %}
+
+{% block content %}
+<div class="container mt-4" data-testid="use-cases-page">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">What can it do?</li>
+        </ol>
+    </nav>
+
+    <!-- Hero -->
+    <div class="mb-5">
+        <h2 class="mb-1">What can Mimir do for you?</h2>
+        <p class="text-muted">Pick your role to see how Mimir maps to your day-to-day work.</p>
+    </div>
+
+    <!-- Role cards grid -->
+    <div class="row g-4 mb-5" data-testid="role-cards">
+
+        <!-- Lead Engineer -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <a href="#lead-engineer" class="text-decoration-none" data-testid="role-card-lead-engineer">
+                <div class="card h-100 border-0 shadow-sm role-card" style="cursor:pointer;">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="mb-3">
+                            <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary px-3 py-2">
+                                <i class="fa-solid fa-code me-1"></i> Lead Engineer
+                            </span>
+                        </div>
+                        <p class="mb-3 text-body fw-semibold flex-grow-1">
+                            Your standards, applied consistently — by every developer and every AI, every session.
+                        </p>
+                        <div class="text-end">
+                            <span class="text-primary small fw-semibold">See how <i class="fa-solid fa-arrow-down ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Scrum Master -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <a href="#scrum-master" class="text-decoration-none" data-testid="role-card-scrum-master">
+                <div class="card h-100 border-0 shadow-sm role-card" style="cursor:pointer;">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="mb-3">
+                            <span class="badge rounded-pill bg-success bg-opacity-10 text-success px-3 py-2">
+                                <i class="fa-solid fa-list-check me-1"></i> Scrum Master
+                            </span>
+                        </div>
+                        <p class="mb-3 text-body fw-semibold flex-grow-1">
+                            Plan the sprint with full visibility into every dependency, every role, every prerequisite.
+                        </p>
+                        <div class="text-end">
+                            <span class="text-success small fw-semibold">See how <i class="fa-solid fa-arrow-down ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Competency Center Head -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <a href="#cc-head" class="text-decoration-none" data-testid="role-card-cc-head">
+                <div class="card h-100 border-0 shadow-sm role-card" style="cursor:pointer;">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="mb-3">
+                            <span class="badge rounded-pill bg-warning bg-opacity-10 text-warning px-3 py-2" style="--bs-text-opacity:1;color:#b45309!important;">
+                                <i class="fa-solid fa-building-columns me-1"></i> Competency Center Head
+                            </span>
+                        </div>
+                        <p class="mb-3 text-body fw-semibold flex-grow-1">
+                            Retain organizational knowledge. Know your experts. Turn your playbooks into RFP drafts.
+                        </p>
+                        <div class="text-end">
+                            <span class="fw-semibold small" style="color:#b45309;">See how <i class="fa-solid fa-arrow-down ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Junior Engineer -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <a href="#junior-engineer" class="text-decoration-none" data-testid="role-card-junior-engineer">
+                <div class="card h-100 border-0 shadow-sm role-card" style="cursor:pointer;">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="mb-3">
+                            <span class="badge rounded-pill bg-info bg-opacity-10 text-info px-3 py-2">
+                                <i class="fa-solid fa-seedling me-1"></i> Junior Engineer
+                            </span>
+                        </div>
+                        <p class="mb-3 text-body fw-semibold flex-grow-1">
+                            Stop guessing what "doing it right" looks like. The playbook shows you.
+                        </p>
+                        <div class="text-end">
+                            <span class="text-info small fw-semibold">See how <i class="fa-solid fa-arrow-down ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- ROLE SECTIONS                                                     -->
+    <!-- ================================================================ -->
+
+    <!-- Lead Engineer -->
+    <section id="lead-engineer" class="mb-5 pt-2" data-testid="section-lead-engineer">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary px-3 py-2 fs-6">
+                <i class="fa-solid fa-code me-1"></i> Lead Engineer
+            </span>
+        </div>
+        <p class="lead mt-3 mb-1">
+            Your standards, applied consistently — by every developer and every AI, every session.
+            Task definition that takes minutes, not an afternoon.
+            Feedback anchored in shared craft, not personal opinion.
+        </p>
+        <p class="fw-semibold">
+            With every sprint and every feature built, your team and their AI get sharper — because the playbook they share keeps improving.
+        </p>
+
+        <h5 class="mt-4 mb-3 text-muted text-uppercase small fw-semibold letter-spacing-1">What you can do with Mimir today</h5>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-lead-1">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Encode your standards once — reuse everywhere</h6>
+                <p class="text-muted small mb-3">
+                    Build a playbook with your architecture rules, coding conventions, and agent personas.
+                    AI reads it before every session. Every developer on the team gets the same context.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Cursor, say:</p>
+                <div class="bg-dark text-light rounded p-3 font-monospace small position-relative" data-testid="command-lead-1">
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 copy-btn"
+                            data-copy="Create a new playbook called 'Backend Standards', add a workflow 'Service Layer', and add an activity 'Design Service Interface' with the following guidance: [paste your rules and patterns here]."
+                            data-bs-toggle="tooltip" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <span class="text-success">$</span>
+                    "Create a new playbook called 'Backend Standards', add a workflow 'Service Layer',
+                    and add an activity 'Design Service Interface' with the following guidance:
+                    [paste your rules and patterns here]."
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-lead-2">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Read the right activity before writing code</h6>
+                <p class="text-muted small mb-3">
+                    Before starting a task, pull the relevant activity from the playbook.
+                    AI gets the steps, rules, and agent persona — no chain-prompting required.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Cursor, say:</p>
+                <div class="bg-dark text-light rounded p-3 font-monospace small position-relative" data-testid="command-lead-2">
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 copy-btn"
+                            data-copy="Read the 'BPE-02: Implement Backend' activity from the FeatureFactory playbook and apply its guidance to this task."
+                            data-bs-toggle="tooltip" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <span class="text-success">$</span>
+                    "Read the 'BPE-02: Implement Backend' activity from the FeatureFactory playbook
+                    and apply its guidance to this task."
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-lead-3">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Give feedback anchored in shared craft</h6>
+                <p class="text-muted small mb-3">
+                    Reference the playbook, not your opinion. Easier to write. Harder to ignore.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Cursor, say:</p>
+                <div class="bg-dark text-light rounded p-3 font-monospace small position-relative" data-testid="command-lead-3">
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 copy-btn"
+                            data-copy="Read the 'BPE-02: Implement Backend' activity from my playbook. Review this PR diff against that activity's guidance and rules — flag any deviations with a reference to the specific rule."
+                            data-bs-toggle="tooltip" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <span class="text-success">$</span>
+                    "Read the 'BPE-02: Implement Backend' activity from my playbook.
+                    Review this PR diff against that activity's guidance and rules —
+                    flag any deviations with a reference to the specific rule."
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-lead-4">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Push your workflow into your IDE automatically</h6>
+                <p class="text-muted small mb-3">
+                    Export any workflow as markdown files directly into your AI workspace.
+                    Cursor reads them in every session — no manual copy-paste, no extra config.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Cursor, say:</p>
+                <div class="bg-dark text-light rounded p-3 font-monospace small position-relative" data-testid="command-lead-4">
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 copy-btn"
+                            data-copy="Export the BPE workflow from my FeatureFactory playbook to .cursor/playbooks/FeatureFactory/BPE so my IDE picks it up automatically."
+                            data-bs-toggle="tooltip" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <span class="text-success">$</span>
+                    "Export the BPE workflow from my FeatureFactory playbook to
+                    .cursor/playbooks/FeatureFactory/BPE so my IDE picks it up automatically."
+                </div>
+                <p class="text-muted small mt-2 mb-0">
+                    Uses <code>export_workflow_to_local</code> — dumps workflow activities as <code>.md</code> files into your target directory.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <hr class="my-5">
+
+    <!-- Scrum Master -->
+    <section id="scrum-master" class="mb-5 pt-2" data-testid="section-scrum-master">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge rounded-pill bg-success bg-opacity-10 text-success px-3 py-2 fs-6">
+                <i class="fa-solid fa-list-check me-1"></i> Scrum Master
+            </span>
+        </div>
+        <p class="lead mt-3 mb-1">
+            Plan the sprint without being the weakest person in the room.
+            Issues that are consistent, complete, and comparable — every sprint, every team.
+            Know the sprint is healthy or at risk before the team tells you it's too late.
+        </p>
+        <p class="fw-semibold">
+            With every sprint and every feature built, your team and their AI get sharper — because the playbook they share keeps improving.
+        </p>
+
+        <h5 class="mt-4 mb-3 text-muted text-uppercase small fw-semibold">What you can do with Mimir today</h5>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-sm-1">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Check sprint readiness before kickoff</h6>
+                <p class="text-muted small mb-3">
+                    Run a readiness assessment against the BPE playbook for your next milestone.
+                    Mimir checks that all prerequisite issues exist, dependencies are resolved,
+                    and the milestone is ready to start — before the first standup.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Cursor, say:</p>
+                <div class="bg-dark text-light rounded p-3 font-monospace small position-relative" data-testid="command-sm-1">
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 copy-btn"
+                            data-copy="Are we ready for BPE on milestone #5?"
+                            data-bs-toggle="tooltip" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <span class="text-success">$</span>
+                    "Are we ready for BPE on milestone #5?"
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-sm-2">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Generate sprint issues from the playbook</h6>
+                <p class="text-muted small mb-3">
+                    AI reads the BPE workflow and creates GitHub issues for your milestone —
+                    each with context map, do-not-do list, and checkpoint command already written.
+                    Consistent structure every time.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Cursor, say:</p>
+                <div class="bg-dark text-light rounded p-3 font-monospace small position-relative" data-testid="command-sm-2">
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 copy-btn"
+                            data-copy="Read the BPE workflow from the FeatureFactory playbook and create GitHub issues for milestone #7, following the iteration protocol."
+                            data-bs-toggle="tooltip" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <span class="text-success">$</span>
+                    "Read the BPE workflow from the FeatureFactory playbook and create
+                    GitHub issues for milestone #7, following the iteration protocol."
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr class="my-5">
+
+    <!-- Competency Center Head -->
+    <section id="cc-head" class="mb-5 pt-2" data-testid="section-cc-head">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge rounded-pill px-3 py-2 fs-6" style="background:rgba(180,83,9,0.1);color:#b45309;">
+                <i class="fa-solid fa-building-columns me-1"></i> Competency Center Head
+            </span>
+        </div>
+        <p class="lead mt-3 mb-1">
+            Retain organizational knowledge and capability.
+            Know your experts and measure their contribution.
+            Turn your playbooks into RFP answer drafts in under an hour.
+        </p>
+        <p class="fw-semibold">
+            With every sprint and every feature built, your team and their AI get sharper — because the playbook they share keeps improving.
+        </p>
+
+        <h5 class="mt-4 mb-3 text-muted text-uppercase small fw-semibold">What you can do with Mimir today</h5>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-cc-1">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Capture your domain methodology as a structured playbook</h6>
+                <p class="text-muted small mb-3">
+                    Encode your team's hard-won patterns — workflows, activities, design decisions — in one place.
+                    AI reads it. New hires read it. The knowledge stops leaving when people leave.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Cursor, say:</p>
+                <div class="bg-dark text-light rounded p-3 font-monospace small position-relative" data-testid="command-cc-1">
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 copy-btn"
+                            data-copy="Create a new playbook 'Data Engineering Practices', add a workflow 'Pipeline Design', and add activities for each step our team follows: ingestion, transformation, quality checks, and delivery."
+                            data-bs-toggle="tooltip" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <span class="text-success">$</span>
+                    "Create a new playbook 'Data Engineering Practices', add a workflow
+                    'Pipeline Design', and add activities for each step our team follows:
+                    ingestion, transformation, quality checks, and delivery."
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-cc-2">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Release it as the team's read-only standard</h6>
+                <p class="text-muted small mb-3">
+                    Release the playbook at v1.0. It becomes locked — AI can read it but cannot modify it.
+                    Changes require a Playbook Improvement Proposal (PIP) — reviewed and versioned like a code change.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Mimir UI:</p>
+                <div class="bg-light rounded p-3 small border" data-testid="action-cc-2">
+                    Playbook detail page → <strong>[Release]</strong>
+                    — marks the playbook as v1.0. All further changes require a PIP.
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-cc-3">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Share your methodology with another team</h6>
+                <p class="text-muted small mb-3">
+                    Export any workflow to JSON and hand it to another team.
+                    They import it into their Mimir instance — same structure, same activities, same guidance.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Mimir UI:</p>
+                <div class="bg-light rounded p-3 small border" data-testid="action-cc-3">
+                    Workflow detail page → <strong>Export JSON</strong>
+                    — produces a portable JSON file. Recipient: Workflow list → <strong>Import</strong>.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr class="my-5">
+
+    <!-- Junior Engineer -->
+    <section id="junior-engineer" class="mb-5 pt-2" data-testid="section-junior-engineer">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge rounded-pill bg-info bg-opacity-10 text-info px-3 py-2 fs-6">
+                <i class="fa-solid fa-seedling me-1"></i> Junior Engineer
+            </span>
+        </div>
+        <p class="lead mt-3 mb-1">
+            Stop guessing what "doing it right" looks like. The playbook shows you, step by step.
+            Ask the AI anything — it won't judge you, and it's read the same playbook your lead has.
+        </p>
+        <p class="fw-semibold">
+            With every sprint and every feature built, your team and their AI get sharper — because the playbook they share keeps improving.
+        </p>
+
+        <h5 class="mt-4 mb-3 text-muted text-uppercase small fw-semibold">What you can do with Mimir today</h5>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-jr-1">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Get walked through the task before writing a line of code</h6>
+                <p class="text-muted small mb-3">
+                    Pull the relevant activity from the playbook. AI explains the steps, the rules,
+                    and what a good outcome looks like — before you start.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Cursor, say:</p>
+                <div class="bg-dark text-light rounded p-3 font-monospace small position-relative" data-testid="command-jr-1">
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 copy-btn"
+                            data-copy="Before I write any code, read the activity that covers what I'm about to do from the FeatureFactory playbook and walk me through it step by step, explaining the why behind each step."
+                            data-bs-toggle="tooltip" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <span class="text-success">$</span>
+                    "Before I write any code, read the activity that covers what I'm about
+                    to do from the FeatureFactory playbook and walk me through it step by
+                    step, explaining the why behind each step."
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3" data-testid="job-jr-2">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-1">Verify your work against the Definition of Done</h6>
+                <p class="text-muted small mb-3">
+                    Before you open a PR, run the checklist. The playbook defines what "done" means —
+                    AI reads it and tells you what's missing.
+                </p>
+                <p class="text-muted small mb-2 fw-semibold">In Cursor, say:</p>
+                <div class="bg-dark text-light rounded p-3 font-monospace small position-relative" data-testid="command-jr-2">
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 copy-btn"
+                            data-copy="Read the 'BPE-06: Check Definition of Done' activity from the FeatureFactory playbook and verify my current work against each item on the checklist."
+                            data-bs-toggle="tooltip" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <span class="text-success">$</span>
+                    "Read the 'BPE-06: Check Definition of Done' activity from the
+                    FeatureFactory playbook and verify my current work against each
+                    item on the checklist."
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <div class="card border-0 shadow-sm bg-primary text-white mb-5" data-testid="use-cases-cta">
+        <div class="card-body p-5 text-center">
+            <h4 class="mb-2">Ready to try it?</h4>
+            <p class="mb-4 opacity-75">Register to get your API token, connect your IDE, and run your first command in under 5 minutes.</p>
+            <a href="{% url 'register' %}" class="btn btn-light btn-lg me-2" data-testid="cta-register">
+                <i class="fa-solid fa-user-plus me-1"></i> Get started
+            </a>
+            <a href="{% url 'index' %}" class="btn btn-outline-light btn-lg" data-testid="cta-home">
+                <i class="fa-solid fa-house me-1"></i> Back to home
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.role-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.role-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Copy-to-clipboard
+    document.querySelectorAll('.copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const text = btn.dataset.copy;
+            navigator.clipboard.writeText(text).then(function () {
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                setTimeout(function () { btn.innerHTML = original; }, 1500);
+                console.log('Copied command to clipboard:', text);
+            });
+        });
+    });
+
+    // Smooth scroll for role card anchors
+    document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
+        anchor.addEventListener('click', function (e) {
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                e.preventDefault();
+                console.log('Scrolling to section:', this.getAttribute('href'));
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}

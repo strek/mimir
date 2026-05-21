@@ -33,10 +33,10 @@
                    title="Browse and explore your complete playbook library">
                     <i class="fas fa-book-sparkles"></i> Explore Playbooks
                 </a>
-                <a class="btn btn-outline-secondary ms-2" href="{% url 'pip_list' %}" role="button" data-testid="view-pips-button"
+                <a class="btn btn-link ms-2 text-decoration-none" href="{% url 'use_cases' %}" role="button" data-testid="view-use-cases-button"
                    data-bs-toggle="tooltip" data-bs-placement="top"
-                   title="Review and approve Playbook Improvement Proposals">
-                    <i class="fas fa-lightbulb"></i> View PIPs
+                   title="See what Mimir can do for your role">
+                    <i class="fa-solid fa-brain"></i> What can Mimir do?
                 </a>
             </div>
         </div>
@@ -46,8 +46,8 @@
 
 <div class="row mt-4">
     <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-4">
+                <div class="card border-0 shadow-sm">
+            <div class="card-body p-4" id="mcp-config">
                 <h5 class="card-title mb-1">
                     <i class="fas fa-plug text-primary"></i> Connect Your AI IDE to Mimir via MCP
                 </h5>

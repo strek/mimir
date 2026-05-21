@@ -2,6 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # ── Use cases (public landing) ────────────────────────────────────────
+    path("use-cases/", views.use_cases, name="mockup_use_cases"),
     # ── Auth flow ──────────────────────────────────────────────────────────
     path("auth/register/", views.auth_register, name="mockup_auth_register"),
     path("auth/login/", views.auth_login, name="mockup_auth_login"),

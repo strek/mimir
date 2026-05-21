@@ -74,6 +74,7 @@ urlpatterns = [
     path("dashboard/", methodology_views.dashboard, name="dashboard"),
     path("dashboard/activities/", methodology_views.dashboard_activities, name="dashboard_activities"),
     path("", methodology_views.index, name="index"),
+    path("use-cases/", methodology_views.use_cases, name="use_cases"),
     path("pip/list/", pip_views.PipListLegacyRedirect.as_view()),
     path("pips/", pip_views.pip_list, name="pip_list"),
     path("pips/create/", pip_views.pip_create, name="pip_create"),

@@ -459,6 +459,12 @@ def profile_edit(request):
     return render(request, "mockups/profile/edit.html", {**MOCK_PROFILE, "errors": {}})
 
 
+def use_cases(request):
+    """Public landing page — 'What can Mimir do for you?' role overview."""
+    logger.info("Mockup: use_cases | user=%s", getattr(request.user, "username", "anonymous"))
+    return render(request, "mockups/use-cases/index.html", {})
+
+
 def pip_admin_review(request, pip_id):
     """FOB-PIP-ADMIN-1: Admin reviews Galdr recommendations and makes decisions."""
     logger.info("Mockup: pip_admin_review | pip_id=%s | user=%s", pip_id, getattr(request.user, "username", "anonymous"))

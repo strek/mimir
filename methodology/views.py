@@ -10,11 +10,22 @@ logger = logging.getLogger(__name__)
 def index(request):
     """
     Home page - methodology explorer landing page. Public access allowed.
-    
+
     :param request: Django request object. Example: HttpRequest(method='GET', user=<User: admin>)
     :return: Rendered HTML response. Example: HttpResponse(status=200, content="<div>...</div>")
     """
     return render(request, 'methodology/index.html')
+
+
+def use_cases(request):
+    """
+    Public 'What can Mimir do?' page — role-based feature overview. No login required.
+
+    :param request: Django request object.
+    :return: Rendered HTML response.
+    """
+    logger.info("use_cases | user=%s", getattr(request.user, "username", "anonymous"))
+    return render(request, 'methodology/use_cases.html')
 
 
 @login_required
