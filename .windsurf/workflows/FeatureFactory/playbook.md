@@ -2,13 +2,29 @@
 
 **Playbook**: FeatureFactory
 **Version**: 11.8 (Draft)
-**Purpose**: End-to-end workflow for AI-assisted software product development — from idea to shipped feature, with estimation, architecture, and repeatable delivery.
+**Purpose**: The goal of this playbook is to enable rapid development, deployment and operations of web-based SaaS products.
 
 ---
 
 ## What This Playbook Does
 
-FeatureFactory turns a product idea into running, tested, estimated software through a sequence of ten workflows. The first six run once during **Inception** and produce the base artifacts every subsequent sprint depends on. The last four form the **Delivery Loop** that repeats every iteration.
+FeatureFactory turns a product idea into running, tested, shipped software through a sequence of ten structured workflows organized into two phases. The first six run once during **Inception** and produce the base artifacts every subsequent sprint depends on. The last four form the **Delivery Loop** that repeats every iteration.
+
+### Inception Phase (runs once per project)
+
+- **ESM — Envision the System**: Captures the user journey, screen flows, feature files (BDD), information architecture guidelines, and UI mockups that define what the product must do and how users will navigate it.
+- **DTA — Define Architecture**: Drives technical decisions across 16 architectural domains — from stack selection and code organization to security, scalability, and release strategy — producing the System Architecture Overview (`SAO.md`) that every downstream workflow reads.
+- **DSP — Deploy Software Process**: Configures the AI IDE environment (`CLAUDE.md`, Windsurf/Cursor rules, copilot instructions) so autonomous agents follow project conventions from day one without manual re-orientation.
+- **EST — Estimate the Project**: Produces two-level estimates (T-shirt SWAG + detailed PERT triplets), runs a 10,000-iteration Monte Carlo simulation, and generates a client-ready quote with P50/P80/P95 ranges for tokens, duration, and function points.
+- **DCI — Design & Deploy Cloud Infrastructure**: Scaffolds a CDK-based infra repo with VPC, EKS, ECR, and Route53 stacks, Makefile targets, and GitHub Actions workflows so cloud infrastructure is provisioned reproducibly and independently of application code.
+- **DCD — Design & Deploy CI/CD**: Builds the Helm chart, CI pipeline (lint → test → build → push), and CD pipeline (deploy → smoke → switch → rollback) so every feature ships through a repeatable, automated pipeline with safe blue/green promotion.
+
+### Delivery Loop (repeats every iteration)
+
+- **BSP — Bootstrap Project** *(Sprint 0 only)*: Scaffolds the project structure, installs prerequisites, initializes the repository, configures dev tooling, creates the Makefile, verifies the welcome page runs end-to-end, and sets up three-tier observability logging (app, GUI, token consumption).
+- **BPE — Build Feature**: The core delivery workflow. Covers planning (BPE-01), backend implementation — models, services, views (BPE-02), frontend implementation — templates and HTMX (BPE-03), feature acceptance tests via Django test client (BPE-04), journey certification tests via Playwright (BPE-05), Definition of Done check (BPE-06), feature finalization with commit and PR (BPE-07), and change-request handling (BPE-08).
+- **PIN — Plan Iteration**: Prepares for the AI-driven sprint run — ensures all artifacts are in place (BDD feature specs, SAO.md, CLAUDE.md), runs BPE-01 per scenario to produce code skeletons, builds the execution manifest YAML, publishes the GitHub/GitLab milestone with issues, and concludes with a human acceptance gate before handing off to MIN.
+- **MIN — Manage Iteration**: The Jedao-driven autonomous execution workflow. Activates from the PIN-produced manifest, executes scenarios sequentially within conflict-safe parallel groups, detects and classifies drift events (time overrun, test failure, scope expansion, integration conflict), surfaces escalations to the human, course-corrects the manifest when needed, and closes the iteration with a GitHub Release, Lessons Learned document, and EST-08 sprint rebaseline.
 
 ---
 

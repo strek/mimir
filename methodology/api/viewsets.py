@@ -19,7 +19,7 @@ from methodology.models import (
 )
 from methodology.api.serializers import (
     PlaybookSerializer, PlaybookListSerializer, WorkflowSerializer,
-    ActivitySerializer, SkillSerializer, AgentSerializer,
+    ActivitySerializer, ActivityListSerializer, SkillSerializer, AgentSerializer,
     ArtifactSerializer, ArtifactInputSerializer, PhaseSerializer,
     RuleSerializer
 )
@@ -446,7 +446,13 @@ class ActivityViewSet(viewsets.ModelViewSet):
     resource_name = "Activity"
     serializer_class = ActivitySerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly, IsDraftPlaybook]
-    
+
+    def get_serializer_class(self):
+        """Use lightweight list serializer (no guidance) for list action."""
+        if self.action == 'list':
+            return ActivityListSerializer
+        return ActivitySerializer
+
     def get_queryset(self):
         """Activities for workflows in playbooks accessible to the current user."""
         accessible = _accessible_playbook_ids(self.request.user)

@@ -70,8 +70,25 @@ class WorkflowSerializer(serializers.ModelSerializer):
         ]
 
 
+class ActivityListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for activity lists — guidance excluded to keep payloads small."""
+
+    predecessor_name = serializers.CharField(source='predecessor.name', read_only=True)
+    agent_name = serializers.CharField(source='agent.name', read_only=True)
+    skill_title = serializers.CharField(source='skill.title', read_only=True)
+
+    class Meta:
+        model = Activity
+        fields = [
+            'id', 'workflow_id', 'name', 'phase_id', 'order',
+            'predecessor_id', 'predecessor_name', 'agent_id', 'agent_name',
+            'skill_id', 'skill_title'
+        ]
+        read_only_fields = ['id', 'predecessor_name', 'agent_name', 'skill_title']
+
+
 class ActivitySerializer(serializers.ModelSerializer):
-    """Serializer for Activity model."""
+    """Serializer for Activity model — full detail including guidance."""
 
     workflow_id = serializers.IntegerField()
     phase_id = serializers.IntegerField(allow_null=True, required=False)
