@@ -81,7 +81,7 @@ class ActivitySerializer(serializers.ModelSerializer):
             'predecessor_id', 'predecessor_name', 'agent_id', 'agent_name',
             'skill_id', 'skill_title'
         ]
-        read_only_fields = ['id', 'order', 'predecessor_name', 'agent_name', 'skill_title']
+        read_only_fields = ['id', 'predecessor_name', 'agent_name', 'skill_title']
 
 
 class SkillSerializer(serializers.ModelSerializer):
