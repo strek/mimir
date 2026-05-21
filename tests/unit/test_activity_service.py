@@ -277,6 +277,47 @@ class TestActivityService:
 
 
 @pytest.mark.django_db
+@pytest.mark.django_db
+class TestSetPredecessorBidirectional:
+    """set_predecessor must keep predecessor↔successor FKs in sync."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        user = User.objects.create_user(username='pred_test_user', password='x')
+        pb = Playbook.objects.create(
+            name='Pred PB', description='', category='test',
+            status='draft', source='owned', author=user,
+        )
+        wf = Workflow.objects.create(playbook=pb, name='Pred WF', description='', order=1)
+        self.act_a = Activity.objects.create(workflow=wf, name='A', guidance='', order=1)
+        self.act_b = Activity.objects.create(workflow=wf, name='B', guidance='', order=2)
+        self.act_c = Activity.objects.create(workflow=wf, name='C', guidance='', order=3)
+
+    def test_sets_successor_on_predecessor(self):
+        """set_predecessor(B, A) must also write A.successor = B."""
+        ActivityService.set_predecessor(self.act_b, self.act_a)
+        self.act_a.refresh_from_db()
+        assert self.act_a.successor_id == self.act_b.pk
+
+    def test_chain_a_b_c(self):
+        """set_predecessor(B,A) then set_predecessor(C,B) builds A→B→C."""
+        ActivityService.set_predecessor(self.act_b, self.act_a)
+        ActivityService.set_predecessor(self.act_c, self.act_b)
+        self.act_a.refresh_from_db()
+        self.act_b.refresh_from_db()
+        assert self.act_a.successor_id == self.act_b.pk
+        assert self.act_b.successor_id == self.act_c.pk
+
+    def test_replacing_predecessor_clears_old_successor(self):
+        """Replacing B's predecessor from A to C must clear A.successor."""
+        ActivityService.set_predecessor(self.act_b, self.act_a)   # A→B
+        ActivityService.set_predecessor(self.act_b, self.act_c)   # C→B (A is now orphaned)
+        self.act_a.refresh_from_db()
+        self.act_c.refresh_from_db()
+        assert self.act_a.successor_id is None   # A no longer points at B
+        assert self.act_c.successor_id == self.act_b.pk
+
+
 class TestListActivitiesForPlaybook:
     """Tests for ActivityService.list_activities_for_playbook."""
 

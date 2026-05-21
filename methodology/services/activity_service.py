@@ -312,14 +312,25 @@ class ActivityService:
         if predecessor.workflow_id != activity.workflow_id:
             raise ValidationError("Predecessor must be in the same workflow")
 
-        # Guard against self-reference
         if predecessor.pk == activity.pk:
             raise ValidationError("Activity cannot be its own predecessor")
+
+        # If activity already had a predecessor, clear its stale successor pointer.
+        old_predecessor = activity.predecessor
+        if old_predecessor and old_predecessor.successor_id == activity.pk:
+            old_predecessor.successor = None
+            old_predecessor.save(update_fields=['successor'])
+            logger.info(f"Cleared stale successor on activity {old_predecessor.id}")
 
         activity.predecessor = predecessor
         activity.clean()
         activity.save()
-        logger.info(f"Set predecessor of activity {activity.id} to {predecessor.id}")
+
+        # Keep the inverse pointer in sync: predecessor.successor = activity.
+        predecessor.successor = activity
+        predecessor.save(update_fields=['successor'])
+
+        logger.info(f"Set predecessor of activity {activity.id} to {predecessor.id} (successor synced)")
 
     @staticmethod
     def duplicate_activity(activity_id, new_name=None):
