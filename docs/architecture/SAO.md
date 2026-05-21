@@ -2165,7 +2165,7 @@ CloudFront was removed — HTTPS is terminated at the ALB, which holds the
 
 | Target | What it does |
 |--------|-------------|
-| `make swap` | `swap-environment-cnames` between `mimir-idle` and `mimir-prod` |
+| `make swap` | Reads version label from `mimir-idle`, deploys it to `mimir-prod` via `update-environment` (Route53 aliases the `mimir-prod` ALB directly, so CNAME swap has no effect on live traffic) |
 | `make eb-status` | Shows health, version, and CNAME for both environments |
 
 ### Known Operational Notes
