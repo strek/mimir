@@ -13,3 +13,129 @@
     background-color: #6f42c1;
     color: #fff;
 }
+
+/* ============================================================
+   Marketing landing — full-viewport hero + sections below
+   ============================================================ */
+
+/* Navbar floats transparently over the hero image. */
+body.mm-landing .navbar[data-testid="main-navbar"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: transparent !important;
+    border-bottom: none;
+    box-shadow: none;
+}
+
+/* Main loses its top padding/margin so the hero fills from the very top. */
+body.mm-landing main.container-fluid {
+    margin-top: 0 !important;
+    padding: 0 !important;
+}
+
+/* Hide the footer on landing to keep full-page feel. */
+body.mm-landing footer {
+    display: none;
+}
+
+/* Full-viewport hero. */
+.mm-landing-hero {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background-image: url('../images/mimir-hero.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Dark overlay so white text is always legible. */
+.mm-landing-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.52);
+    z-index: 0;
+}
+
+.mm-landing-hero-inner {
+    position: relative;
+    z-index: 10;
+    max-width: 760px;
+    padding: 0 1.5rem;
+    color: #ffffff;
+}
+
+.mm-landing-title {
+    font-size: 3.25rem;
+    font-weight: 700;
+    line-height: 1.15;
+    color: #ffffff;
+    margin: 0;
+}
+
+@media (max-width: 576px) {
+    .mm-landing-title { font-size: 2rem; }
+}
+
+.mm-landing-tagline {
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 400;
+}
+
+/* Ghost link buttons — white, no underline, no background. */
+.mm-landing-link {
+    color: #ffffff;
+    font-size: 1.05rem;
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline;
+}
+
+.mm-landing-link:hover {
+    color: rgba(255, 255, 255, 0.75);
+    text-decoration: none;
+}
+
+.mm-landing-link--disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Sections below the hero */
+.mm-landing-sections-wrap {
+    padding: 2rem 1.5rem;
+}
+
+.mm-landing-feature {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem 1.1rem;
+    height: 100%;
+}
+
+.mm-landing-feature-icon {
+    align-items: center;
+    background: #e7f0ff;
+    border-radius: 0.5rem;
+    color: #0d6efd;
+    display: inline-flex;
+    font-size: 1.1rem;
+    height: 2.25rem;
+    justify-content: center;
+    margin-bottom: 0.6rem;
+    width: 2.25rem;
+}

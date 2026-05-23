@@ -112,7 +112,7 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     {% if user.is_authenticated %}
     <!-- Feedback: first direct child of body, fixed to viewport (no wrapper / absolute) -->
     <button type="button"

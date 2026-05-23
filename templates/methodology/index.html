@@ -1,99 +1,87 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Mimir - Engineering Playbook{% endblock %}
+{% block title %}Mimir — Your AI's Book of Spells{% endblock %}
+
+{% block body_class %}mm-landing{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="jumbotron bg-light p-5 rounded" data-testid="methodology-explorer">
-            <div class="d-flex align-items-center gap-4 mb-3">
-                <img src="{% static 'images/mimir-logo.png' %}" alt="Mimir" height="112">
-                <div>
-                    <h1 class="display-4 mb-1">Welcome to Mimir</h1>
-                    <p class="lead mb-0">Your team's book of spells — the codified wisdom of how great software gets built</p>
-                </div>
-            </div>
-            <hr class="my-4">
-            <p>
-                Capture your best engineers' hard-won know-how as structured playbooks: precise workflows, step-by-step
-                activities, the rules and agent personas that turn a blank AI prompt into expert output. Your AI assistant
-                reads the relevant spell before it acts — so every developer, every session, casts from the same book.
-                When a spell needs improving, any team member can propose a change; it goes through a structured review
-                cycle, gets assessed by a built-in AI critic, and — if approved — the book updates and versions up.
-                Junior engineers stop improvising and start executing proven patterns. Senior knowledge stops evaporating
-                when people leave.
-            </p>
-            <p class="fw-semibold">
-                With every sprint and every feature built, your team and their AI get sharper — because the playbook they share keeps improving.
-            </p>
-            <div class="mt-4">
-                <a class="btn btn-primary" href="/playbooks/" role="button" data-testid="explore-playbooks-button"
-                   data-bs-toggle="tooltip" data-bs-placement="top"
-                   title="Browse and explore your complete playbook library">
-                    <i class="fas fa-book-sparkles"></i> Explore Playbooks
-                </a>
-                <a class="btn btn-link ms-2 text-decoration-none" href="{% url 'use_cases' %}" role="button" data-testid="view-use-cases-button"
-                   data-bs-toggle="tooltip" data-bs-placement="top"
-                   title="See what Mimir can do for your role">
-                    <i class="fa-solid fa-brain-circuit"></i> What can Mimir do?
-                </a>
-            </div>
-        </div>
+<div data-testid="landing-loaded" class="visually-hidden">Landing</div>
+
+<!-- Hero -->
+<section class="mm-landing-hero" data-testid="landing-hero">
+  <div class="mm-landing-overlay" aria-hidden="true"></div>
+  <div class="mm-landing-hero-inner">
+    <h1 class="mm-landing-title mb-4" data-testid="landing-title">
+      Your AI's book of spells.
+    </h1>
+    <p class="mm-landing-tagline mb-5" data-testid="landing-tagline">
+      Mimir provides your AI with the codified wisdom of how great software gets built — and tools to learn from experience.
+      With every sprint and every feature built, your team and their AI get sharper — because the playbook they share keeps improving.
+    </p>
+    <div class="d-flex gap-4 flex-wrap justify-content-center align-items-center">
+      <a href="{% url 'login' %}" class="btn btn-primary btn-lg px-5" data-testid="landing-cta-signin">
+        Sign In
+      </a>
+      <a href="{% url 'use_cases' %}" class="mm-landing-link" data-testid="landing-cta-features">What Mimir Can Do</a>
+      <a href="#mcp-config" class="mm-landing-link" data-testid="landing-cta-connect">Connect MCP</a>
+      <a href="{% url 'register' %}" class="mm-landing-link" data-testid="landing-cta-register">Register</a>
     </div>
-</div>
+  </div>
+</section>
 
+<!-- Connect MCP section -->
+<div class="mm-landing-sections-wrap">
+  <!-- Connect MCP section -->
+  <section class="card border-0 shadow-sm rounded-3 mb-4" id="mcp-config" data-testid="landing-mcp-connect">
+    <div class="card-header bg-white border-bottom py-2 px-3 fw-semibold d-flex align-items-center">
+      <i class="fa-solid fa-plug me-2 text-primary" aria-hidden="true"></i>
+      <span>Connect Your AI IDE to Mimir via MCP</span>
+    </div>
+    <div class="card-body p-4">
+      <p class="text-muted mb-4">Two steps: register to get your token, then add the config snippet to your IDE.</p>
 
-<div class="row mt-4">
-    <div class="col-12">
-                <div class="card border-0 shadow-sm">
-            <div class="card-body p-4" id="mcp-config">
-                <h5 class="card-title mb-1">
-                    <i class="fas fa-plug text-primary"></i> Connect Your AI IDE to Mimir via MCP
-                </h5>
-                <p class="text-muted mb-4">Two steps: register to get your token, then add the config snippet to your IDE.</p>
+      <!-- Step 1 -->
+      <h6 class="text-muted text-uppercase fw-semibold small mb-2">Step 1 — Register and get your token</h6>
+      <p class="text-muted small mb-4">
+        <a href="{% url 'register' %}">Register</a> —
+        your authentication token is shown on the confirmation page. Copy and save it.
+      </p>
 
-                <!-- Step 1 -->
-                <h6 class="text-muted text-uppercase fw-semibold small mb-2">Step 1 — Register and get your token</h6>
-                <p class="text-muted small mb-4">
-                    <a href="{% url 'register' %}">Register</a> —
-                    your authentication token is shown on the confirmation page. Copy and save it.
-                </p>
+      <!-- Step 2 -->
+      <h6 class="text-muted text-uppercase fw-semibold small mb-2">Step 2 — Add to your IDE config</h6>
+      <p class="text-muted small mb-3">
+        The config below pulls the latest Mimir MCP container from Docker Hub (<code>featurefactory/mimir-mcp</code>) and runs it with your token.
+        No local install needed — Docker handles everything.
+      </p>
 
-                <!-- Step 2 -->
-                <h6 class="text-muted text-uppercase fw-semibold small mb-2">Step 2 — Add to your IDE config</h6>
-                <p class="text-muted small mb-3">
-                    The config below pulls the latest Mimir MCP container from Docker Hub (<code>featurefactory/mimir-mcp</code>) and runs it with your token.
-                    No local install needed — Docker handles everything.
-                </p>
+      <ul class="nav nav-tabs mb-3" id="mcpTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-windsurf" data-bs-toggle="tab" data-bs-target="#pane-windsurf" type="button" role="tab">
+            <img src="{% static 'images/windsurf.svg' %}" height="16" alt="" class="me-1" style="vertical-align: text-top;"> Windsurf
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-claude" data-bs-toggle="tab" data-bs-target="#pane-claude" type="button" role="tab">
+            <img src="{% static 'images/anthropic.svg' %}" height="16" alt="" class="me-1" style="vertical-align: text-top;"> Claude Desktop
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-cursor" data-bs-toggle="tab" data-bs-target="#pane-cursor" type="button" role="tab">
+            <img src="{% static 'images/cursor.svg' %}" height="16" alt="" class="me-1" style="vertical-align: text-top;"> Cursor
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-source" data-bs-toggle="tab" data-bs-target="#pane-source" type="button" role="tab">
+            <img src="{% static 'images/github.svg' %}" height="16" alt="" class="me-1" style="vertical-align: text-top;"> Get Source Code
+          </button>
+        </li>
+      </ul>
 
-                <ul class="nav nav-tabs mb-3" id="mcpTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="tab-windsurf" data-bs-toggle="tab" data-bs-target="#pane-windsurf" type="button" role="tab">
-                            <img src="{% static 'images/windsurf.svg' %}" height="16" alt="" class="brand-icon me-1" style="vertical-align: text-top;"> Windsurf
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="tab-claude" data-bs-toggle="tab" data-bs-target="#pane-claude" type="button" role="tab">
-                            <img src="{% static 'images/anthropic.svg' %}" height="16" alt="" class="brand-icon me-1" style="vertical-align: text-top;"> Claude Desktop
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="tab-cursor" data-bs-toggle="tab" data-bs-target="#pane-cursor" type="button" role="tab">
-                            <img src="{% static 'images/cursor.svg' %}" height="16" alt="" class="brand-icon me-1" style="vertical-align: text-top;"> Cursor
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="tab-source" data-bs-toggle="tab" data-bs-target="#pane-source" type="button" role="tab">
-                            <img src="{% static 'images/github.svg' %}" height="16" alt="" class="brand-icon me-1" style="vertical-align: text-top;"> Get Source Code
-                        </button>
-                    </li>
-                </ul>
-
-                <div class="tab-content" id="mcpTabsContent">
-                    <div class="tab-pane fade show active" id="pane-windsurf" role="tabpanel">
-                        <p class="text-muted small mb-2">File: <code>~/.codeium/windsurf/mcp_config.json</code></p>
-                        <pre class="bg-dark text-light rounded p-3 small"><code>{
+      <div class="tab-content" id="mcpTabsContent">
+        <div class="tab-pane fade show active" id="pane-windsurf" role="tabpanel">
+          <p class="text-muted small mb-2">File: <code>~/.codeium/windsurf/mcp_config.json</code></p>
+          <pre class="bg-dark text-light rounded p-3 small"><code>{
   "mcpServers": {
     "mimir": {
       "command": "docker",
@@ -107,10 +95,10 @@
     }
   }
 }</code></pre>
-                    </div>
-                    <div class="tab-pane fade" id="pane-claude" role="tabpanel">
-                        <p class="text-muted small mb-2">File: <code>~/Library/Application Support/Claude/claude_desktop_config.json</code></p>
-                        <pre class="bg-dark text-light rounded p-3 small"><code>{
+        </div>
+        <div class="tab-pane fade" id="pane-claude" role="tabpanel">
+          <p class="text-muted small mb-2">File: <code>~/Library/Application Support/Claude/claude_desktop_config.json</code></p>
+          <pre class="bg-dark text-light rounded p-3 small"><code>{
   "mcpServers": {
     "mimir": {
       "command": "docker",
@@ -124,10 +112,10 @@
     }
   }
 }</code></pre>
-                    </div>
-                    <div class="tab-pane fade" id="pane-cursor" role="tabpanel">
-                        <p class="text-muted small mb-2">File: <code>~/.cursor/mcp.json</code></p>
-                        <pre class="bg-dark text-light rounded p-3 small"><code>{
+        </div>
+        <div class="tab-pane fade" id="pane-cursor" role="tabpanel">
+          <p class="text-muted small mb-2">File: <code>~/.cursor/mcp.json</code></p>
+          <pre class="bg-dark text-light rounded p-3 small"><code>{
   "mcpServers": {
     "mimir": {
       "command": "docker",
@@ -141,29 +129,43 @@
     }
   }
 }</code></pre>
-                    </div>
-                    <div class="tab-pane fade" id="pane-source" role="tabpanel">
-                        <p class="text-muted small mb-2">Self-host Mimir using Docker Compose — web app + MCP facade in one command.</p>
-                        <pre class="bg-dark text-light rounded p-3 small"><code>git clone https://github.com/phainestai/mimir.git
+        </div>
+        <div class="tab-pane fade" id="pane-source" role="tabpanel">
+          <p class="text-muted small mb-2">Self-host Mimir using Docker Compose — web app + MCP facade in one command.</p>
+          <pre class="bg-dark text-light rounded p-3 small"><code>git clone https://github.com/phainestai/mimir.git
 cd mimir
 cp .env.example .env   # set MIMIR_USER and MIMIR_PASSWORD
 docker compose up -d
 
 # FOB web UI:  http://localhost:8000
 # MCP SSE:     http://localhost:8001/sse</code></pre>
-                        <p class="text-muted small mt-2 mb-0">
-                            Then point your IDE config at <code>MIMIR_SERVER_URL=http://localhost:8000</code> with a locally obtained token.
-                            See <a href="https://github.com/phainestai/mimir/blob/main/docs/DOCKER_QUICK_START.md" target="_blank">DOCKER_QUICK_START.md</a> for full details.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="alert alert-warning mt-3 mb-0 py-2">
-                    <i class="fas fa-triangle-exclamation"></i>
-                    Replace <code>&lt;your-token&gt;</code> with the token from your registration confirmation. Restart your IDE after saving.
-                </div>
-            </div>
+          <p class="text-muted small mt-2 mb-0">
+            Then point your IDE config at <code>MIMIR_SERVER_URL=http://localhost:8000</code> with a locally obtained token.
+            See <a href="https://github.com/phainestai/mimir/blob/main/docs/DOCKER_QUICK_START.md" target="_blank">DOCKER_QUICK_START.md</a> for full details.
+          </p>
         </div>
+      </div>
+
+      <div class="alert alert-warning mt-3 mb-0 py-2">
+        <i class="fas fa-triangle-exclamation"></i>
+        Replace <code>&lt;your-token&gt;</code> with the token from your registration confirmation. Restart your IDE after saving.
+      </div>
     </div>
+  </section>
 </div>
+
+<script>
+  console.log('landing: page loaded, hero visible');
+  // Smooth-scroll anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+    a.addEventListener('click', function(e) {
+      var target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        console.log('landing: smooth-scrolling to', this.getAttribute('href'));
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+</script>
 {% endblock %}
