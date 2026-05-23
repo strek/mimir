@@ -75,15 +75,22 @@ echo "Swapping $IDLE_ENV (idle) ↔ $LIVE_ENV (live) ..."
 aws elasticbeanstalk swap-environment-cnames \
   --source-environment-name "$IDLE_ENV" \
   --destination-environment-name "$LIVE_ENV"
-echo "Swap requested — waiting 20s for CNAME propagation..."
-sleep 20
+echo "Swap requested — waiting 90s for DNS TTL propagation (Route53 TTL=60s)..."
+sleep 90
 
-# ── 5. Smoke-test prod URL ────────────────────────────────────────────────────
+# ── 5. Smoke-test prod URL — poll until revision matches (up to 3 min) ────────
 PROD_URL="${MIMIR_PROD_URL:-https://mimir.featurefactory.io}"
-echo "Smoke testing ${PROD_URL}/health/ ..."
-PROD_STATUS=$(curl -o /tmp/prod-health.json -s -w "%{http_code}" \
-  --max-time 30 --retry 20 --retry-delay 10 --retry-all-errors \
-  "${PROD_URL}/health/")
+echo "Polling ${PROD_URL}/health/ for revision=$EXPECTED_REVISION ..."
+for i in $(seq 1 18); do
+  PROD_STATUS=$(curl -o /tmp/prod-health.json -s -w "%{http_code}" \
+    --max-time 15 "${PROD_URL}/health/" || echo "000")
+  PROD_REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/prod-health.json")).get("revision","unknown"))' 2>/dev/null || echo "unknown")
+  echo "  [${i}/18] HTTP=${PROD_STATUS}  revision=${PROD_REVISION}"
+  if [ "$PROD_STATUS" = "200" ] && [ "$PROD_REVISION" = "$EXPECTED_REVISION" ]; then
+    break
+  fi
+  sleep 10
+done
 
 if [ "$PROD_STATUS" != "200" ]; then
   echo "Prod smoke test FAILED — HTTP $PROD_STATUS"
