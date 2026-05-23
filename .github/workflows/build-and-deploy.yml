@@ -1,21 +1,24 @@
 name: Build and Deploy Mimir
 
+# Mirrors Huginn's release model:
+#   gh release create vX.Y.Z
+#     → test → build → deploy-idle (dynamically resolved) → staging smoke
+#   Then: make swap  (or run promote.yml workflow_dispatch)
+#     → promote-prod.sh: SHA guard, CNAME swap, prod smoke
+#
+# Pipeline runs ONLY on published GitHub releases (not on every push).
+# Push events only run tests + build (no EB deploy).
 on:
   push:
-    branches:
-      - main
-      - 'release/**'
-      - 'feat/**'
+    branches: [main]
   pull_request:
-    branches: [main, 'release/**']
+    branches: [main]
   release:
     types: [published]
   workflow_dispatch:
 
 env:
-  # Docker Hub — public MCP facade image (secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN)
   DOCKERHUB_IMAGE: featurefactory/mimir-mcp
-  # AWS ECR — activate by setting AWS_ACCOUNT_ID and AWS_REGION as repository variables (web image only)
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
 
 jobs:
@@ -100,7 +103,7 @@ jobs:
           script: |
             const testStatus = '${{ job.status }}';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const comment = `## 🧪 Test Results\n\n**Status:** ${testStatus === 'success' ? '✅ All tests passed' : '❌ Tests failed'}\n\n[View full test report](${runUrl})\n\n**Coverage report** is available in the artifacts.`;
+            const comment = `## 🧪 Test Results\n\n**Status:** ${testStatus === 'success' ? '✅ All tests passed' : '❌ Tests failed'}\n\n[View full test report](${runUrl})`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -108,12 +111,17 @@ jobs:
               body: comment
             });
 
-  # ── 2. Build and push both Docker images ─────────────────────────────────
+  # ── 2. Build and push Docker images ──────────────────────────────────────
   build-and-push:
     name: Build and Push Docker Images
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    # Build on push to main, release, or manual dispatch — never on PRs.
+    if: github.event_name != 'pull_request'
+
+    outputs:
+      image_suffix: ${{ steps.tag.outputs.suffix }}
+      git_revision: ${{ steps.tag.outputs.revision }}
 
     steps:
       - name: Checkout code
@@ -122,14 +130,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ── Docker Hub (MCP facade) ───────────────────────────────────────────
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ── AWS ECR (optional — enabled when AWS_ACCOUNT_ID variable is set) ──
       - name: Configure AWS credentials
         if: vars.AWS_ACCOUNT_ID != ''
         uses: aws-actions/configure-aws-credentials@v4
@@ -143,20 +149,24 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ── Shared tag suffix ─────────────────────────────────────────────────
       - name: Compute image tag suffix
         id: tag
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           BRANCH=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
-          echo "suffix=${BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          SUFFIX="${BRANCH}-${SHORT_SHA}"
+          echo "suffix=${SUFFIX}" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "revision=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "revision=${SUFFIX}" >> $GITHUB_OUTPUT
+          fi
           if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
             echo "latest=true" >> $GITHUB_OUTPUT
           else
             echo "latest=false" >> $GITHUB_OUTPUT
           fi
 
-      # ── Web image (Dockerfile) — private ECR only ─────────────────────────
       - name: Build and push web image → ECR
         if: vars.AWS_ACCOUNT_ID != ''
         uses: docker/build-push-action@v5
@@ -171,7 +181,6 @@ jobs:
           cache-to: type=gha,scope=web,mode=max
           platforms: linux/amd64,linux/arm64
 
-      # ── MCP facade image (Dockerfile.mcp) — Docker Hub ───────────────────────
       - name: Build and push MCP facade image → Docker Hub
         uses: docker/build-push-action@v5
         with:
@@ -185,33 +194,14 @@ jobs:
           cache-to: type=gha,scope=mcp-facade,mode=max
           platforms: linux/amd64,linux/arm64
 
-      # ── Deployment summary ────────────────────────────────────────────────
-      - name: Create deployment summary
-        run: |
-          TAG="${{ steps.tag.outputs.suffix }}"
-          echo "## 🚀 Docker Images Published" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Image | Docker Hub (MCP facade) | Private ECR (web only) |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-------------------------|-------------------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **web** | — | \`${{ vars.AWS_ACCOUNT_ID != '' && format('{0}/mimir:{1}', steps.ecr-login.outputs.registry, steps.tag.outputs.suffix) || 'not configured' }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **mcp-facade** | \`${{ env.DOCKERHUB_IMAGE }}:${TAG}\` | — |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Quick start with docker compose:**" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "docker compose up -d" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-  # ── 3. Deploy to AWS Elastic Beanstalk ───────────────────────────────────
-  deploy-to-eb:
-    name: Deploy to Elastic Beanstalk (mimir-idle)
-    # Deploys to mimir-idle (staging). Run "make swap" to promote to mimir-prod (live).
-    # Add GITHUB_TOKEN (Issues: write) + optional GITHUB_BUG_REPO on the EB
-    # environment so the Feedback UI and /api/feedback/report/ can create GitHub issues.
+  # ── 3. Deploy to idle EB env + staging smoke ─────────────────────────────
+  deploy-idle:
+    name: Deploy to Idle EB env (staging smoke)
+    # Deploys to whichever env is currently idle (dynamically resolved by CNAME).
+    # Does NOT swap prod. Run "make swap" locally, or trigger promote.yml, after review.
     needs: build-and-push
     runs-on: ubuntu-latest
-    # Only deploy on a published GitHub release or manual dispatch.
-    # release/** pushes intentionally excluded — they just build+test.
-    # This prevents the push and release events from racing each other to EB.
+    # Only on published release or manual dispatch — not on every push to main.
     if: >
       vars.AWS_ACCOUNT_ID != '' && (
         github.event_name == 'release' ||
@@ -220,7 +210,8 @@ jobs:
 
     env:
       EB_APP: mimir
-      EB_ENV: mimir-idle
+      EB_ENV_A: mimir-prod
+      EB_ENV_B: mimir-idle
       EB_BUCKET: elasticbeanstalk-us-east-1-${{ vars.AWS_ACCOUNT_ID }}
 
     steps:
@@ -245,10 +236,7 @@ jobs:
           BRANCH=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
           SUFFIX="${BRANCH}-${SHORT_SHA}"
           echo "suffix=${SUFFIX}" >> $GITHUB_OUTPUT
-          # Include run_number so retries produce a unique label
           echo "label=v-${SUFFIX}-r${{ github.run_number }}" >> $GITHUB_OUTPUT
-          # revision: release tag (e.g. v1.4.0) when triggered by gh release publish,
-          # otherwise branch-sha (e.g. main-a3f9c12) for manual/workflow_dispatch deploys.
           if [[ "${{ github.event_name }}" == "release" ]]; then
             echo "revision=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
           else
@@ -265,73 +253,30 @@ jobs:
       - name: Package deployment bundle
         run: zip -j deploy-bundle.zip docker-compose.yml
 
-      - name: Upload bundle to S3
-        id: upload
-        run: |
-          KEY="mimir/${{ steps.version.outputs.label }}/deploy-bundle.zip"
-          aws s3 cp deploy-bundle.zip "s3://${{ env.EB_BUCKET }}/${KEY}"
-          echo "s3_key=${KEY}" >> $GITHUB_OUTPUT
-
-      - name: Create EB application version
-        run: |
-          # Idempotent: skip if version already exists (e.g. workflow re-run).
-          EXISTS=$(aws elasticbeanstalk describe-application-versions \
-            --application-name "${{ env.EB_APP }}" \
-            --version-labels "${{ steps.version.outputs.label }}" \
-            --query "length(ApplicationVersions)" --output text)
-          if [ "${EXISTS}" = "0" ]; then
-            aws elasticbeanstalk create-application-version \
-              --application-name "${{ env.EB_APP }}" \
-              --version-label "${{ steps.version.outputs.label }}" \
-              --source-bundle S3Bucket="${{ env.EB_BUCKET }}",S3Key="${{ steps.upload.outputs.s3_key }}"
-          else
-            echo "Version ${{ steps.version.outputs.label }} already exists — skipping creation."
-          fi
-
-      - name: Deploy to EB environment
-        run: |
-          aws elasticbeanstalk update-environment \
-            --application-name "${{ env.EB_APP }}" \
-            --environment-name "${{ env.EB_ENV }}" \
-            --version-label "${{ steps.version.outputs.label }}" \
-            --option-settings \
-              "Namespace=aws:elasticbeanstalk:application:environment,OptionName=MIMIR_GIT_REVISION,Value=${{ steps.version.outputs.revision }}"
-
-      - name: Wait for deployment to complete
-        run: |
-          echo "Polling ${{ env.EB_ENV }} every 15s (max 10 min)..."
-          for i in $(seq 1 40); do
-            STATUS=$(aws elasticbeanstalk describe-environments \
-              --application-name "${{ env.EB_APP }}" \
-              --environment-names "${{ env.EB_ENV }}" \
-              --query "Environments[0].Status" --output text)
-            HEALTH=$(aws elasticbeanstalk describe-environments \
-              --application-name "${{ env.EB_APP }}" \
-              --environment-names "${{ env.EB_ENV }}" \
-              --query "Environments[0].Health" --output text)
-            echo "  [${i}/40] Status=${STATUS}  Health=${HEALTH}"
-            if [ "${STATUS}" = "Ready" ]; then
-              echo "Deployment complete."
-              [ "${HEALTH}" = "Red" ] && { echo "Environment health is Red — check EB events"; exit 1; }
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "Timed out (10 min) waiting for environment to become Ready."
-          exit 1
+      - name: Deploy to idle env + staging smoke
+        id: deploy
+        env:
+          EB_APP: ${{ env.EB_APP }}
+          EB_ENV_A: ${{ env.EB_ENV_A }}
+          EB_ENV_B: ${{ env.EB_ENV_B }}
+          EB_BUCKET: ${{ env.EB_BUCKET }}
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_SUFFIX: ${{ steps.version.outputs.suffix }}
+          VERSION_LABEL: ${{ steps.version.outputs.label }}
+          GIT_REVISION: ${{ steps.version.outputs.revision }}
+          DEPLOY_BUNDLE_PATH: deploy-bundle.zip
+        run: bash scripts/deploy-idle.sh
 
       - name: Deployment summary
         if: always()
         run: |
-          LABEL="${{ steps.version.outputs.label }}"
-          ENV_URL="https://console.aws.amazon.com/elasticbeanstalk/home?region=us-east-1#/environment/dashboard?applicationName=mimir&environmentId=${{ env.EB_ENV }}"
-          echo "## 🛸 EB Deployment — ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "## 🛸 Idle EB Deployment — ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Version label** | \`${LABEL}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Environment** | \`${{ env.EB_ENV }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version label** | \`${{ steps.version.outputs.label }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Revision** | \`${{ steps.version.outputs.revision }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Web image** | \`${{ steps.ecr-login.outputs.registry }}/mimir:${{ steps.version.outputs.suffix }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **MCP image** | \`${{ env.DOCKERHUB_IMAGE }}:${{ steps.version.outputs.suffix }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Set **GITHUB_TOKEN** (and optional **GITHUB_BUG_REPO**) on the EB environment so the Feedback widget and \`report_bug\` API can file issues." >> $GITHUB_STEP_SUMMARY
+          echo "**Next step:** run \`make swap\` locally, or trigger the **Promote to Production** workflow after reviewing the idle URL." >> $GITHUB_STEP_SUMMARY

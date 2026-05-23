@@ -114,38 +114,30 @@ backup: ## [prod] Dump prod Postgres to S3 — requires S3_BUCKET and DATABASE_U
 
 ##@ Deploy (AWS EB)
 
-# gh release → mimir-idle → make swap → mimir-prod (live)
-# Route53 aliases the mimir-prod ALB directly, so promotion = deploy idle's
-# version to mimir-prod (CNAME swap alone has no effect on live traffic).
+# Release flow (mirrors Huginn):
+#   gh release create vX.Y.Z
+#     → CI: test → build → deploy-idle.sh (dynamically resolves idle env) → staging smoke
+#   make swap   (after human review of idle URL)
+#     → promote-prod.sh: resolves live/idle, SHA guard, CNAME swap, prod smoke
+#
+# Two physical EB envs whose CNAMEs rotate on every swap:
+#   mimir-prod  /  mimir-idle
+# Route53 CNAME → mimir-prod.eba-… (stable label; follows the swap automatically).
 EB_APP    ?= mimir
-EB_IDLE   ?= mimir-idle
-EB_PROD   ?= mimir-prod
+EB_ENV_A  ?= mimir-prod
+EB_ENV_B  ?= mimir-idle
 AWS_REGION ?= us-east-1
 
 .PHONY: swap
-swap: ## [prod] Blue/green swap: exchange CNAMEs between mimir-idle and mimir-prod
-	@echo "Swapping CNAMEs: mimir-idle ↔ mimir-prod"
-	aws elasticbeanstalk swap-environment-cnames \
-	  --source-environment-name $(EB_IDLE) \
-	  --destination-environment-name $(EB_PROD) \
-	  --region $(AWS_REGION)
-	@echo "Waiting for mimir-prod to be Ready..."
-	@until [ "$$(aws elasticbeanstalk describe-environments \
-	  --application-name $(EB_APP) \
-	  --environment-names $(EB_PROD) \
-	  --query 'Environments[0].Status' \
-	  --output text --region $(AWS_REGION))" = "Ready" ]; do \
-	  printf '.'; sleep 10; done
-	@echo ""
-	@echo "Swap complete — verifying:"
-	@curl -s https://mimir.featurefactory.io/health/ | python3 -c \
-	  "import sys,json; d=json.load(sys.stdin); print(f'  revision={d[\"revision\"]}  status={d[\"status\"]}')"
+swap: ## [prod] Promote idle → prod: resolve live/idle, SHA guard, CNAME swap, smoke prod
+	@EB_APP=$(EB_APP) EB_ENV_A=$(EB_ENV_A) EB_ENV_B=$(EB_ENV_B) \
+	  AWS_DEFAULT_REGION=$(AWS_REGION) bash scripts/promote-prod.sh
 
 .PHONY: eb-status
-eb-status: ## Show health and version of both EB environments
+eb-status: ## Show health, CNAME, and version of both EB environments
 	@aws elasticbeanstalk describe-environments \
 	  --application-name $(EB_APP) \
-	  --environment-names $(EB_IDLE) $(EB_PROD) \
+	  --environment-names $(EB_ENV_A) $(EB_ENV_B) \
 	  --query "Environments[*].{Env:EnvironmentName,Status:Status,Health:Health,Version:VersionLabel,CNAME:CNAME}" \
 	  --output table --region $(AWS_REGION)
 

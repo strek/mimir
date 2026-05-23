@@ -1,0 +1,57 @@
+name: Promote to Production
+
+# Manual GitHub equivalent of Huginn's GitLab `promote_production` (when: manual) job.
+# Resolves live/idle by CNAME inspection, verifies the staged revision, swaps, smokes prod.
+#
+# Usage:
+#   gh workflow run promote.yml
+#   or: GitHub UI → Actions → Promote to Production → Run workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_revision:
+        description: 'Expected revision on idle env (e.g. v0.0.41). Leave blank to promote whatever is staged.'
+        required: false
+        default: ''
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+jobs:
+  promote:
+    name: Promote Idle → Production
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://mimir.featurefactory.io
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Promote idle → production
+        env:
+          EB_APP: mimir
+          EB_ENV_A: mimir-prod
+          EB_ENV_B: mimir-idle
+          EXPECTED_REVISION: ${{ inputs.expected_revision }}
+          MIMIR_PROD_URL: https://mimir.featurefactory.io
+        run: bash scripts/promote-prod.sh
+
+      - name: Promotion summary
+        if: always()
+        run: |
+          echo "## 🚀 Production Promotion — ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Expected revision** | \`${{ inputs.expected_revision || '(from staged env)' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Prod URL** | https://mimir.featurefactory.io |" >> $GITHUB_STEP_SUMMARY
