@@ -1069,12 +1069,34 @@ def add_pip_change(
     """
     Add a typed change row to a Draft PIP.
 
+    change_type values and required fields:
+    - ADD   : entity_type + name + content required; parent_workflow_id required for Activity.
+              Optionally set internal_ref="#slug" so later LINK changes in the same PIP can
+              reference this not-yet-saved entity before it gets a real database ID.
+    - ALTER : entity_type + target_id + at least one of name/content required.
+    - DROP  : entity_type + target_id required.
+    - LINK  : relationship_type + source_entity_ref + target_entity_ref required.
+              entity_type must be left empty ("").
+              Refs are either a numeric PK (e.g. "42") or a "#slug" internal_ref pointing to
+              an ADD change in the same PIP (e.g. "#new-skill").
+    - UNLINK: same fields as LINK; removes the relationship instead of creating it.
+
     :param pip_id: PIP ID. Example: 1
     :param change_type: ADD, ALTER, DROP, LINK, or UNLINK
-    :param entity_type: Entity for ADD/ALTER/DROP (optional for LINK/UNLINK)
-    :param relationship_type: skill_activity, rule_activity, agent_activity, activity_workflow
-    :param source_entity_ref: Source pk or #internal_ref for LINK/UNLINK
-    :param target_entity_ref: Target pk or #internal_ref for LINK/UNLINK
+    :param entity_type: Required for ADD/ALTER/DROP. Choices: Workflow, Activity, Skill, Agent, Rule.
+                        Leave empty ("") for LINK/UNLINK.
+    :param name: Entity name — required for ADD, optional override for ALTER.
+    :param content: Markdown body — required for ADD Activity/Workflow, optional for ALTER.
+    :param target_id: DB primary key of the entity to ALTER or DROP.
+    :param parent_workflow_id: Workflow ID to place a new Activity under (ADD Activity only).
+    :param insert_after_activity_id: Insert after this activity; omit to append to workflow end.
+    :param append_to_playbook_end: If true, append Activity at playbook end regardless of workflow.
+    :param internal_ref: "#slug" label for this ADD row so LINK rows in the same PIP can reference
+                         it before the entity has a real ID. Format: "#<letters-digits-hyphens>".
+    :param relationship_type: Required for LINK/UNLINK. Choices: skill_activity, rule_activity,
+                              agent_activity, activity_workflow.
+    :param source_entity_ref: Source entity — numeric PK string or "#internal_ref".
+    :param target_entity_ref: Target entity — numeric PK string or "#internal_ref".
     :return: Dict with change_id
     """
     logger.info(f'HTTP Tool: add_pip_change pip={pip_id} type={change_type} entity={entity_type}')

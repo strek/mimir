@@ -2819,7 +2819,32 @@ async def add_pip_change(
     source_entity_ref: str = "",
     target_entity_ref: str = "",
 ) -> dict:
-    """Attach a typed change row to an editable draft."""
+    """Attach a typed change row to a Draft PIP.
+
+    change_type values and required fields:
+    - ADD   : entity_type + name + content required; parent_workflow_id required for Activity.
+              Optionally set internal_ref="#slug" so later LINK changes in the same PIP can
+              reference this not-yet-saved entity before it gets a real database ID.
+    - ALTER : entity_type + target_id + at least one of name/content required.
+    - DROP  : entity_type + target_id required.
+    - LINK  : relationship_type + source_entity_ref + target_entity_ref required.
+              entity_type must be left empty ("").
+              Refs are either a numeric PK (e.g. "42") or a "#slug" internal_ref pointing to
+              an ADD change in the same PIP (e.g. "#new-skill").
+    - UNLINK: same fields as LINK; removes the relationship instead of creating it.
+
+    entity_type choices (ADD / ALTER / DROP only): Workflow, Activity, Skill, Agent, Rule.
+
+    relationship_type choices (LINK / UNLINK only):
+    - skill_activity    : attach a Skill to an Activity
+    - rule_activity     : attach a Rule to an Activity
+    - agent_activity    : attach an Agent to an Activity
+    - activity_workflow : cross-list an Activity in a secondary Workflow
+
+    internal_ref format: "#<slug>" (e.g. "#standup-skill"). Use it when you ADD a new entity
+    in the same PIP and need to LINK it before the real ID is known. The ref is resolved when
+    the PIP is applied. The slug may only contain letters, digits, hyphens, and underscores.
+    """
 
     user = await sync_to_async(get_current_user)()
 
