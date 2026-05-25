@@ -1,5 +1,6 @@
 """Admin configuration for methodology models."""
 
+from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from methodology.models import (
@@ -85,14 +86,56 @@ _PIP_INLINE_FREEZE_AFTER = frozenset(
 )
 
 
+class PipChangeInlineForm(forms.ModelForm):
+    """Custom form for PipChange inline to make admin_note compact."""
+
+    class Meta:
+        model = PipChange
+        fields = "__all__"
+        widgets = {
+            "admin_note": forms.Textarea(
+                attrs={
+                    "rows": 2,
+                    "cols": 30,
+                    "placeholder": "accepted — fits strategy; rejected — conflicts with…",
+                }
+            ),
+        }
+
+
 class PipChangeInline(admin.TabularInline):
     """Inline editor for structured PIP deltas."""
 
     model = PipChange
+    form = PipChangeInlineForm
     extra = 0
     show_change_link = True
+    fields = (
+        "change_type",
+        "entity_type",
+        "name",
+        "target_id",
+        "target_name_snapshot",
+        "content",
+        "galdr_recommendation",
+        "galdr_reasoning",
+        "admin_decision",
+        "admin_note",
+        "order",
+        "internal_ref",
+        "relationship_type",
+        "source_entity_type",
+        "source_entity_ref",
+        "target_entity_type",
+        "target_entity_ref",
+        "parent_workflow",
+        "insert_after_activity",
+        "append_to_playbook_end",
+        "created_at",
+        "updated_at",
+    )
 
-    def get_readonly_fields(self, request, obj=None):  # parent PIP row
+    def get_readonly_fields(self, request, obj=None):
         audit_always = frozenset(
             {
                 "galdr_recommendation",

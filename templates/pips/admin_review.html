@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Admin Review: PIP-{{ pip.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" data-testid="pip-admin-review-page">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'pip_list' %}">PIPs</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'pip_detail' pk=pip.pk %}">PIP-{{ pip.id }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Admin Review</li>
+        </ol>
+    </nav>
+
+    {% if is_decided %}
+    <!-- Read-only banner -->
+    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert" data-testid="already-decided-banner">
+        <i class="fa-solid fa-lock me-3 fa-lg"></i>
+        <div>
+            <strong>This PIP has already been decided and cannot be modified.</strong>
+            Status: {{ pip.status }}
+        </div>
+    </div>
+    {% else %}
+    <!-- Administrator context alert -->
+    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert" data-testid="admin-context-alert">
+        <i class="fa-solid fa-shield-halved me-3 fa-lg"></i>
+        <div>
+            <strong>Administrator review.</strong>
+            You are reviewing Galdr's recommendations for PIP-{{ pip.id }}.
+            Finalize your decisions below — accepted changes will be applied and the playbook version will be bumped.
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4" data-testid="admin-review-header">
+        <div>
+            <h2>
+                <i class="fa-solid fa-robot me-2"></i>Review: PIP-{{ pip.id }}: {{ pip.title }}
+            </h2>
+            <p class="text-muted small">
+                <span class="badge bg-info">{{ pip.status }}</span>
+                &middot;
+                {{ pip.playbook.name }} v{{ pip.playbook.version }}
+                &middot;
+                Submitted by {{ pip.created_by.username }}
+                &middot;
+                {{ pip.submitted_at|date:"Y-m-d H:i" }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Summary card -->
+    <div class="card mb-4" data-testid="admin-pip-summary-card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fa-solid fa-align-left me-2"></i>Summary</h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-0">{{ pip.summary }}</p>
+        </div>
+    </div>
+
+    <form method="post" id="admin-review-form">
+        {% csrf_token %}
+
+        <!-- Per-change decisions -->
+        <div class="card mb-4" data-testid="admin-changes-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fa-solid fa-list-check me-2"></i>Changes
+                    <span class="badge bg-secondary ms-1">{{ changes|length }}</span>
+                </h5>
+                {% if not is_decided %}
+                <div class="btn-group btn-group-sm" role="group" data-testid="admin-bulk-actions">
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="reject-all-btn"
+                            data-testid="reject-all-btn"
+                            data-bs-toggle="tooltip" title="Set all decisions to REJECT">
+                        <i class="fa-solid fa-xmark me-1"></i> Reject All
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm" id="accept-all-btn"
+                            data-testid="accept-all-btn"
+                            data-bs-toggle="tooltip" title="Set all decisions to ACCEPT">
+                        <i class="fa-solid fa-check-double me-1"></i> Accept All
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0 align-middle" data-testid="admin-changes-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 4%">#</th>
+                            <th style="width: 8%">Type</th>
+                            <th style="width: 12%">Entity</th>
+                            <th style="width: 18%">Name / Target</th>
+                            <th style="width: 28%">Galdr Recommendation &amp; Reasoning</th>
+                            <th style="width: 16%">Admin Decision</th>
+                            <th style="width: 14%">Admin Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ch in changes %}
+                        <tr data-testid="admin-change-row-{{ ch.order }}">
+                            <td class="text-muted small">{{ ch.order }}</td>
+                            <td>
+                                <span class="badge bg-primary">{{ ch.change_type }}</span>
+                            </td>
+                            <td class="small text-muted">{{ ch.entity_type|default:"—" }}</td>
+                            <td class="small">
+                                {% if ch.name %}
+                                <strong>{{ ch.name }}</strong>
+                                {% elif ch.target_name_snapshot %}
+                                <strong>{{ ch.target_name_snapshot }}</strong>
+                                <span class="text-muted">(id={{ ch.target_id }})</span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="small">
+                                {% if ch.galdr_recommendation %}
+                                <span class="badge {% if ch.galdr_recommendation == 'ACCEPT' %}bg-success{% else %}bg-danger{% endif %} mb-1"
+                                      data-testid="galdr-rec-{{ ch.order }}">
+                                    {{ ch.galdr_recommendation }}
+                                </span>
+                                <br>
+                                <span class="text-muted" data-testid="galdr-reasoning-{{ ch.order }}">
+                                    {{ ch.galdr_reasoning|truncatewords:20 }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm decision-select"
+                                        name="decision_{{ ch.pk }}"
+                                        data-testid="admin-decision-{{ ch.order }}"
+                                        {% if is_decided %}disabled{% endif %}>
+                                    <option value="">— decide —</option>
+                                    <option value="ACCEPT"
+                                        {% if ch.admin_decision == "ACCEPT" %}selected{% endif %}>
+                                        ACCEPT
+                                    </option>
+                                    <option value="REJECT"
+                                        {% if ch.admin_decision == "REJECT" %}selected{% endif %}>
+                                        REJECT
+                                    </option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm"
+                                       name="note_{{ ch.pk }}"
+                                       placeholder="Optional note"
+                                       value="{{ ch.admin_note }}"
+                                       data-testid="admin-note-{{ ch.order }}"
+                                       {% if is_decided %}readonly{% endif %}>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Decision summary + version bump note -->
+        <div class="card mb-4" data-testid="admin-decision-summary">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fa-solid fa-layer-group me-2"></i>Decision Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4 text-center">
+                        <p class="fs-4 fw-bold text-success mb-0" id="accepted-count" data-testid="accepted-count">
+                            {{ accepted_count }}
+                        </p>
+                        <p class="text-muted small mb-0">Accepted</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <p class="fs-4 fw-bold text-danger mb-0" id="rejected-count" data-testid="rejected-count">
+                            {{ rejected_count }}
+                        </p>
+                        <p class="text-muted small mb-0">Rejected</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <p class="fs-4 fw-bold text-muted mb-0" id="pending-count" data-testid="pending-count">
+                            {{ pending_count }}
+                        </p>
+                        <p class="text-muted small mb-0">Pending</p>
+                    </div>
+                </div>
+                <hr>
+                <p class="small text-muted mb-0" data-testid="version-bump-note">
+                    <i class="fa-solid fa-code-branch me-1"></i>
+                    <strong>Version bump:</strong>
+                    If any change is accepted, the playbook will be bumped by one major version.
+                    If all changes are rejected, no version change occurs.
+                </p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex justify-content-end gap-2 flex-wrap mt-4" data-testid="admin-form-actions">
+            <a href="{% url 'pip_detail' pk=pip.pk %}"
+               class="btn btn-outline-secondary"
+               data-testid="cancel-review-btn"
+               data-bs-toggle="tooltip" title="Return to PIP detail without saving decisions">
+                <i class="fa-solid fa-times me-1"></i> Cancel
+            </a>
+            {% if not is_decided %}
+            <button type="button" class="btn btn-secondary" id="save-decisions-btn"
+                    data-testid="save-decisions-btn"
+                    data-bs-toggle="tooltip" title="Save decisions without finalizing">
+                <i class="fa-solid fa-save me-1"></i> Save Decisions
+            </button>
+            <button type="button" class="btn btn-primary" id="finalize-btn"
+                    data-testid="finalize-btn"
+                    data-bs-toggle="modal" data-bs-target="#finalizeModal"
+                    disabled>
+                <i class="fa-solid fa-check me-1"></i> Finalize Decision
+            </button>
+            {% endif %}
+        </div>
+    </form>
+
+</div>
+
+<!-- Finalize confirmation modal -->
+<div class="modal fade" id="finalizeModal" tabindex="-1" data-testid="finalize-confirm-modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Finalize</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>You are <span id="modal-accept-verb">accepting</span> <strong id="modal-accepted-count">0</strong> of <strong>{{ changes|length }}</strong> changes.</p>
+                <p id="modal-version-note" class="text-muted small mb-0">
+                    <i class="fa-solid fa-code-branch me-1"></i>
+                    {{ pip.playbook.name }} will be updated to a new major version.
+                </p>
+                <p class="text-danger fw-bold mt-3">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Go back</button>
+                <button type="button" class="btn btn-primary" id="confirm-finalize-btn" data-testid="confirm-finalize-btn">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const decisionSelects = document.querySelectorAll('.decision-select');
+    const finalizeBtn = document.getElementById('finalize-btn');
+    const saveBtnElement = document.getElementById('save-decisions-btn');
+    const acceptedCountEl = document.getElementById('accepted-count');
+    const rejectedCountEl = document.getElementById('rejected-count');
+    const pendingCountEl = document.getElementById('pending-count');
+    const form = document.getElementById('admin-review-form');
+    const confirmFinalizeBtn = document.getElementById('confirm-finalize-btn');
+    const modalAcceptedCount = document.getElementById('modal-accepted-count');
+    const modalAcceptVerb = document.getElementById('modal-accept-verb');
+    const modalVersionNote = document.getElementById('modal-version-note');
+
+    function updateSummary() {
+        let accepted = 0;
+        let rejected = 0;
+        let pending = 0;
+
+        decisionSelects.forEach(select => {
+            const value = select.value;
+            if (value === 'ACCEPT') {
+                accepted++;
+            } else if (value === 'REJECT') {
+                rejected++;
+            } else {
+                pending++;
+            }
+        });
+
+        acceptedCountEl.textContent = accepted;
+        rejectedCountEl.textContent = rejected;
+        pendingCountEl.textContent = pending;
+
+        if (finalizeBtn) {
+            finalizeBtn.disabled = pending > 0;
+        }
+
+        if (modalAcceptedCount) {
+            modalAcceptedCount.textContent = accepted;
+            if (accepted === 0 && rejected > 0) {
+                modalAcceptVerb.textContent = 'rejecting';
+                modalVersionNote.style.display = 'none';
+            } else {
+                modalAcceptVerb.textContent = 'accepting';
+                modalVersionNote.style.display = 'block';
+            }
+        }
+    }
+
+    decisionSelects.forEach(select => {
+        select.addEventListener('change', updateSummary);
+    });
+
+    const rejectAllBtn = document.getElementById('reject-all-btn');
+    if (rejectAllBtn) {
+        rejectAllBtn.addEventListener('click', function() {
+            decisionSelects.forEach(select => {
+                select.value = 'REJECT';
+            });
+            updateSummary();
+        });
+    }
+
+    const acceptAllBtn = document.getElementById('accept-all-btn');
+    if (acceptAllBtn) {
+        acceptAllBtn.addEventListener('click', function() {
+            decisionSelects.forEach(select => {
+                select.value = 'ACCEPT';
+            });
+            updateSummary();
+        });
+    }
+
+    if (saveBtnElement) {
+        saveBtnElement.addEventListener('click', function() {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'action';
+            input.value = 'save_decisions';
+            form.appendChild(input);
+            form.submit();
+        });
+    }
+
+    if (confirmFinalizeBtn) {
+        confirmFinalizeBtn.addEventListener('click', function() {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'action';
+            input.value = 'finalize';
+            form.appendChild(input);
+            form.submit();
+        });
+    }
+
+    updateSummary();
+})();
+</script>
+
+{% endblock %}

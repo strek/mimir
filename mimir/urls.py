@@ -89,6 +89,7 @@ urlpatterns = [
     path("pips/<int:pk>/preview/", pip_views.pip_preview, name="pip_preview"),
     path("pips/<int:pk>/submit/", pip_views.pip_submit_review, name="pip_submit_review"),
     path("pips/<int:pk>/withdraw/", pip_views.pip_withdraw, name="pip_withdraw"),
+    path("pips/<int:pk>/admin-review/", pip_views.pip_admin_review, name="pip_admin_review"),
     path("search/", methodology_views.global_search, name="global_search"),
     path("search/suggestions/", methodology_views.global_search_suggestions, name="global_search_suggestions"),
     path("playbooks/", include("methodology.playbook_urls")),
