@@ -495,16 +495,40 @@ def link_skill_to_activity(activity_id: int, skill_id: int) -> dict:
     return check_response(r, "link_skill_to_activity")
 
 
-def unlink_skill_from_activity(activity_id: int) -> dict:
+def unlink_skill_from_activity(activity_id: int, skill_id: int) -> dict:
     """
-    Unlink skill from an activity (set FK to NULL).
+    Unlink a specific skill from an activity.
 
     :param activity_id: Activity ID. Example: 1
-    :return: Dict with updated activity_id and skill_id=None
+    :param skill_id: Skill ID. Example: 5
+    :return: Dict with updated activity_id and remaining skill_ids
     """
-    logger.info(f'HTTP Tool: unlink_skill_from_activity activity={activity_id}')
-    r = get_client().delete(f"/api/activities/{activity_id}/skill/")
+    logger.info(
+        f'HTTP Tool: unlink_skill_from_activity activity={activity_id} skill={skill_id}'
+    )
+    r = get_client().delete(
+        f"/api/activities/{activity_id}/skill/",
+        json={"skill_id": skill_id},
+    )
     return check_response(r, "unlink_skill_from_activity")
+
+
+def set_activity_skills(activity_id: int, skill_ids: list) -> dict:
+    """
+    Replace all skills linked to an activity.
+
+    :param activity_id: Activity ID. Example: 1
+    :param skill_ids: List of skill IDs (empty clears all). Example: [5, 7]
+    :return: Dict with activity_id and skill_ids
+    """
+    logger.info(
+        f'HTTP Tool: set_activity_skills activity={activity_id} skill_ids={skill_ids}'
+    )
+    r = get_client().put(
+        f"/api/activities/{activity_id}/skills/",
+        json={"skill_ids": skill_ids},
+    )
+    return check_response(r, "set_activity_skills")
 
 
 # ============================================================================
@@ -1030,26 +1054,27 @@ def create_pip(playbook_id: int, title: str, summary: str = "") -> dict:
 def add_pip_change(
     pip_id: int,
     change_type: str,
-    entity_type: str,
+    entity_type: str = "",
     name: str = "",
     content: str = "",
     target_id: Optional[int] = None,
     parent_workflow_id: Optional[int] = None,
     insert_after_activity_id: Optional[int] = None,
     append_to_playbook_end: bool = False,
+    internal_ref: str = "",
+    relationship_type: str = "",
+    source_entity_ref: str = "",
+    target_entity_ref: str = "",
 ) -> dict:
     """
     Add a typed change row to a Draft PIP.
 
     :param pip_id: PIP ID. Example: 1
-    :param change_type: "ADD", "ALTER", or "DROP"
-    :param entity_type: "Activity", "Workflow", "Skill", "Agent", or "Artifact"
-    :param name: Name for ADD changes. Example: "New caching activity"
-    :param content: Guidance/rationale text (optional)
-    :param target_id: Target entity ID for ALTER/DROP changes (optional)
-    :param parent_workflow_id: Parent workflow for ADD Activity (optional)
-    :param insert_after_activity_id: Insert after this activity ID (optional)
-    :param append_to_playbook_end: Append to end instead of inserting (optional)
+    :param change_type: ADD, ALTER, DROP, LINK, or UNLINK
+    :param entity_type: Entity for ADD/ALTER/DROP (optional for LINK/UNLINK)
+    :param relationship_type: skill_activity, rule_activity, agent_activity, activity_workflow
+    :param source_entity_ref: Source pk or #internal_ref for LINK/UNLINK
+    :param target_entity_ref: Target pk or #internal_ref for LINK/UNLINK
     :return: Dict with change_id
     """
     logger.info(f'HTTP Tool: add_pip_change pip={pip_id} type={change_type} entity={entity_type}')
@@ -1066,6 +1091,14 @@ def add_pip_change(
         payload["parent_workflow_id"] = parent_workflow_id
     if insert_after_activity_id is not None:
         payload["insert_after_activity_id"] = insert_after_activity_id
+    if internal_ref:
+        payload["internal_ref"] = internal_ref
+    if relationship_type:
+        payload["relationship_type"] = relationship_type
+    if source_entity_ref:
+        payload["source_entity_ref"] = source_entity_ref
+    if target_entity_ref:
+        payload["target_entity_ref"] = target_entity_ref
     r = get_client().post(f"/api/pips/{pip_id}/changes/", json=payload)
     return check_response(r, "add_pip_change")
 
