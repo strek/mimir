@@ -89,25 +89,28 @@ def _playbook_readable_or_404(request, pk):
 @login_required
 def playbook_list(request):
     """
-    List playbooks visible to the current user (owned + public by others).
+    List playbooks visible to the current user (owned + public by others + team-shared).
 
     Template: playbooks/list.html
     Context:
         playbooks — owned playbooks
         public_playbooks — other authors' public, non-draft playbooks
-        has_playbooks — True when either list is non-empty
+        team_playbooks — playbooks shared via team membership
+        has_playbooks — True when any list is non-empty
 
     :param request: Django request object
     :return: Rendered list template
     """
     playbooks = PlaybookService.list_playbooks(author=request.user)
     public_playbooks = PlaybookService.list_public_playbooks(request.user)
-    has_playbooks = bool(playbooks or public_playbooks)
+    team_playbooks = PlaybookService.list_team_playbooks_for_user(request.user)
+    has_playbooks = bool(playbooks or public_playbooks or team_playbooks)
     logger.info(
-        "User %s viewing playbook list (%s owned, %s public by others, has_any=%s)",
+        "User %s viewing playbook list (%s owned, %s public by others, %s team, has_any=%s)",
         request.user.username,
         len(playbooks),
         len(public_playbooks),
+        len(team_playbooks),
         has_playbooks,
     )
     return render(
@@ -116,6 +119,7 @@ def playbook_list(request):
         {
             "playbooks": playbooks,
             "public_playbooks": public_playbooks,
+            "team_playbooks": team_playbooks,
             "has_playbooks": has_playbooks,
         },
     )

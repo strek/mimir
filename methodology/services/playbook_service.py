@@ -219,6 +219,34 @@ class PlaybookService:
         return rows
 
     @staticmethod
+    def list_team_playbooks_for_user(user):
+        """
+        Released playbooks shared via team membership (excludes own-authored).
+
+        :param user: User whose team playbooks to retrieve.
+        :returns: List of Playbook instances accessible via teams.
+        """
+        from methodology.models import TeamMembership, TeamPlaybook
+        
+        logger.info(f"Listing team playbooks for user {user.id}")
+        
+        # Get all teams where user is a member
+        team_ids = TeamMembership.objects.filter(user=user).values_list("team_id", flat=True)
+        
+        # Get all playbooks linked to those teams (excluding own-authored)
+        playbook_ids = TeamPlaybook.objects.filter(team_id__in=team_ids).values_list("playbook_id", flat=True)
+        
+        qs = (
+            Playbook.objects.filter(pk__in=playbook_ids)
+            .exclude(author=user)
+            .select_related("author")
+            .order_by("-updated_at")
+        )
+        rows = list(qs)
+        logger.info(f"Found {len(rows)} team playbooks for user {user.id}")
+        return rows
+
+    @staticmethod
     @transaction.atomic
     def update_playbook(playbook_id, **data):
         """

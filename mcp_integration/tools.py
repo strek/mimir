@@ -157,7 +157,7 @@ async def create_playbook(
 
 async def list_playbooks(status: Literal["draft", "released", "active", "all"] = "all") -> list:
     """
-    List playbooks filtered by status.
+    List playbooks filtered by status (owned + public + team-shared).
     
     :param status: Filter by status or "all". Example: "draft"
     :return: List of playbook dicts
@@ -170,9 +170,14 @@ async def list_playbooks(status: Literal["draft", "released", "active", "all"] =
     status_filter = None if status == "all" else status
     owned = await sync_to_async(PlaybookService.list_playbooks)(user, status=status_filter)
     public_others = await sync_to_async(PlaybookService.list_public_playbooks)(user)
+    team_playbooks = await sync_to_async(PlaybookService.list_team_playbooks_for_user)(user)
+    
+    # Apply status filter to public and team playbooks if needed
     if status_filter:
         public_others = [p for p in public_others if p.status == status_filter]
-    combined = list(owned) + public_others
+        team_playbooks = [p for p in team_playbooks if p.status == status_filter]
+    
+    combined = list(owned) + public_others + team_playbooks
 
     def sort_key(p):
         return (p.updated_at is None, p.updated_at or p.created_at)
@@ -191,7 +196,7 @@ async def list_playbooks(status: Literal["draft", "released", "active", "all"] =
         }
         for p in combined
     ]
-    logger.info(f'MCP Tool: Returning {len(result)} playbooks')
+    logger.info(f'MCP Tool: Returning {len(result)} playbooks (owned + public + team)')
     return result
 
 
