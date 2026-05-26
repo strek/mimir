@@ -11,7 +11,6 @@ import logging
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
-import weasyprint
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +58,8 @@ def _render_pdf(request, *, template: str, filename: str) -> HttpResponse:
     the request so Django's context processors (which need request.user) are not
     invoked.
     """
+    import weasyprint  # deferred: heavy C-ext, only needed for PDF endpoints
+
     html_string = render_to_string(template)
     logger.debug("Generating PDF from template '%s'", template)
     pdf_bytes = (
