@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>Hi {{ new_admin.get_full_name|default:new_admin.username }},</p>
+<p>You are now the <strong>admin</strong> of the <strong>{{ team.name }}</strong>
+team on Mimir.</p>
+<p>Admin rights were transferred to you by
+{{ old_admin.get_full_name|default:old_admin.username }}.</p>
+<p><a href="/teams/{{ team.pk }}/manage/">Manage Team</a></p>
+<p>Best,<br>The Mimir Team</p>
+</body>
+</html>

@@ -15,7 +15,8 @@ from django.db import IntegrityError
 from django.contrib.auth.models import User as UserModel
 from django.shortcuts import get_object_or_404, redirect, render
 
-from methodology.models import JoinRequest, Playbook, Team
+from methodology.models import JoinRequest, Playbook, Team, TeamMembership
+from methodology.services import team_notification_service
 from methodology.services.team_service import TeamService
 
 logger = logging.getLogger(__name__)
@@ -153,16 +154,24 @@ def _handle_join(request, team, service: TeamService):
     :returns: Redirect to team detail page.
     """
     if team.join_policy == Team.JOIN_POLICY_AUTO:
-        service.add_member(team, request.user)
+        membership = service.add_member(team, request.user)
         logger.info("[teams] joined team: %s user=%s", team.name, request.user.username)
         messages.success(request, f"You've joined the {team.name} team.")
+        try:
+            team_notification_service.send_auto_join_confirmation(membership)
+        except Exception as exc:
+            logger.warning("[teams] notification failed (non-fatal): %s", str(exc))
     else:
-        service.create_join_request(team, request.user)
+        join_request = service.create_join_request(team, request.user)
         logger.info("[teams] join request created: team=%s user=%s", team.name, request.user.username)
         messages.info(
             request,
             f"Your request to join '{team.name}' has been sent. Awaiting approval.",
         )
+        try:
+            team_notification_service.send_join_request_to_admin(join_request)
+        except Exception as exc:
+            logger.warning("[teams] notification failed (non-fatal): %s", str(exc))
     return redirect("teams:teams_detail", pk=team.pk)
 
 
@@ -281,6 +290,10 @@ def _handle_approve_request(request, team, service: TeamService):
     service.approve_join_request(jr, request.user)
     logger.info("[teams] approved join request pk=%s user=%s team=%s", jr.pk, jr.user.username, team.name)
     messages.success(request, f"{jr.user.username} has been approved.")
+    try:
+        team_notification_service.send_request_approved(jr)
+    except Exception as exc:
+        logger.warning("[teams] notification failed (non-fatal): %s", str(exc))
     return redirect("teams:teams_manage", pk=team.pk)
 
 
@@ -296,6 +309,10 @@ def _handle_reject_request(request, team, service: TeamService):
     service.reject_join_request(jr, request.user)
     logger.info("[teams] rejected join request pk=%s user=%s team=%s", jr.pk, jr.user.username, team.name)
     messages.info(request, f"{jr.user.username}'s request has been rejected.")
+    try:
+        team_notification_service.send_request_rejected(jr)
+    except Exception as exc:
+        logger.warning("[teams] notification failed (non-fatal): %s", str(exc))
     return redirect("teams:teams_manage", pk=team.pk)
 
 
@@ -308,9 +325,15 @@ def _handle_remove_member(request, team, service: TeamService):
     :returns: Redirect to manage page.
     """
     target = get_object_or_404(UserModel, pk=request.POST.get("user_id"))
+    membership_obj = TeamMembership.objects.filter(team=team, user=target).first()
     service.remove_member(team, request.user, target)
     logger.info("[teams] removed member user=%s from team=%s", target.username, team.name)
     messages.success(request, f"{target.username} has been removed from the team.")
+    if membership_obj:
+        try:
+            team_notification_service.send_member_removed(membership_obj)
+        except Exception as exc:
+            logger.warning("[teams] notification failed (non-fatal): %s", str(exc))
     return redirect("teams:teams_manage", pk=team.pk)
 
 
@@ -323,9 +346,14 @@ def _handle_transfer_admin(request, team, service: TeamService):
     :returns: Redirect to team detail page.
     """
     new_admin = get_object_or_404(UserModel, pk=request.POST.get("user_id"))
+    old_admin = request.user
     service.transfer_admin(team, request.user, new_admin)
     logger.info("[teams] admin transferred to user=%s team=%s", new_admin.username, team.name)
     messages.success(request, f"Admin rights transferred to {new_admin.username}.")
+    try:
+        team_notification_service.send_admin_transferred(team, new_admin, old_admin)
+    except Exception as exc:
+        logger.warning("[teams] notification failed (non-fatal): %s", str(exc))
     return redirect("teams:teams_detail", pk=team.pk)
 
 

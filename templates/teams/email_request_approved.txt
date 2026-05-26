@@ -1,0 +1,10 @@
+Hi {{ user.get_full_name|default:user.username }},
+
+Great news! Your request to join the "{{ team.name }}" team has been approved.
+
+You are now a member and have access to the team's shared playbooks.
+
+View your team: /teams/{{ team.pk }}/
+
+Best,
+The Mimir Team
