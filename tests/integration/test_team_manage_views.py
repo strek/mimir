@@ -138,3 +138,49 @@ class TestTeamManageView:
         response = client.get(f"/teams/{team.pk}/manage/?tab=join-requests")
         assert response.status_code == 200
         assert b"mg_r3" in response.content
+
+    def test_delete_team_cascade_deletes_playbooks(self, client, django_user_model):
+        """Test that deleting a team also deletes all linked playbooks."""
+        from methodology.models import Playbook, TeamPlaybook
+        from methodology.services.playbook_service import PlaybookService
+        
+        admin, member, team = self._setup_team(django_user_model)
+        
+        # Create a released playbook and add it to the team
+        playbook_service = PlaybookService()
+        playbook = playbook_service.create_playbook(
+            name="Test Playbook",
+            description="Test desc",
+            category="development",
+            author=admin,
+            status="draft",
+            visibility="public",
+        )
+        playbook.status = "released"
+        playbook.save()
+        
+        self.service.add_playbook_to_team(team, playbook, admin)
+        
+        # Verify setup
+        assert Team.objects.filter(pk=team.pk).exists()
+        assert Playbook.objects.filter(pk=playbook.pk).exists()
+        assert TeamPlaybook.objects.filter(team=team, playbook=playbook).exists()
+        
+        # Delete team
+        client.force_login(admin)
+        response = client.post(f"/teams/{team.pk}/manage/", {
+            "action": "delete_team",
+        })
+        
+        # Assert redirect to teams browse
+        assert response.status_code == 302
+        assert response.url == "/teams/"
+        
+        # Assert team is deleted
+        assert not Team.objects.filter(pk=team.pk).exists()
+        
+        # Assert linked playbook is deleted
+        assert not Playbook.objects.filter(pk=playbook.pk).exists()
+        
+        # Assert TeamPlaybook join record is deleted (cascade)
+        assert not TeamPlaybook.objects.filter(team=team, playbook=playbook).exists()

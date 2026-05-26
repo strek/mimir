@@ -272,6 +272,7 @@ def _handle_manage_post(request, team, service: TeamService, tab: str):
         "remove_playbook": _handle_remove_playbook,
         "save_settings": lambda req, t, svc: _handle_save_settings(req, t, svc, tab),
         "send_invites": _handle_send_invites,
+        "delete_team": _handle_delete_team,
     }
     handler = handlers.get(action)
     if handler:
@@ -416,6 +417,21 @@ def _handle_save_settings(request, team, service: TeamService, tab: str):
     logger.info("[teams] settings saved for team=%s by user=%s", team.name, request.user.username)
     messages.success(request, "Team settings saved.")
     return redirect("teams:teams_manage", pk=team.pk)
+
+
+def _handle_delete_team(request, team, service: TeamService):
+    """Delete the team and all linked playbooks.
+
+    :param request: Django HTTP request.
+    :param team: Team instance.
+    :param service: TeamService instance.
+    :returns: Redirect to teams browse page.
+    """
+    team_name = team.name
+    service.delete_team(team, request.user)
+    logger.info("[teams] team=%s deleted by user=%s", team_name, request.user.username)
+    messages.success(request, f"Team '{team_name}' has been deleted.")
+    return redirect("teams:teams_browse")
 
 
 def _handle_send_invites(request, team, service: TeamService):

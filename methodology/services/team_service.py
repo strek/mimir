@@ -86,7 +86,7 @@ class TeamService:
         return team
 
     def delete_team(self, team: Team, actor) -> None:
-        """Delete a team. Actor must be team admin.
+        """Delete a team and cascade-delete all linked playbooks. Actor must be team admin.
 
         :param team: Team instance to delete.
         :param actor: User requesting deletion.
@@ -94,8 +94,21 @@ class TeamService:
         """
         logger.info("delete_team: actor=%s team=%s pk=%s", actor, team, team.pk)
         self._require_admin(team, actor)
-        team.delete()
-        logger.info("delete_team: team pk deleted successfully")
+        
+        with transaction.atomic():
+            # Get all playbooks linked to this team
+            team_playbooks = TeamPlaybook.objects.filter(team=team).select_related('playbook')
+            playbook_ids = [tp.playbook.id for tp in team_playbooks]
+            playbook_count = len(playbook_ids)
+            
+            # Delete all linked playbooks
+            if playbook_count > 0:
+                Playbook.objects.filter(id__in=playbook_ids).delete()
+                logger.info("delete_team: deleted %d linked playbooks", playbook_count)
+            
+            # Delete the team (cascades TeamMembership, JoinRequest, TeamPlaybook)
+            team.delete()
+            logger.info("delete_team: team pk deleted successfully")
 
     # ------------------------------------------------------------------
     # Discovery / visibility
