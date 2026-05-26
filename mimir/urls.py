@@ -98,6 +98,7 @@ urlpatterns = [
     path("pips/<int:pk>/admin-review/", pip_views.pip_admin_review, name="pip_admin_review"),
     path("search/", methodology_views.global_search, name="global_search"),
     path("search/suggestions/", methodology_views.global_search_suggestions, name="global_search_suggestions"),
+    path("teams/", include("methodology.team_urls")),
     path("playbooks/", include("methodology.playbook_urls")),
     path("playbooks/", include("methodology.workflow_urls")),  # Workflow URLs scoped to playbook
     path("playbooks/<int:playbook_pk>/workflows/<int:workflow_pk>/activities/", include("methodology.activity_urls")),  # Activity URLs scoped to workflow

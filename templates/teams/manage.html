@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Manage {{ team.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" data-testid="team-manage-page">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="/teams/">Teams</a></li>
+            <li class="breadcrumb-item"><a href="/teams/{{ team.pk }}/">{{ team.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Manage</li>
+        </ol>
+    </nav>
+
+    <h2 class="mb-1">
+        <i class="fa-solid fa-gear me-2"></i>Manage {{ team.name }}
+    </h2>
+
+    <div class="alert alert-info mt-3">
+        <i class="fa-solid fa-circle-info me-2"></i>
+        Full team management view is coming in WP-5. This stub confirms the URL routing works.
+    </div>
+
+</div>
+{% endblock %}

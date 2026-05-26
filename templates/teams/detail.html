@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ team.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" data-testid="team-detail-page">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="/teams/">Teams</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ team.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2>
+                <i class="fa-solid fa-users-rectangle text-primary me-2"></i>{{ team.name }}
+                <span class="badge {% if team.visibility == 'Public' %}bg-success{% else %}bg-secondary{% endif %} ms-2">{{ team.visibility }}</span>
+            </h2>
+            <p class="text-muted">{{ team.description }}</p>
+        </div>
+        {% if user_role == 'admin' %}
+        <a href="/teams/{{ team.pk }}/manage/"
+           class="btn btn-outline-secondary"
+           data-testid="manage-team-btn">
+            <i class="fa-solid fa-gear me-1"></i> Manage
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info me-2"></i>
+        Full team detail view is coming in WP-4. This stub confirms the URL routing works.
+    </div>
+
+    <dl class="row">
+        <dt class="col-sm-3">Category</dt>
+        <dd class="col-sm-9">{{ team.category }}</dd>
+        <dt class="col-sm-3">Join Policy</dt>
+        <dd class="col-sm-9">{{ team.join_policy }}</dd>
+        <dt class="col-sm-3">Members</dt>
+        <dd class="col-sm-9">{{ team.memberships.count }}</dd>
+        <dt class="col-sm-3">Playbooks</dt>
+        <dd class="col-sm-9">{{ team.team_playbooks.count }}</dd>
+    </dl>
+
+</div>
+{% endblock %}
