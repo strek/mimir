@@ -1200,3 +1200,135 @@ def report_bug(
         payload["reporter_email"] = reporter_email.strip()
     r = get_client().post("/api/feedback/report/", json=payload)
     return check_response(r, "report_bug")
+
+
+# ============================================================================
+# TEAM TOOLS (7)
+# ============================================================================
+
+def list_teams() -> list:
+    """
+    List all teams visible to the current user.
+
+    :return: List of team dicts
+    """
+    logger.info("HTTP Tool: list_teams")
+    r = get_client().get("/api/teams/")
+    data = check_response(r, "list_teams")
+    return data.get("results", data) if isinstance(data, dict) else data
+
+
+def get_team(team_id: int) -> dict:
+    """
+    Get detailed information about a specific team.
+
+    :param team_id: Team primary key. Example: 42
+    :return: Team dict with members and playbooks
+    :raises ValueError: if team not found or not visible to user
+    """
+    logger.info(f"HTTP Tool: get_team team_id={team_id}")
+    r = get_client().get(f"/api/teams/{team_id}/")
+    return check_response(r, "get_team")
+
+
+def create_team(
+    name: str,
+    description: str = "",
+    visibility: Literal["Public", "Hidden"] = "Public",
+    join_policy: Literal["Auto-approve", "Requires Approval", "Invite Only"] = "Auto-approve",
+    category: Literal["Engineering", "Design", "Research", "Product", "Private", "Other"] = "Engineering",
+) -> dict:
+    """
+    Create a new team. Caller becomes admin and first member.
+
+    :param name: Team name (unique). Example: "Platform Engineering"
+    :param description: Optional description. Example: "Core platform team"
+    :param visibility: "Public" or "Hidden". Default "Public"
+    :param join_policy: Join policy. Default "Auto-approve"
+    :param category: Team category. Default "Engineering"
+    :return: Created team dict with id, name, visibility, join_policy, category, admin_id, member_count
+    :raises ValueError: if name is empty or already taken
+    """
+    logger.info(f'HTTP Tool: create_team name="{name}"')
+    r = get_client().post("/api/teams/", json={
+        "name": name,
+        "description": description,
+        "visibility": visibility,
+        "join_policy": join_policy,
+        "category": category,
+    })
+    return check_response(r, "create_team")
+
+
+def move_playbook_to_team(playbook_id: int, team_id: int) -> dict:
+    """
+    Add a playbook to a team (requires team admin).
+
+    :param playbook_id: Playbook primary key. Example: 12
+    :param team_id: Team primary key. Example: 42
+    :return: Dict with success=True, team_id, playbook_id, playbook_name
+    :raises ValueError: if team or playbook not found
+    :raises PermissionError: if user is not team admin
+    """
+    logger.info(f"HTTP Tool: move_playbook_to_team playbook_id={playbook_id} team_id={team_id}")
+    r = get_client().post(f"/api/teams/{team_id}/move_playbook_to_team/", json={
+        "playbook_id": playbook_id,
+    })
+    return check_response(r, "move_playbook_to_team")
+
+
+def move_playbook_from_team(playbook_id: int, team_id: int) -> dict:
+    """
+    Remove a playbook from a team (requires team admin).
+
+    :param playbook_id: Playbook primary key. Example: 12
+    :param team_id: Team primary key. Example: 42
+    :return: Dict with success=True, team_id, playbook_id
+    :raises ValueError: if team or playbook not found
+    :raises PermissionError: if user is not team admin
+    """
+    logger.info(f"HTTP Tool: move_playbook_from_team playbook_id={playbook_id} team_id={team_id}")
+    r = get_client().post(f"/api/teams/{team_id}/move_playbook_from_team/", json={
+        "playbook_id": playbook_id,
+    })
+    return check_response(r, "move_playbook_from_team")
+
+
+def invite_to_team(team_id: int, emails: list[str], welcome_text: str = "") -> dict:
+    """
+    Invite users to join a team (requires team admin).
+
+    :param team_id: Team primary key. Example: 42
+    :param emails: List of email addresses to invite. Example: ["user@example.com"]
+    :param welcome_text: Optional custom welcome message. Example: "Join our platform team!"
+    :return: Dict with success=True, team_id, invited_count, results
+    :raises ValueError: if team not found or emails list empty
+    :raises PermissionError: if user is not team admin
+    """
+    logger.info(f"HTTP Tool: invite_to_team team_id={team_id} emails={emails}")
+    r = get_client().post(f"/api/teams/{team_id}/invite/", json={
+        "emails": emails,
+        "welcome_text": welcome_text,
+    })
+    return check_response(r, "invite_to_team")
+
+
+def manage_team_invite(
+    team_id: int, request_id: int, action: Literal["approve", "reject"]
+) -> dict:
+    """
+    Approve or reject a join request (requires team admin).
+
+    :param team_id: Team primary key. Example: 42
+    :param request_id: JoinRequest primary key. Example: 123
+    :param action: "approve" or "reject". Example: "approve"
+    :return: Dict with success=True, team_id, request_id, action, user_email
+    :raises ValueError: if team or request not found, or invalid action
+    :raises PermissionError: if user is not team admin
+    """
+    logger.info(f"HTTP Tool: manage_team_invite team_id={team_id} request_id={request_id} action={action}")
+    r = get_client().post(f"/api/teams/{team_id}/manage_invite/", json={
+        "request_id": request_id,
+        "action": action,
+    })
+    return check_response(r, "manage_team_invite")

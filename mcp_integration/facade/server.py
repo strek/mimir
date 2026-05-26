@@ -148,7 +148,16 @@ def _build_mcp() -> FastMCP:
     mcp.tool()(tools.preview_pip_diff)
     mcp.tool()(tools.report_bug)
 
-    logger.info("MCP Facade: All tools registered (incl. report_bug)")
+    # Teams (7)
+    mcp.tool()(tools.list_teams)
+    mcp.tool()(tools.get_team)
+    mcp.tool()(tools.create_team)
+    mcp.tool()(tools.move_playbook_to_team)
+    mcp.tool()(tools.move_playbook_from_team)
+    mcp.tool()(tools.invite_to_team)
+    mcp.tool()(tools.manage_team_invite)
+
+    logger.info("MCP Facade: All tools registered (58 tools: 51 previous + 7 team tools)")
     return mcp
 
 
