@@ -309,19 +309,21 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end">
-                                    <form method="post" action="?tab=playbooks" class="d-inline">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="remove_playbook">
-                                        <input type="hidden" name="playbook_id" value="{{ pb.pk }}">
-                                        <button type="submit"
-                                                class="btn btn-outline-danger btn-sm"
-                                                data-testid="remove-playbook-{{ pb.pk }}"
-                                                data-bs-toggle="tooltip"
-                                                title="Remove {{ pb.name }} from team"
-                                                aria-label="Remove {{ pb.name }} from team">
-                                            <i class="fa-solid fa-trash-can"></i>
-                                        </button>
-                                    </form>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Playbook actions">
+                                        <form method="post" action="?tab=playbooks" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="remove_playbook">
+                                            <input type="hidden" name="playbook_id" value="{{ pb.pk }}">
+                                            <button type="submit"
+                                                    class="btn btn-outline-danger"
+                                                    data-testid="remove-playbook-{{ pb.pk }}"
+                                                    data-bs-toggle="tooltip"
+                                                    title="Remove {{ pb.name }} from team"
+                                                    aria-label="Remove {{ pb.name }} from team">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
