@@ -53,6 +53,23 @@
                 {{ pip.submitted_at|date:"Y-m-d H:i" }}
             </p>
         </div>
+        <div class="btn-group flex-shrink-0" role="group" aria-label="PIP review actions"
+             data-testid="pip-review-actions">
+            <a href="{% url 'pip_detail' pk=pip.pk %}" 
+               class="btn btn-outline-primary"
+               data-bs-toggle="tooltip" 
+               title="View PIP detail page"
+               data-testid="view-pip-detail">
+                <i class="fa-solid fa-eye"></i> View
+            </a>
+            <a href="{% url 'pip_preview' pk=pip.pk %}" 
+               class="btn btn-outline-primary"
+               data-bs-toggle="tooltip" 
+               title="Preview changes"
+               data-testid="preview-pip-changes">
+                <i class="fa-solid fa-file-lines"></i> Preview
+            </a>
+        </div>
     </div>
 
     <!-- Summary card -->

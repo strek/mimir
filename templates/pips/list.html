@@ -143,33 +143,43 @@
                         </td>
                         <td class="small text-muted">{{ pip.updated_at|date:"Y-m-d H:i" }}</td>
                         <td class="text-end">
-                            {# position-static: Bootstrap — dropdown in .table-responsive otherwise clips / mis-hit-tests #}
-                            <div class="dropdown position-static">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
-                                        data-bs-toggle="dropdown" data-bs-display="static"
-                                        data-testid="pip-actions-{{ pip.pk }}"
-                                        aria-expanded="false"><i class="fas fa-bars me-1"></i>Actions</button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'pip_detail' pip.pk %}"
-                                           data-testid="pip-action-view-{{ pip.pk }}"><i class="fas fa-eye me-2"></i>View</a>
-                                    </li>
-                                    {% if pip.status == 'draft' %}
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'pip_edit' pip.pk %}"
-                                           data-testid="pip-action-edit-{{ pip.pk }}"><i class="fas fa-pen-to-square me-2"></i>Edit</a>
-                                    </li>
-                                    {% endif %}
-                                    {% if pip.status == 'draft' or pip.status == 'submitted' or pip.status == 'processing_galdr' %}
-                                    <li>
-                                        <form method="post" action="{% url 'pip_withdraw' pip.pk %}" class="m-0 p-0">
-                                            {% csrf_token %}
-                                            <button type="submit" class="dropdown-item text-danger btn btn-link py-1 text-start w-100 border-0 rounded-0"
-                                                    data-testid="pip-action-withdraw-{{ pip.pk }}"><i class="fas fa-ban me-2"></i>Withdraw</button>
-                                        </form>
-                                    </li>
-                                    {% endif %}
-                                </ul>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'pip_detail' pip.pk %}" 
+                                   class="btn btn-outline-primary"
+                                   data-bs-toggle="tooltip"
+                                   title="View PIP details"
+                                   data-testid="pip-action-view-{{ pip.pk }}">
+                                    <i class="fa-solid fa-eye"></i>
+                                </a>
+                                <a href="{% url 'pip_preview' pip.pk %}" 
+                                   class="btn btn-outline-secondary"
+                                   data-bs-toggle="tooltip"
+                                   title="Preview changes"
+                                   data-testid="pip-action-preview-{{ pip.pk }}">
+                                    <i class="fa-solid fa-file-lines"></i>
+                                </a>
+                                {% if pip.status == 'draft' and pip.created_by == request.user %}
+                                <a href="{% url 'pip_edit' pip.pk %}" 
+                                   class="btn btn-outline-secondary"
+                                   data-bs-toggle="tooltip"
+                                   title="Edit draft"
+                                   data-testid="pip-action-edit-{{ pip.pk }}">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                                {% endif %}
+                                {% if pip.status in 'draft,submitted' and pip.created_by == request.user and pip.changes.count > 0 %}
+                                <button type="button"
+                                        class="btn btn-outline-success"
+                                        data-bs-toggle="tooltip"
+                                        title="Submit for review"
+                                        onclick="document.getElementById('submit-form-{{ pip.pk }}').submit()"
+                                        data-testid="pip-action-submit-{{ pip.pk }}">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                                <form id="submit-form-{{ pip.pk }}" method="post" action="{% url 'pip_submit_review' pip.pk %}" class="d-none">
+                                    {% csrf_token %}
+                                </form>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
