@@ -299,6 +299,27 @@
                         </form>
                         <div id="global-search-suggestions-container"></div>
                     </li>
+                    <li class="nav-item dropdown d-flex align-items-center me-3">
+                        <a class="nav-link text-white py-2 position-relative"
+                           href="#"
+                           id="notification-bell"
+                           role="button"
+                           data-bs-toggle="dropdown"
+                           aria-expanded="false"
+                           data-testid="notification-bell"
+                           hx-get="/notifications/"
+                           hx-trigger="click"
+                           hx-target="#notification-dropdown-container">
+                            <i class="fas fa-bell"></i>
+                            {% if unread_notification_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                  data-testid="notification-badge">
+                                {{ unread_notification_count }}
+                            </span>
+                            {% endif %}
+                        </a>
+                        <div id="notification-dropdown-container"></div>
+                    </li>
                     <li class="nav-item dropdown d-flex align-items-center">
                         <a class="nav-link dropdown-toggle text-white py-2"
                            href="#"

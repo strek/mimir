@@ -37,6 +37,13 @@ def send_auto_join_confirmation(membership: TeamMembership) -> None:
         team_name=membership.team.name,
         username=membership.user.username,
     )
+    _create_in_app_notification(
+        user=membership.user,
+        notification_type="team_approved",
+        title=f"Joined {membership.team.name}",
+        message=f"You are now a member of the {membership.team.name} team.",
+        link=f"/teams/{membership.team.pk}/",
+    )
 
 
 def send_join_request_to_admin(join_request: JoinRequest) -> None:
@@ -56,6 +63,13 @@ def send_join_request_to_admin(join_request: JoinRequest) -> None:
         action="join_request_to_admin",
         team_name=join_request.team.name,
         username=join_request.user.username,
+    )
+    _create_in_app_notification(
+        user=join_request.team.admin,
+        notification_type="team_join_request",
+        title=f"Join request for {join_request.team.name}",
+        message=f"{join_request.user.username} wants to join your team.",
+        link=f"/teams/{join_request.team.pk}/manage/?tab=join-requests",
     )
 
 
@@ -77,6 +91,13 @@ def send_request_approved(join_request: JoinRequest) -> None:
         team_name=join_request.team.name,
         username=join_request.user.username,
     )
+    _create_in_app_notification(
+        user=join_request.user,
+        notification_type="team_approved",
+        title=f"Joined {join_request.team.name}",
+        message=f"Your request to join {join_request.team.name} was approved.",
+        link=f"/teams/{join_request.team.pk}/",
+    )
 
 
 def send_request_rejected(join_request: JoinRequest) -> None:
@@ -97,6 +118,13 @@ def send_request_rejected(join_request: JoinRequest) -> None:
         team_name=join_request.team.name,
         username=join_request.user.username,
     )
+    _create_in_app_notification(
+        user=join_request.user,
+        notification_type="team_rejected",
+        title=f"Request to join {join_request.team.name} declined",
+        message=f"Your request to join {join_request.team.name} was not approved.",
+        link="",
+    )
 
 
 def send_member_removed(membership: TeamMembership) -> None:
@@ -112,6 +140,13 @@ def send_member_removed(membership: TeamMembership) -> None:
         action="member_removed",
         team_name=membership.team.name,
         username=membership.user.username,
+    )
+    _create_in_app_notification(
+        user=membership.user,
+        notification_type="team_removed",
+        title=f"Removed from {membership.team.name}",
+        message=f"You have been removed from the {membership.team.name} team.",
+        link="",
     )
 
 
@@ -130,6 +165,13 @@ def send_admin_transferred(team: Team, new_admin, old_admin) -> None:
         action="admin_transferred",
         team_name=team.name,
         username=new_admin.username,
+    )
+    _create_in_app_notification(
+        user=new_admin,
+        notification_type="team_admin_transfer",
+        title=f"Now admin of {team.name}",
+        message=f"You are now the admin of the {team.name} team.",
+        link=f"/teams/{team.pk}/manage/",
     )
 
 
@@ -152,6 +194,13 @@ def send_invite_existing_user(join_request: JoinRequest, welcome_text: str) -> N
         action="invite_existing_user",
         team_name=join_request.team.name,
         username=join_request.user.username,
+    )
+    _create_in_app_notification(
+        user=join_request.user,
+        notification_type="team_invite",
+        title=f"Invited to {join_request.team.name}",
+        message=f"You've been invited to join the {join_request.team.name} team.",
+        link=f"/teams/{join_request.team.pk}/",
     )
 
 
@@ -178,6 +227,15 @@ def send_invite_new_user(join_request: JoinRequest, activation_token: str, welco
         action="invite_new_user",
         team_name=join_request.team.name,
         username=join_request.user.username,
+    )
+    # Note: New users can't see in-app notifications until they activate their account
+    # Notification will be available after they verify email and log in
+    _create_in_app_notification(
+        user=join_request.user,
+        notification_type="team_invite",
+        title=f"Invited to {join_request.team.name}",
+        message=f"You've been invited to join the {join_request.team.name} team.",
+        link=f"/teams/{join_request.team.pk}/",
     )
 
 
@@ -244,3 +302,37 @@ def _send_team_email(
             exc_info=True,
         )
         raise
+
+
+def _create_in_app_notification(user, notification_type: str, title: str, message: str, link: str) -> None:
+    """Create an in-app notification (non-fatal).
+
+    :param user: User to notify.
+    :param notification_type: Notification type constant.
+    :param title: Notification title.
+    :param message: Notification message.
+    :param link: Optional link URL.
+    """
+    try:
+        from methodology.services.notification_service import NotificationService
+
+        NotificationService.create(
+            user=user,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            link=link,
+        )
+        logger.info(
+            "[teams] in-app notification created | user=%s type=%s title=%s",
+            user.username,
+            notification_type,
+            title,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[teams] in-app notification failed (non-fatal) | user=%s type=%s error=%s",
+            user.username,
+            notification_type,
+            str(exc),
+        )
