@@ -106,10 +106,12 @@ class TestMCPTeamTools:
         assert result["member_count"] == 1
 
         # Verify in database
+        from methodology.models import TeamMembership
+
         team = Team.objects.get(pk=result["id"])
         assert team.name == "New Team"
         assert team.admin == user
-        assert team.members.filter(pk=user.pk).exists()
+        assert TeamMembership.objects.filter(team=team, user=user).exists()
 
     def test_create_team_empty_name(self):
         """create_team should raise ValueError for empty name."""

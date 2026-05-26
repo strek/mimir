@@ -3109,7 +3109,7 @@ async def get_team(team_id: int) -> dict:
             "user_id": m.user_id,
             "username": m.user.username,
             "email": m.user.email,
-            "joined_at": m.created_at.isoformat(),
+            "joined_at": m.joined_at.isoformat(),
         }
         for m in memberships
     ]
