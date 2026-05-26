@@ -12,6 +12,10 @@ from .skill import Skill
 from .agent import Agent
 from .activity_workflow_membership import ActivityWorkflowMembership
 from .rule import Rule
+from .team import Team
+from .team_membership import TeamMembership
+from .join_request import JoinRequest
+from .team_playbook import TeamPlaybook
 
 __all__ = [
     'Playbook',
@@ -29,4 +33,8 @@ __all__ = [
     'Skill',
     'Agent',
     'Rule',
+    'Team',
+    'TeamMembership',
+    'JoinRequest',
+    'TeamPlaybook',
 ]

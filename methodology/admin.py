@@ -8,12 +8,16 @@ from methodology.models import (
     Agent,
     Artifact,
     ArtifactInput,
+    JoinRequest,
     Playbook,
     PlaybookVersion,
     PipChange,
     ProcessImprovementProposal,
     Rule,
     Skill,
+    Team,
+    TeamMembership,
+    TeamPlaybook,
     Workflow,
 )
 
@@ -306,3 +310,39 @@ class AgentAdmin(admin.ModelAdmin):
     list_filter = ('created_at', 'playbook')
     readonly_fields = ('created_at', 'updated_at')
     raw_id_fields = ('playbook',)
+
+
+@admin.register(Team)
+class TeamAdmin(admin.ModelAdmin):
+    """Admin configuration for Team model."""
+
+    list_display = ["name", "visibility", "join_policy", "category", "admin", "created_at"]
+    search_fields = ["name", "description"]
+    list_filter = ["visibility", "category", "join_policy"]
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(TeamMembership)
+class TeamMembershipAdmin(admin.ModelAdmin):
+    """Admin configuration for TeamMembership model."""
+
+    list_display = ["team", "user", "role", "joined_at"]
+    list_filter = ["role"]
+    readonly_fields = ("joined_at",)
+
+
+@admin.register(JoinRequest)
+class JoinRequestAdmin(admin.ModelAdmin):
+    """Admin configuration for JoinRequest model."""
+
+    list_display = ["team", "user", "source", "status", "requested_at"]
+    list_filter = ["status", "source"]
+    readonly_fields = ("requested_at",)
+
+
+@admin.register(TeamPlaybook)
+class TeamPlaybookAdmin(admin.ModelAdmin):
+    """Admin configuration for TeamPlaybook model."""
+
+    list_display = ["team", "playbook", "added_by", "added_at"]
+    readonly_fields = ("added_at",)
