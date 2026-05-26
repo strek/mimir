@@ -574,6 +574,72 @@ Feature: Mimir E2E UAT — browser-only flow (registration → GUI CRUDL → rel
     # SEE: row shows `UAT Test Team`, `Admin` badge, `Public` visibility badge
     # IF DIFFER: UAT-08-10
 
+  Scenario: UAT-08-11 — Delete team from Danger Zone (cascade deletes playbooks)
+    # GIVEN: User is admin of a team with a linked playbook
+    # ACT: Navigate to team manage panel → Danger Zone → Delete Team
+    # VERIFY: Team and linked playbooks are deleted from DB
+    #
+    # DO: `[data-testid="nav-teams"]` → browse page
+    # DO: Navigate to team detail for test team (create if needed)
+    # DO: On team detail, add a test playbook to team via manage panel
+    # DO: Navigate to manage panel → Danger Zone tab
+    # DO: Click `[data-testid="delete-team-btn"]`
+    # DO: Confirm deletion in modal
+    # SEE: Redirect to `/teams/` browse page
+    # SEE: Deleted team no longer appears in team list
+    # SEE: Linked playbook no longer exists in `/playbooks/` list
+    # IF DIFFER: UAT-08-11
+
+  Scenario: UAT-08-12 — Team playbook appears in /playbooks/ list for member
+    # GIVEN: User is member of a team with shared playbook (not authored by user)
+    # ACT: Navigate to /playbooks/
+    # VERIFY: Team's shared playbook appears in list alongside owned and public playbooks
+    #
+    # DO: Create a second user account (or use existing non-admin user)
+    # DO: Login as team admin, invite second user to team, approve join request
+    # DO: As admin, add a playbook to the team (playbook authored by admin)
+    # DO: Logout, login as second user (team member, not playbook author)
+    # DO: Navigate to `[data-testid="nav-playbooks"]`
+    # SEE: `/playbooks/` page shows team's shared playbook in list
+    # SEE: Playbook has team badge or indicator (design system dependent)
+    # IF DIFFER: UAT-08-12
+
+  Scenario: UAT-08-13 — Bell badge increments on team join request; mark-read clears it
+    # GIVEN: User is team admin with notification bell enabled
+    # ACT: Another user submits join request to team
+    # VERIFY: Bell badge shows unread count; clicking notification marks as read
+    #
+    # DO: Login as team admin
+    # DO: Note current notification bell badge count (or zero)
+    # DO: Create a join request from another user (via direct DB or second browser session)
+    # DO: Reload page or wait for notification
+    # SEE: `[data-testid="notification-badge"]` shows incremented count
+    # DO: Click `[data-testid="notification-bell"]` to open dropdown
+    # SEE: Notification dropdown shows "Join request for [Team Name]"
+    # DO: Click `[data-testid="mark-read-<NOTIFICATION_ID>"]` or mark all read
+    # SEE: Badge count decrements or disappears
+    # IF DIFFER: UAT-08-13
+
+  Scenario: UAT-08-14 — New-user invite: GET activation link → is_active=True, redirected to login
+    # GIVEN: Team admin invites a new email (not yet registered)
+    # ACT: New user clicks activation link from email
+    # VERIFY: User account is activated and redirected to login
+    #
+    # DO: Login as team admin
+    # DO: Navigate to team manage panel → Invitations tab
+    # DO: Enter new email (e.g., `newuser+uat@example.com`) in invite form
+    # DO: Submit invite
+    # SEE: Success message "Invitations sent"
+    # DO: Check test email outbox or logs for activation link
+    # DO: Extract activation link `/auth/user/verify-email/<TOKEN>/`
+    # DO: Open activation link in browser (logout first if needed)
+    # SEE: Success message "Email verified"
+    # SEE: Redirect to login page
+    # DO: Login with new user credentials (email + temporary password if set)
+    # SEE: User is authenticated and active
+    # SEE: User can access team page
+    # IF DIFFER: UAT-08-14
+
 #############################################################################
 # APPENDIX A — MCP 61-tool checklist → see mcp-uat-flow.feature
 #############################################################################
