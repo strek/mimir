@@ -13,6 +13,12 @@ from methodology.services.rule_service import RuleService
 
 logger = logging.getLogger(__name__)
 
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
+
 
 def _get_playbook_or_deny(request, playbook_pk):
     playbook = get_object_or_404(Playbook, pk=playbook_pk)

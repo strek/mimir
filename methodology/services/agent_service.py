@@ -117,10 +117,9 @@ class AgentService:
         qs = Agent.objects.select_related('playbook', 'playbook__author')
 
         if user is not None:
-            qs = qs.filter(
-                playbook__author=user,
-                playbook__source='owned'
-            )
+            from methodology.services.playbook_service import PlaybookService
+            accessible_playbook_ids = PlaybookService.get_accessible_playbook_ids(user)
+            qs = qs.filter(playbook_id__in=accessible_playbook_ids)
 
         if query:
             qs = qs.filter(

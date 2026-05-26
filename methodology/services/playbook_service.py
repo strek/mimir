@@ -289,6 +289,24 @@ class PlaybookService:
         return all_ids
 
     @staticmethod
+    def author_has_playbook_named(user, name):
+        """
+        Check whether user already owns a playbook with the given name.
+
+        :param user: Playbook author
+        :param name: Playbook name to check
+        :returns: True if a duplicate name exists for this author
+        """
+        exists = Playbook.objects.filter(author=user, name=name).exists()
+        logger.info(
+            "Duplicate name check for user id=%s name=%r: %s",
+            getattr(user, "pk", user),
+            name,
+            exists,
+        )
+        return exists
+
+    @staticmethod
     @transaction.atomic
     def update_playbook(playbook_id, **data):
         """

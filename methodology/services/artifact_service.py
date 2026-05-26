@@ -7,6 +7,7 @@ and relationship management.
 
 import logging
 from django.db import IntegrityError
+from django.db.models import Q
 from django.core.exceptions import ValidationError
 from methodology.models import Artifact, ArtifactInput
 from methodology.services.playbook_service import PlaybookService
@@ -144,6 +145,63 @@ class ArtifactService:
         ai = ArtifactInput.objects.select_related("artifact__playbook").get(pk=artifact_input_id)
         PlaybookService.get_owned_playbook(ai.artifact.playbook_id, user)
         return ai
+
+    @staticmethod
+    def list_artifacts_global(user, query=None):
+        """
+        Return all artifacts from playbooks accessible to user (owned + public + team).
+
+        :param user: Django user
+        :param query: Optional search string (name/description)
+        :returns: QuerySet of Artifact instances
+        """
+        logger.info("Listing global artifacts for user id=%s", getattr(user, "pk", user))
+        accessible_playbook_ids = PlaybookService.get_accessible_playbook_ids(user)
+        artifacts = Artifact.objects.filter(
+            playbook_id__in=accessible_playbook_ids
+        ).select_related(
+            "playbook", "produced_by", "produced_by__workflow"
+        ).order_by("playbook__name", "name")
+
+        if query:
+            artifacts = artifacts.filter(
+                Q(name__icontains=query) | Q(description__icontains=query)
+            )
+
+        logger.info(
+            "User id=%s has access to %s global artifacts",
+            getattr(user, "pk", user),
+            artifacts.count(),
+        )
+        return artifacts
+
+    @staticmethod
+    def count_artifacts_for_playbook(playbook):
+        """
+        Count artifacts in a playbook.
+
+        :param playbook: Playbook instance
+        :returns: int artifact count
+        """
+        count = Artifact.objects.filter(playbook=playbook).count()
+        logger.info("Playbook id=%s has %s artifacts", playbook.pk, count)
+        return count
+
+    @staticmethod
+    def list_selectable_input_artifacts(playbook, exclude_activity=None):
+        """
+        Artifacts in playbook that may be linked as activity inputs (exclude self-produced).
+
+        :param playbook: Playbook instance
+        :param exclude_activity: Activity whose outputs to exclude from selection
+        :returns: QuerySet of Artifact instances
+        """
+        qs = Artifact.objects.filter(playbook=playbook).select_related(
+            "produced_by", "produced_by__workflow"
+        ).order_by("produced_by__order", "name")
+        if exclude_activity is not None:
+            qs = qs.exclude(produced_by=exclude_activity)
+        return qs
 
     @staticmethod
     def get_artifacts_for_playbook(playbook, type_filter=None, required_filter=None):

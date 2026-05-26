@@ -52,6 +52,23 @@ class WorkflowService:
         return list(Workflow.objects.filter(playbook_id=playbook_id).order_by('order', 'created_at'))
     
     @staticmethod
+    def list_global_workflows(user):
+        """
+        Get all workflows from playbooks accessible to user (owned + public + team).
+        
+        :param user: User whose accessible workflows to retrieve.
+        :returns: QuerySet of Workflow instances ordered by playbook name and workflow order.
+        """
+        logger.info(f"Retrieving global workflows for user {user.id}")
+        accessible_playbook_ids = PlaybookService.get_accessible_playbook_ids(user)
+        workflows = Workflow.objects.filter(
+            playbook_id__in=accessible_playbook_ids
+        ).select_related('playbook').order_by('playbook__name', 'order')
+        
+        logger.info(f"User {user.id} has access to {workflows.count()} workflows")
+        return workflows
+    
+    @staticmethod
     @transaction.atomic
     def update_workflow(workflow_id, **data):
         """Update workflow with validation."""

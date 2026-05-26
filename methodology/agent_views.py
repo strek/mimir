@@ -13,10 +13,16 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 
-from methodology.models import Activity, Agent, Playbook
+from methodology.models import Playbook
 from methodology.services.agent_service import AgentService
 
 logger = logging.getLogger(__name__)
+
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
 
 
 @login_required
@@ -177,19 +183,13 @@ def agent_detail(request, pk):
     :return: Rendered detail template
     :raises Http404: If agent not found
     """
-    agent = get_object_or_404(
-        Agent.objects.select_related('playbook', 'playbook__author'),
-        pk=pk,
-    )
-
-    if not agent.is_owned_by(request.user):
-        logger.warning(
-            f"User {request.user.username} attempted to view agent {pk} they don't own"
-        )
+    try:
+        agent = AgentService.get_agent_for_user(pk, request.user)
+    except Exception:
         messages.error(request, "You don't have permission to view this agent.")
         return redirect('agent_list')
 
-    activities = _get_activities_for_agent(agent)
+    activities = AgentService.get_activities_for_agent(agent.pk)
 
     logger.info(f"User {request.user.username} viewing agent {pk}")
     context = {
@@ -199,22 +199,6 @@ def agent_detail(request, pk):
         'can_edit': agent.can_edit(request.user),
     }
     return render(request, 'agents/detail.html', context)
-
-
-def _get_activities_for_agent(agent):
-    """
-    Return activities assigned to this agent, ordered by workflow then activity order.
-
-    :param agent: Agent instance
-    :returns: QuerySet of Activity instances
-    :rtype: QuerySet
-    """
-    return (
-        Activity.objects
-        .filter(agent=agent)
-        .select_related('workflow', 'workflow__playbook')
-        .order_by('workflow__order', 'order')
-    )
 
 
 # ==================== EDIT ====================
@@ -240,15 +224,9 @@ def agent_edit(request, pk):
     :return: Rendered edit form template or redirect
     :raises Http404: If agent not found
     """
-    agent = get_object_or_404(
-        Agent.objects.select_related('playbook', 'playbook__author'),
-        pk=pk,
-    )
-
-    if not agent.can_edit(request.user):
-        logger.warning(
-            f"User {request.user.username} attempted to edit agent {pk} without permission"
-        )
+    try:
+        agent = AgentService.get_agent_for_user(pk, request.user, write=True)
+    except Exception:
         messages.error(request, "You don't have permission to edit this agent.")
         return redirect('agent_detail', pk=pk)
 
@@ -342,15 +320,9 @@ def agent_delete(request, pk):
     :return: Rendered modal partial (GET) or redirect (POST)
     :raises Http404: If agent not found
     """
-    agent = get_object_or_404(
-        Agent.objects.select_related('playbook', 'playbook__author'),
-        pk=pk,
-    )
-
-    if not agent.can_edit(request.user):
-        logger.warning(
-            f"User {request.user.username} attempted to delete agent {pk} without permission"
-        )
+    try:
+        agent = AgentService.get_agent_for_user(pk, request.user, write=True)
+    except Exception:
         messages.error(request, "You don't have permission to delete this agent.")
         return redirect('agent_detail', pk=pk)
 
@@ -364,7 +336,7 @@ def agent_delete(request, pk):
         messages.success(request, f'Agent "{agent_name}" deleted successfully.')
         return redirect('playbook_detail', pk=playbook_id)
 
-    activities = agent.activities.select_related('workflow').order_by('name')[:5]
+    activities = AgentService.get_activities_for_agent(agent.pk)[:5]
     activity_count = agent.get_activity_count()
     logger.info(
         f"User {request.user.username} opening delete modal for agent {pk}"

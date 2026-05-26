@@ -9,12 +9,16 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 from methodology.models import Playbook, Phase
 from methodology.services.phase_service import PhaseService
-from methodology.services.playbook_service import PlaybookService
 
 logger = logging.getLogger(__name__)
+
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
 
 
 # ==================== LIST ====================
@@ -41,18 +45,11 @@ def phase_list_global(request):
     query = request.GET.get('q', '').strip()
     filter_playbook = _resolve_phase_list_playbook_filter(request)
 
-    # Get phases from accessible playbooks (owned + public + team)
-    accessible_playbook_ids = PlaybookService.get_accessible_playbook_ids(request.user)
-    phases = Phase.objects.filter(playbook_id__in=accessible_playbook_ids).select_related('playbook')
-    if filter_playbook is not None:
-        phases = phases.filter(playbook_id=filter_playbook.pk)
-
-    if query:
-        phases = phases.filter(
-            Q(name__icontains=query) | Q(description__icontains=query)
-        )
-
-    total_count = Phase.objects.filter(playbook__author=request.user).count()
+    phases, total_count = PhaseService.list_phases_global(
+        request.user,
+        query=query or None,
+        playbook_filter=filter_playbook,
+    )
 
     log_extra = []
     if filter_playbook is not None:
@@ -66,7 +63,7 @@ def phase_list_global(request):
     )
 
     context = {
-        'phases': phases.order_by('playbook__name', 'order'),
+        'phases': phases,
         'query': query,
         'filter_playbook': filter_playbook,
         'total_count': total_count,
@@ -92,14 +89,15 @@ def _resolve_phase_list_playbook_filter(request):
             raw,
         )
         return None
-    book = Playbook.objects.filter(pk=pk, author=request.user).first()
-    if book is None:
+    try:
+        return PlaybookService.get_playbook(pk, request.user)
+    except Exception:
         logger.info(
-            "Playbook filter not applied (missing or not owned) user=%s playbook=%s",
+            "Playbook filter not applied (missing or not accessible) user=%s playbook=%s",
             request.user.username,
             pk,
         )
-    return book
+        return None
 
 
 @login_required

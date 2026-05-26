@@ -131,6 +131,67 @@ class ActivityService:
         return Activity.objects.select_related('workflow', 'workflow__playbook').get(pk=activity_id)
     
     @staticmethod
+    def list_activities_global(user):
+        """
+        Return all activities from playbooks accessible to user (owned + public + team).
+
+        :param user: Django user
+        :returns: QuerySet of Activity instances ordered by playbook, workflow, activity order
+        """
+        logger.info("Listing global activities for user id=%s", getattr(user, "pk", user))
+        accessible_playbook_ids = PlaybookService.get_accessible_playbook_ids(user)
+        activities = Activity.objects.filter(
+            workflow__playbook_id__in=accessible_playbook_ids
+        ).select_related("workflow", "workflow__playbook", "phase").order_by(
+            "workflow__playbook__name", "workflow__order", "order"
+        )
+        logger.info(
+            "User id=%s has access to %s global activities",
+            getattr(user, "pk", user),
+            activities.count(),
+        )
+        return activities
+
+    @staticmethod
+    def count_accessible_activities(user):
+        """
+        Count activities across all playbooks accessible to user (owned + public + team).
+
+        :param user: Django user
+        :returns: int activity count
+        """
+        accessible_playbook_ids = PlaybookService.get_accessible_playbook_ids(user)
+        count = Activity.objects.filter(
+            workflow__playbook_id__in=accessible_playbook_ids
+        ).count()
+        logger.info(
+            "User id=%s has access to %s activities",
+            getattr(user, "pk", user),
+            count,
+        )
+        return count
+
+    @staticmethod
+    def get_activity_for_playbook(activity_id, playbook):
+        """
+        Return activity if it belongs to the given playbook.
+
+        :param activity_id: Activity primary key
+        :param playbook: Playbook instance
+        :returns: Activity instance
+        :raises Activity.DoesNotExist: If activity not in playbook
+        """
+        logger.info(
+            "Fetching activity id=%s for playbook id=%s",
+            activity_id,
+            playbook.pk,
+        )
+        return Activity.objects.select_related("workflow").get(
+            pk=activity_id,
+            workflow__playbook=playbook,
+        )
+
+    @staticmethod
     def get_activities_for_workflow(workflow):
         """
         Get all activities in a workflow, ordered.
@@ -450,8 +511,9 @@ class ActivityService:
         from django.db.models.functions import Coalesce, Greatest
         
         try:
+            accessible_playbook_ids = PlaybookService.get_accessible_playbook_ids(user)
             return Activity.objects.filter(
-                workflow__playbook__author=user
+                workflow__playbook_id__in=accessible_playbook_ids
             ).annotate(
                 recent_time=Greatest(
                     Coalesce('last_accessed_at', 'updated_at'),

@@ -230,6 +230,85 @@ class TestTeamGlobalLists:
         workflow_ids = [w.id for w in workflows]
         assert workflow.id not in workflow_ids, "Private team workflow should NOT appear for non-members"
 
+    def test_non_member_cannot_see_private_team_artifacts(self):
+        """Non-members should not see artifacts from private team playbooks."""
+        admin, _ = User.objects.get_or_create(username="admin", defaults={"email": "admin@test.com"})
+        other_user, _ = User.objects.get_or_create(username="other_user_art", defaults={"email": "other3@test.com"})
+
+        playbook = Playbook.objects.create(
+            name="Team Methodology Art",
+            description="Shared methodology",
+            author=admin,
+            status="released",
+            visibility="private",
+        )
+
+        workflow = Workflow.objects.create(
+            playbook=playbook,
+            name="Team Workflow",
+            description="Shared workflow",
+            order=1,
+        )
+
+        activity = Activity.objects.create(
+            workflow=workflow,
+            name="Team Activity",
+            guidance="Team guidance",
+            order=1,
+        )
+
+        artifact = Artifact.objects.create(
+            playbook=playbook,
+            name="Team Artifact Private",
+            description="Team artifact description",
+            type="Document",
+            produced_by=activity,
+        )
+
+        team = Team.objects.create(name="Dev Team Art Private", visibility=Team.VISIBILITY_HIDDEN, admin=admin)
+        TeamMembership.objects.create(team=team, user=admin, role="admin")
+        TeamPlaybook.objects.create(team=team, playbook=playbook)
+
+        client = Client()
+        client.force_login(other_user)
+        response = client.get('/artifacts/')
+
+        assert response.status_code == 200
+        artifact_ids = [a.id for a in response.context['artifacts']]
+        assert artifact.id not in artifact_ids
+
+    def test_non_member_cannot_see_private_team_phases(self):
+        """Non-members should not see phases from private team playbooks."""
+        admin, _ = User.objects.get_or_create(username="admin", defaults={"email": "admin@test.com"})
+        other_user, _ = User.objects.get_or_create(username="other_user_ph", defaults={"email": "other4@test.com"})
+
+        playbook = Playbook.objects.create(
+            name="Team Methodology Phase",
+            description="Shared methodology",
+            author=admin,
+            status="released",
+            visibility="private",
+        )
+
+        phase = Phase.objects.create(
+            playbook=playbook,
+            name="Team Phase Private",
+            description="Team phase description",
+            order=1,
+        )
+
+        team = Team.objects.create(name="Dev Team Phase Private", visibility=Team.VISIBILITY_HIDDEN, admin=admin)
+        TeamMembership.objects.create(team=team, user=admin, role="admin")
+        TeamPlaybook.objects.create(team=team, playbook=playbook)
+
+        client = Client()
+        client.force_login(other_user)
+        response = client.get('/phases/')
+
+        assert response.status_code == 200
+        phase_ids = [p.id for p in response.context['phases']]
+        assert phase.id not in phase_ids
+
     def test_public_team_playbook_items_visible_to_all(self):
         """Public team playbook items should be visible to all authenticated users."""
         # Arrange

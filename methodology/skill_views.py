@@ -17,6 +17,12 @@ from methodology.services.skill_service import SkillService
 
 logger = logging.getLogger(__name__)
 
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
+
 
 # ==================== HELPERS ====================
 

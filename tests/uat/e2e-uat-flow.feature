@@ -640,6 +640,21 @@ Feature: Mimir E2E UAT — browser-only flow (registration → GUI CRUDL → rel
     # SEE: User can access team page
     # IF DIFFER: UAT-08-14
 
+  Scenario: UAT-08-15 — Team member sees workflows/activities/artifacts in global lists
+    # GIVEN: User is member of a team with shared playbook containing WF/activity/artifact
+    # ACT: Navigate to global Workflows, Activities, and Artifacts pages
+    # VERIFY: Team playbook items appear in each global list
+    #
+    # DO: As team admin, create playbook with workflow, activity, and artifact; share with team
+    # DO: Logout; login as team member (not playbook author)
+    # DO: Navigate to `[data-testid="nav-workflows"]` → `/workflows/`
+    # SEE: Team workflow name visible in global workflows list
+    # DO: Navigate to `[data-testid="nav-activities"]` → `/activities/`
+    # SEE: Team activity name visible in global activities list
+    # DO: Navigate to `[data-testid="nav-artifacts"]` → `/artifacts/`
+    # SEE: Team artifact name visible in global artifacts list
+    # IF DIFFER: UAT-08-15
+
 #############################################################################
 # APPENDIX A — MCP 61-tool checklist → see mcp-uat-flow.feature
 #############################################################################

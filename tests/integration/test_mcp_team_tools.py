@@ -336,3 +336,34 @@ class TestMCPTeamTools:
         set_current_user(admin)
         with pytest.raises(ValueError, match="Invalid action"):
             asyncio.run(tools.manage_team_invite(team_id=team.pk, request_id=join_request.pk, action="invalid"))
+
+    def test_team_member_lists_playbook_children_via_mcp(self):
+        """Team member can list workflows/activities/artifacts from shared team playbook."""
+        from methodology.models import Playbook, Workflow, Activity, Artifact, TeamMembership
+
+        admin = User.objects.create_user(username="admin_mcp15", password="pass", email="a15@test.com")
+        member = User.objects.create_user(username="member_mcp15", password="pass", email="m15@test.com")
+
+        playbook = Playbook.objects.create(
+            name="MCP Team PB",
+            author=admin,
+            status="released",
+            visibility="private",
+        )
+        workflow = Workflow.objects.create(playbook=playbook, name="MCP WF", order=1)
+        activity = Activity.objects.create(workflow=workflow, name="MCP Act", guidance="", order=1)
+        artifact = Artifact.objects.create(playbook=playbook, name="MCP Art", produced_by=activity)
+
+        team = Team.objects.create(name="MCP Team 15", admin=admin)
+        TeamMembership.objects.create(team=team, user=admin)
+        TeamMembership.objects.create(team=team, user=member)
+        TeamPlaybook.objects.create(team=team, playbook=playbook)
+
+        set_current_user(member)
+        workflows = asyncio.run(tools.list_workflows(playbook.id))
+        activities = asyncio.run(tools.list_activities(workflow.id))
+        artifacts = asyncio.run(tools.list_artifacts(playbook.id))
+
+        assert any(w["id"] == workflow.id for w in workflows)
+        assert any(a["id"] == activity.id for a in activities)
+        assert any(a["id"] == artifact.id for a in artifacts)

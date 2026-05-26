@@ -6,6 +6,12 @@ from django.shortcuts import render
 from methodology.services.global_search_service import GlobalSearchService
 logger = logging.getLogger(__name__)
 
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
+
 
 def index(request):
     """
@@ -54,7 +60,6 @@ def dashboard(request):
     try:
         from methodology.services.activity_service import ActivityService
         from methodology.services.playbook_service import PlaybookService
-        from methodology.models import Playbook, Activity
         
         # Get recent playbooks (owned + public + team - last 5 updated)
         owned_playbooks = list(PlaybookService.list_playbooks(author=request.user))
@@ -76,9 +81,7 @@ def dashboard(request):
         
         # Get counts (total unique accessible playbooks)
         playbook_count = len(all_playbooks)
-        activity_count = Activity.objects.filter(
-            workflow__playbook__author=request.user
-        ).count()
+        activity_count = ActivityService.count_accessible_activities(request.user)
         
         logger.info(f"Dashboard loaded for {request.user.username}: {playbook_count} playbooks, {activity_count} activities")
         
