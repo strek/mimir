@@ -39,7 +39,7 @@
     "UAT-03-02f": "PASS",
     "UAT-03-02g": "PASS",
     "UAT-03-02h": "PASS",
-    "UAT-03-02-neg": "FAIL",
+    "UAT-03-02-neg": "PASS",
     "UAT-03-03": "PASS",
     "UAT-03-05": "PASS",
     "UAT-03-05b": "PASS",
@@ -103,7 +103,7 @@
   },
   "notes": {
     "skipped_by_design": "UAT-01-01/01-01b/01-02/01-03/01-03b (registration/email); UAT-08-14 (invite activation email); UAT-07-01 Gmail (SES creds expired locally).",
-    "UAT-03-02-neg": "Blank activity name POST did not surface server validation in browser session.",
+    "UAT-03-02-neg": "Activity blank name now surfaces [data-testid=\"name-error\"] with is-invalid; skill blank title shows title-error. Tested on disposable draft PB 241.",
     "UAT-03-05b": "Visibility toggle used disposable PB 240; revert-to-private on released PB via service (Edit disabled when released). Delete modal cancel verified on PB 237.",
     "UAT-07-02": "Spec expects 4 Activities; actual 3 after PIPs (Alpha, Beta, Gamma). v3.0 and Accepted PIPs verified in GUI.",
     "phase_e_f": "Phases E–F completed in prior session; spot-verified PIPs list (3 PIPs) and PB237 Released v3.0 with history PIPs #13/#14.",

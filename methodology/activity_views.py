@@ -22,6 +22,25 @@ from methodology.services.artifact_service import ArtifactService
 
 logger = logging.getLogger(__name__)
 
+_NAME_ERROR_KEYWORDS = ("name", "empty", "exceed", "already exists")
+_GUIDANCE_ERROR_KEYWORDS = ("guidance",)
+_DEPENDENCY_ERROR_KEYWORDS = ("predecessor", "successor", "phase", "order")
+
+
+def _activity_field_errors(exc: ValidationError) -> dict[str, str]:
+    """Map an activity ValidationError to form field errors for re-render."""
+    message = str(getattr(exc, "message", exc))
+    msg_lower = message.lower()
+    if any(kw in msg_lower for kw in _NAME_ERROR_KEYWORDS):
+        return {"name": message}
+    if any(kw in msg_lower for kw in _GUIDANCE_ERROR_KEYWORDS):
+        return {"guidance": message}
+    for field in _DEPENDENCY_ERROR_KEYWORDS:
+        if field in msg_lower:
+            return {field: message}
+    return {"name": message}
+
+
 # ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
 # Views are thin controllers. NEVER query the ORM directly here.
 # All data access must go through services in methodology/services/.
@@ -266,8 +285,13 @@ def activity_create(request, playbook_pk, workflow_pk):
             
         except ValidationError as e:
             logger.warning(f"Activity creation validation error: {str(e)}")
-            messages.error(request, str(e))
-            return _render_create_form(request, playbook, workflow, request.POST, {})
+            return _render_create_form(
+                request,
+                playbook,
+                workflow,
+                request.POST,
+                _activity_field_errors(e),
+            )
     
     # GET request - show form
     return _render_create_form(request, playbook, workflow, {}, {})
@@ -524,8 +548,14 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
             
         except ValidationError as e:
             logger.warning(f"Activity edit validation error: {str(e)}")
-            messages.error(request, str(e))
-            return _render_edit_form(request, playbook, workflow, activity, request.POST, {})
+            return _render_edit_form(
+                request,
+                playbook,
+                workflow,
+                activity,
+                request.POST,
+                _activity_field_errors(e),
+            )
     
     # GET request - show form with current values
     form_data = {
