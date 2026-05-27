@@ -9,8 +9,15 @@ from django.core.exceptions import ValidationError
 
 from methodology.models import Playbook, Workflow
 from methodology.services.workflow_service import WorkflowService
+from methodology.services.activity_service import ActivityService
 
 logger = logging.getLogger(__name__)
+
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
 
 
 @login_required
@@ -18,14 +25,11 @@ def workflow_global_list(request):
     """
     Global workflows overview - all workflows across all playbooks.
     
-    Shows workflows from all playbooks owned by the user.
+    Shows workflows from all playbooks accessible to the user (owned + public + team).
     Useful for seeing workflow patterns and managing across playbooks.
     """
-    # Get all workflows from user's owned playbooks
-    workflows = Workflow.objects.filter(
-        playbook__author=request.user,
-        playbook__source='owned'
-    ).select_related('playbook').order_by('playbook__name', 'order')
+    # Get all workflows via service
+    workflows = WorkflowService.list_global_workflows(request.user)
     
     # Count unique playbooks
     playbook_count = workflows.values('playbook').distinct().count()
@@ -128,9 +132,8 @@ def workflow_detail(request, playbook_pk, pk):
 
     # Fetch activities and generate graph
     from methodology.services.activity_graph_service import ActivityGraphService
-    from methodology.models import Activity
-    
-    activities = Activity.objects.filter(workflow=workflow)
+
+    activities = ActivityService.get_activities_for_workflow(workflow)
     activity_count = activities.count()
     
     # Generate SVG graph if activities exist

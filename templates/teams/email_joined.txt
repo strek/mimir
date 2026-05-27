@@ -1,0 +1,12 @@
+Hi {{ user.get_full_name|default:user.username }},
+
+You've successfully joined the {{ team.name }} team on Mimir!
+
+You now have access to the team's shared playbooks and can collaborate with
+other team members.
+
+View your team:
+{{ base_url }}/teams/{{ team.pk }}/
+
+Best,
+The Mimir Team

@@ -52,7 +52,7 @@
                                    data-testid="name-input"
                                    required>
                             {% if errors.name %}
-                                <div class="invalid-feedback">{{ errors.name }}</div>
+                                <div class="invalid-feedback" data-testid="name-error">{{ errors.name }}</div>
                             {% endif %}
                             <small class="form-text text-muted">Unique name for this activity (max 200 characters)</small>
                         </div>

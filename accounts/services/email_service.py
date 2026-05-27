@@ -1,7 +1,8 @@
 """
 Transactional email for accounts — uses Django ``EMAIL_BACKEND``.
 
-In development: console backend prints to stdout.
+All outbound mail is **plain text only** with absolute ``https://…`` links
+(see ``FRONTEND_URL``). In development: console backend prints to stdout.
 In production: ``django_ses.SESBackend`` (see ``mimir.settings.prod``).
 Tests: ``locmem`` backend and ``django.core.mail.outbox``.
 """
@@ -12,8 +13,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
+from django.core.mail import send_mail
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractBaseUser
@@ -22,32 +22,37 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Send multipart (text + HTML) email via Django's mail API."""
+    """Send plain-text transactional email via Django's mail API."""
 
     @staticmethod
-    def _send_multipart(
-        subject: str,
-        text_body: str,
-        html_body: str,
-        to_addresses: list[str],
-    ) -> None:
-        """Send one email with plain-text and HTML alternatives.
+    def get_site_base_url() -> str:
+        """Return configured site origin without trailing slash."""
+        return getattr(settings, "FRONTEND_URL", "http://localhost:8000").rstrip("/")
+
+    @staticmethod
+    def build_absolute_url(path: str, *, base_url: str | None = None) -> str:
+        """Join *path* (``/teams/1/``) with site origin → full URL."""
+        root = (base_url or EmailService.get_site_base_url()).rstrip("/")
+        normalized = path if path.startswith("/") else f"/{path}"
+        return f"{root}{normalized}"
+
+    @staticmethod
+    def send_text_email(subject: str, body: str, to_addresses: list[str]) -> None:
+        """Send one plain-text email.
 
         :param subject: Email subject line.
-        :param text_body: Plain-text body.
-        :param html_body: HTML body.
+        :param body: Plain-text body (include full URLs for links).
         :param to_addresses: Recipient list (not logged — privacy).
         :raises Exception: Re-raises any failure from Django's mail layer.
         """
         sender = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@mimir.local")
-        msg = EmailMultiAlternatives(
+        send_mail(
             subject=subject,
-            body=text_body,
+            message=body,
             from_email=sender,
-            to=to_addresses,
+            recipient_list=to_addresses,
+            fail_silently=False,
         )
-        msg.attach_alternative(html_body, "text/html")
-        msg.send()
         logger.info(
             "[EMAIL] Sent subject=%r to_n=%d from_backend=%s",
             subject,
@@ -62,9 +67,11 @@ class EmailService:
         :param user: Django user with ``email`` set.
         :raises Exception: If delivery fails.
         """
+        base_url = EmailService.get_site_base_url()
+        login_url = EmailService.build_absolute_url("/auth/user/login/", base_url=base_url)
+        name = user.first_name or user.username
         subject = "Welcome to Mimir!"
-        body_text = f"""
-Hello {user.first_name or user.username},
+        body = f"""Hello {name},
 
 Welcome to Mimir! Your account has been successfully created.
 
@@ -73,30 +80,14 @@ You can now start creating playbooks and workflows to organize your development 
 Username: {user.username}
 Email: {user.email}
 
+Log in: {login_url}
+
 If you have any questions, please don't hesitate to reach out.
 
 Best regards,
 The Mimir Team
 """
-        body_html = f"""
-<html>
-<head></head>
-<body>
-  <h1>Welcome to Mimir!</h1>
-  <p>Hello {user.first_name or user.username},</p>
-  <p>Your account has been successfully created.</p>
-  <p>You can now start creating playbooks and workflows to organize your development processes.</p>
-  <p><strong>Account Details:</strong></p>
-  <ul>
-    <li>Username: {user.username}</li>
-    <li>Email: {user.email}</li>
-  </ul>
-  <p>If you have any questions, please don't hesitate to reach out.</p>
-  <p>Best regards,<br>The Mimir Team</p>
-</body>
-</html>
-"""
-        EmailService._send_multipart(subject, body_text, body_html, [user.email])
+        EmailService.send_text_email(subject, body, [user.email])
 
     @staticmethod
     def send_password_reset_email(user: AbstractBaseUser, reset_token: str) -> None:
@@ -106,15 +97,15 @@ The Mimir Team
         :param reset_token: Opaque reset token from Django's auth framework.
         :raises Exception: If delivery fails.
         """
-        base_url = getattr(settings, "FRONTEND_URL", "https://mimir.featurefactory.io")
-        reset_url = f"{base_url.rstrip('/')}/reset-password?token={reset_token}"
+        base_url = EmailService.get_site_base_url()
+        reset_url = f"{base_url}/reset-password?token={reset_token}"
+        name = user.first_name or user.username
         subject = "Password Reset Request"
-        body_text = f"""
-Hello {user.first_name or user.username},
+        body = f"""Hello {name},
 
 You requested a password reset for your Mimir account.
 
-Click the link below to reset your password:
+Reset your password at:
 {reset_url}
 
 This link will expire in 24 hours.
@@ -124,21 +115,7 @@ If you didn't request this, please ignore this email.
 Best regards,
 The Mimir Team
 """
-        body_html = f"""
-<html>
-<head></head>
-<body>
-  <h1>Password Reset Request</h1>
-  <p>Hello {user.first_name or user.username},</p>
-  <p>You requested a password reset for your Mimir account.</p>
-  <p><a href="{reset_url}">Click here to reset your password</a></p>
-  <p>This link will expire in 24 hours.</p>
-  <p>If you didn't request this, please ignore this email.</p>
-  <p>Best regards,<br>The Mimir Team</p>
-</body>
-</html>
-"""
-        EmailService._send_multipart(subject, body_text, body_html, [user.email])
+        EmailService.send_text_email(subject, body, [user.email])
 
     @staticmethod
     def send_verification_email(
@@ -154,10 +131,21 @@ The Mimir Team
         :param base_url: Site origin (default: ``settings.FRONTEND_URL``).
         :raises Exception: If delivery fails.
         """
-        root = (base_url or getattr(settings, "FRONTEND_URL", "")).rstrip("/")
-        verify_url = f"{root}/auth/user/verify-email/{token}/"
-        ctx = {"user": user, "verify_url": verify_url}
-        text_body = render_to_string("accounts/email_verify.txt", ctx)
-        html_body = render_to_string("accounts/email_verify.html", ctx)
+        verify_url = EmailService.build_absolute_url(
+            f"/auth/user/verify-email/{token}/",
+            base_url=base_url,
+        )
+        name = user.first_name or user.username
         subject = "Verify your Mimir email address"
-        EmailService._send_multipart(subject, text_body, html_body, [user.email])
+        body = f"""Hello {name},
+
+Please verify your Mimir email address by visiting the link below (valid for 24 hours):
+
+{verify_url}
+
+If you did not create a Mimir account, you can ignore this email.
+
+Best regards,
+The Mimir Team
+"""
+        EmailService.send_text_email(subject, body, [user.email])

@@ -21,11 +21,17 @@ from methodology.forms.playbook_forms import (
     PlaybookPublishingForm,
     PlaybookWorkflowForm,
 )
-from methodology.models import Playbook, Workflow
+from methodology.models import Playbook
 from methodology.services.playbook_service import PlaybookService
 from methodology.services.workflow_service import WorkflowService
 
 logger = logging.getLogger(__name__)
+
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
 
 
 def _wizard_skip_requested(post_data) -> bool:
@@ -89,25 +95,28 @@ def _playbook_readable_or_404(request, pk):
 @login_required
 def playbook_list(request):
     """
-    List playbooks visible to the current user (owned + public by others).
+    List playbooks visible to the current user (owned + public by others + team-shared).
 
     Template: playbooks/list.html
     Context:
         playbooks — owned playbooks
         public_playbooks — other authors' public, non-draft playbooks
-        has_playbooks — True when either list is non-empty
+        team_playbooks — playbooks shared via team membership
+        has_playbooks — True when any list is non-empty
 
     :param request: Django request object
     :return: Rendered list template
     """
     playbooks = PlaybookService.list_playbooks(author=request.user)
     public_playbooks = PlaybookService.list_public_playbooks(request.user)
-    has_playbooks = bool(playbooks or public_playbooks)
+    team_playbooks = PlaybookService.list_team_playbooks_for_user(request.user)
+    has_playbooks = bool(playbooks or public_playbooks or team_playbooks)
     logger.info(
-        "User %s viewing playbook list (%s owned, %s public by others, has_any=%s)",
+        "User %s viewing playbook list (%s owned, %s public by others, %s team, has_any=%s)",
         request.user.username,
         len(playbooks),
         len(public_playbooks),
+        len(team_playbooks),
         has_playbooks,
     )
     return render(
@@ -116,6 +125,7 @@ def playbook_list(request):
         {
             "playbooks": playbooks,
             "public_playbooks": public_playbooks,
+            "team_playbooks": team_playbooks,
             "has_playbooks": has_playbooks,
         },
     )
@@ -141,7 +151,7 @@ def playbook_create(request):
             name = form.cleaned_data['name']
 
             # Check for duplicate name (requires user context, not in form)
-            if Playbook.objects.filter(author=request.user, name=name).exists():
+            if PlaybookService.author_has_playbook_named(request.user, name):
                 form.add_error('name', 'A playbook with this name already exists')
                 return render(request, 'playbooks/create_wizard_step1.html', {'form': form})
 
@@ -301,7 +311,7 @@ def playbook_detail(request, pk):
     :return: Rendered detail template
     """
     playbook = _playbook_readable_or_404(request, pk)
-    workflows = Workflow.objects.filter(playbook=playbook).order_by('order', 'created_at')
+    workflows = WorkflowService.get_workflows_for_playbook(playbook.pk)
     quick_stats = playbook.get_quick_stats()
     can_edit = playbook.can_edit(request.user)
 

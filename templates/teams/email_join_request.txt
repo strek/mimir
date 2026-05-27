@@ -1,0 +1,10 @@
+Hi {{ team.admin.get_full_name|default:team.admin.username }},
+
+{{ user.get_full_name|default:user.username }} ({{ user.username }}) has requested
+to join your team "{{ team.name }}" on Mimir.
+
+To approve or reject this request, visit:
+{{ base_url }}/teams/{{ team.pk }}/manage/?tab=join-requests
+
+Best,
+The Mimir Team

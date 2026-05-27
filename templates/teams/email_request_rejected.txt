@@ -1,0 +1,8 @@
+Hi {{ user.get_full_name|default:user.username }},
+
+Your request to join the "{{ team.name }}" team was not approved at this time.
+
+If you have questions, please reach out to the team admin directly.
+
+Best,
+The Mimir Team

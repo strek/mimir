@@ -1,0 +1,8 @@
+Hi {{ user.get_full_name|default:user.username }},
+
+You have been removed from the "{{ team.name }}" team on Mimir.
+
+If you believe this was a mistake, please contact the team admin.
+
+Best,
+The Mimir Team

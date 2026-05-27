@@ -24,7 +24,7 @@ from accounts.models import (
     mark_onboarding_completed,
 )
 from accounts.services.email_service import EmailService
-from methodology.models import Playbook, ProcessImprovementProposal
+from methodology.models import Playbook, ProcessImprovementProposal, TeamMembership
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,19 @@ def _profile_pips_for(user):
         ProcessImprovementProposal.objects.filter(created_by=user)
         .select_related("playbook")
         .order_by("-updated_at")[:_PROFILE_PIPS_LIMIT]
+    )
+
+
+def _profile_team_memberships_for(user):
+    """Return team memberships for user, ordered by team name.
+
+    :param user: User whose memberships to fetch.
+    :returns: QuerySet of TeamMembership with team pre-fetched.
+    """
+    return (
+        TeamMembership.objects.filter(user=user)
+        .select_related("team")
+        .order_by("team__name")
     )
 
 
@@ -271,7 +284,7 @@ def custom_logout_view(request):
 
 @login_required
 def profile_view(request):
-    """FOB profile: account fields, API token, PIPs and playbooks for the current user."""
+    """FOB profile: account fields, API token, PIPs, playbooks, and teams for the current user."""
     user = request.user
     logger.info(
         "[PROFILE] Page GET user_id=%s username=%s",
@@ -281,11 +294,13 @@ def profile_view(request):
     token, _ = Token.objects.get_or_create(user=user)
     playbooks = _profile_playbooks_for(user)
     pips = _profile_pips_for(user)
+    team_memberships = _profile_team_memberships_for(user)
     logger.info(
-        "[PROFILE] Render user_id=%s playbook_count=%s pip_count=%s",
+        "[PROFILE] Render user_id=%s playbook_count=%s pip_count=%s team_count=%s",
         user.pk,
         len(playbooks),
         len(pips),
+        team_memberships.count(),
     )
     return render(
         request,
@@ -298,6 +313,7 @@ def profile_view(request):
             "api_token": token.key,
             "playbooks": playbooks,
             "pips": pips,
+            "team_memberships": team_memberships,
         },
     )
 
@@ -583,6 +599,13 @@ def verify_email(request, token: str):
             },
         )
     mark_email_verified(user)
+    
+    # Activate user if currently inactive (e.g., from team invite auto-registration)
+    if not user.is_active:
+        user.is_active = True
+        user.save(update_fields=["is_active"])
+        logger.info("[VERIFY_EMAIL] Activated user_id=%s (was inactive)", user.pk)
+    
     messages.success(
         request,
         "Your email has been verified. You can sign in now.",

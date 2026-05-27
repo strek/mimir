@@ -8,6 +8,7 @@ import logging
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import transaction
 from django.db import models
+from django.db.models import Q
 
 from methodology.models import Phase, Playbook
 from methodology.services.playbook_service import PlaybookService
@@ -196,6 +197,40 @@ class PhaseService:
             logger.info(f"Deleted phase {phase_id}")
             return {'deleted': True}
     
+    @staticmethod
+    def list_phases_global(user, query=None, playbook_filter=None):
+        """
+        Return phases from all playbooks accessible to user (owned + public + team).
+
+        :param user: Django user
+        :param query: Optional search string (name/description)
+        :param playbook_filter: Optional Playbook instance to narrow results
+        :returns: Tuple of (phases QuerySet, total_count before query filter)
+        """
+        logger.info("Listing global phases for user id=%s", getattr(user, "pk", user))
+        accessible_playbook_ids = PlaybookService.get_accessible_playbook_ids(user)
+        phases = Phase.objects.filter(
+            playbook_id__in=accessible_playbook_ids
+        ).select_related("playbook")
+        if playbook_filter is not None:
+            phases = phases.filter(playbook_id=playbook_filter.pk)
+
+        total_count = phases.count()
+
+        if query:
+            phases = phases.filter(
+                Q(name__icontains=query) | Q(description__icontains=query)
+            )
+
+        phases = phases.order_by("playbook__name", "order")
+        logger.info(
+            "User id=%s has access to %s global phases (%s after filter)",
+            getattr(user, "pk", user),
+            total_count,
+            phases.count(),
+        )
+        return phases, total_count
+
     @staticmethod
     def list_phases(playbook_id, user):
         """

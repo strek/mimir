@@ -35,7 +35,7 @@ from methodology.api.viewsets import (
 )
 from methodology.api.viewsets_resources import (
     SkillViewSet, AgentViewSet, ArtifactViewSet,
-    ArtifactInputViewSet, PhaseViewSet, RuleViewSet, PIPViewSet
+    ArtifactInputViewSet, PhaseViewSet, RuleViewSet, PIPViewSet, TeamViewSet
 )
 from methodology.api.bug_report_views import BugReportSubmitView
 from methodology import feedback_views
@@ -53,6 +53,7 @@ router.register(r'artifact-inputs', ArtifactInputViewSet, basename='api-artifact
 router.register(r'phases', PhaseViewSet, basename='api-phase')
 router.register(r'rules', RuleViewSet, basename='api-rule')
 router.register(r'pips', PIPViewSet, basename='api-pip')
+router.register(r'teams', TeamViewSet, basename='api-team')
 
 urlpatterns = [
     path("health/", health_views.health_check, name="health_check"),
@@ -72,6 +73,7 @@ urlpatterns = [
     ),
     path("api/auth/", include("accounts.api_urls")),  # Registration, token refresh, etc.
     path("auth/", include("accounts.urls")),  # Changed from accounts/ per SAO.md URL convention
+    path("notifications/", include("methodology.notification_urls")),
     # Legal documents (public, no login required)
     path("legal/privacy/", legal_views.privacy_policy, name="privacy_policy"),
     path("legal/privacy/pdf/", legal_views.privacy_policy_pdf, name="privacy_policy_pdf"),
@@ -98,6 +100,7 @@ urlpatterns = [
     path("pips/<int:pk>/admin-review/", pip_views.pip_admin_review, name="pip_admin_review"),
     path("search/", methodology_views.global_search, name="global_search"),
     path("search/suggestions/", methodology_views.global_search_suggestions, name="global_search_suggestions"),
+    path("teams/", include("methodology.team_urls")),
     path("playbooks/", include("methodology.playbook_urls")),
     path("playbooks/", include("methodology.workflow_urls")),  # Workflow URLs scoped to playbook
     path("playbooks/<int:playbook_pk>/workflows/<int:workflow_pk>/activities/", include("methodology.activity_urls")),  # Activity URLs scoped to workflow

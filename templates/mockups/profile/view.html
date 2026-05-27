@@ -193,23 +193,23 @@
                                data-testid="profile-pips-table">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Title</th>
+                                    <th class="ps-3">Title</th>
                                     <th>Playbook</th>
                                     <th>Status</th>
-                                    <th></th>
+                                    <th class="pe-3"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for pip in pips %}
                                 <tr>
-                                    <td>{{ pip.title }}</td>
+                                    <td class="ps-3">{{ pip.title }}</td>
                                     <td>{{ pip.playbook_name }}</td>
                                     <td>
                                         <span class="badge {{ pip.status_css }}">
                                             {{ pip.status_display }}
                                         </span>
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end pe-3">
                                         <a href="{% url 'mockup_pip_detail' pip.pk %}"
                                            class="btn btn-sm btn-outline-secondary">View</a>
                                     </td>
@@ -219,6 +219,81 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ── My Teams ─────────────────────────────────────────────────── -->
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold">
+                        <i class="fas fa-users-rectangle me-1"></i> My Teams
+                    </span>
+                    <a href="{% url 'mockup_teams_browse' %}" class="btn btn-sm btn-outline-primary">
+                        Browse Teams
+                    </a>
+                </div>
+                {% if teams %}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0"
+                               data-testid="profile-teams-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Team</th>
+                                    <th style="width:10%">Role</th>
+                                    <th style="width:10%">Visibility</th>
+                                    <th style="width:8%" class="text-center">Members</th>
+                                    <th style="width:8%" class="text-center">Playbooks</th>
+                                    <th style="width:8%" class="pe-3"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in teams %}
+                                <tr data-testid="profile-team-row-{{ t.id }}">
+                                    <td class="ps-3">
+                                        <i class="fas fa-users-rectangle text-primary me-1"></i>
+                                        <strong>{{ t.name }}</strong>
+                                        <span class="text-muted small ms-1">{{ t.category }}</span>
+                                    </td>
+                                    <td>
+                                        {% if t.maria_role == "admin" %}
+                                        <span class="badge bg-warning text-dark"
+                                              data-bs-toggle="tooltip" title="You are the team admin">
+                                            <i class="fas fa-crown me-1"></i>Admin
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-light text-dark border">Member</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ t.visibility_css }}">{{ t.visibility }}</span>
+                                    </td>
+                                    <td class="text-center text-muted small">{{ t.member_count }}</td>
+                                    <td class="text-center text-muted small">{{ t.playbook_count }}</td>
+                                    <td class="text-end pe-3">
+                                        <a href="{% url 'mockup_teams_detail' team_id=t.id %}"
+                                           class="btn btn-sm btn-outline-secondary"
+                                           data-testid="profile-view-team-{{ t.id }}"
+                                           data-bs-toggle="tooltip" title="View team">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card-body text-center py-4" data-testid="profile-teams-empty">
+                    <i class="fas fa-users-slash fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-2">You haven't joined any teams yet.</p>
+                    <a href="{% url 'mockup_teams_browse' %}" class="btn btn-sm btn-outline-primary">
+                        Browse Teams
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -239,23 +314,23 @@
                                data-testid="profile-playbooks-table">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Name</th>
+                                    <th class="ps-3">Name</th>
                                     <th>Version</th>
                                     <th>Status</th>
-                                    <th></th>
+                                    <th class="pe-3"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for pb in playbooks %}
                                 <tr>
-                                    <td>{{ pb.name }}</td>
+                                    <td class="ps-3">{{ pb.name }}</td>
                                     <td>v{{ pb.version }}</td>
                                     <td>
                                         <span class="badge {{ pb.status_css }}">
                                             {{ pb.status_display }}
                                         </span>
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end pe-3">
                                         <a href="{% url 'playbook_detail' pb.pk %}"
                                            class="btn btn-sm btn-outline-secondary">View</a>
                                     </td>

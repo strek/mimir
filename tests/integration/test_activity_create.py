@@ -99,9 +99,10 @@ class TestActivityCreate:
         }
         response = self.client.post(url, data)
         
-        # Should stay on form with error
+        # Should stay on form with inline field error
         assert response.status_code == 200
-        assert b'Activity name cannot be empty' in response.content or b'This field is required' in response.content
+        assert b'data-testid="name-error"' in response.content
+        assert b'Activity name cannot be empty' in response.content
         
         # Activity should not be created
         assert Activity.objects.count() == 0

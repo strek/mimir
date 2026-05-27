@@ -17,12 +17,18 @@ from methodology.services.skill_service import SkillService
 
 logger = logging.getLogger(__name__)
 
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
+
 
 # ==================== HELPERS ====================
 
 def _get_playbook_or_deny(request, playbook_pk):
     """
-    Retrieve playbook and verify ownership.
+    Retrieve playbook and verify view access (owner, team share, or public).
 
     :param request: Django request object
     :param playbook_pk: Playbook primary key
@@ -31,10 +37,11 @@ def _get_playbook_or_deny(request, playbook_pk):
     """
     playbook = get_object_or_404(Playbook, pk=playbook_pk)
 
-    if playbook.source == 'owned' and playbook.author != request.user:
+    if not playbook.can_view(request.user):
         logger.warning(
-            "User %s denied access to playbook %s (not owner)",
-            request.user.username, playbook_pk,
+            "User %s denied access to playbook %s (no view access)",
+            request.user.username,
+            playbook_pk,
         )
         messages.error(request, "You don't have permission to access this playbook.")
         return None

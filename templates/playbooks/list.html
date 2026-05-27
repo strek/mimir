@@ -98,13 +98,16 @@
         </a>
     </div>
 
-    <!-- Playbooks List (owned + public by others in one grid) -->
+    <!-- Playbooks List (owned + public by others + team-shared in one grid) -->
     {% if has_playbooks %}
         <div class="row" data-testid="playbooks-list-section">
             {% for playbook in playbooks %}
                 {% include "playbooks/_playbook_list_card.html" %}
             {% endfor %}
             {% for playbook in public_playbooks %}
+                {% include "playbooks/_playbook_list_card.html" %}
+            {% endfor %}
+            {% for playbook in team_playbooks %}
                 {% include "playbooks/_playbook_list_card.html" %}
             {% endfor %}
         </div>

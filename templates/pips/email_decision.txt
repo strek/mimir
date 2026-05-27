@@ -14,3 +14,9 @@ Change {{ forloop.counter }}: {{ change.change_type }} {{ change.entity_type }} 
 
 {% endfor %}
 Overall: {{ verdict }}. {% if version_bump and new_version %}{{ pip.playbook.name }} is now v{{ new_version }}.{% endif %}
+
+View PIP details:
+{{ base_url }}/pips/{{ pip.pk }}/
+
+Best,
+The Mimir Team

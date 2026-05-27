@@ -9,12 +9,18 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 
-from methodology.models import Playbook, Activity, Artifact
+from methodology.models import Playbook, Artifact
 from methodology.services.artifact_service import ArtifactService
+from methodology.services.activity_service import ActivityService
 
 logger = logging.getLogger(__name__)
+
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
 
 
 # ==================== GLOBAL LIST ====================
@@ -38,21 +44,8 @@ def artifact_list_global(request):
     """
     query = request.GET.get('q', '').strip()
     
-    # Get all artifacts from user's owned playbooks
-    artifacts = Artifact.objects.filter(
-        playbook__author=request.user,
-        playbook__source='owned'
-    ).select_related(
-        'playbook', 'produced_by', 'produced_by__workflow'
-    ).order_by('playbook__name', 'name')
-    
-    total_count = artifacts.count()
-    
-    # Apply search filter if provided
-    if query:
-        artifacts = artifacts.filter(
-            Q(name__icontains=query) | Q(description__icontains=query)
-        )
+    artifacts = ArtifactService.list_artifacts_global(request.user, query=query or None)
+    total_count = ArtifactService.list_artifacts_global(request.user).count()
     
     logger.info(
         f"User {request.user.username} viewing global artifact list"
@@ -124,10 +117,10 @@ def artifact_create(request, playbook_pk):
             return _render_create_form(request, playbook, request.POST, {})
 
         try:
-            produced_by = Activity.objects.select_related("workflow").get(
-                pk=int(produced_by_id), workflow__playbook=playbook
+            produced_by = ActivityService.get_activity_for_playbook(
+                int(produced_by_id), playbook
             )
-        except (Activity.DoesNotExist, ValueError):
+        except (ValueError, Exception):
             messages.error(request, "Invalid producer activity selected.")
             return _render_create_form(request, playbook, request.POST, {})
 
@@ -161,13 +154,7 @@ def artifact_create(request, playbook_pk):
 
 def _render_create_form(request, playbook, form_data, errors):
     """Helper to render create form with context."""
-    # Get all activities in playbook for producer selection
-    # Use select_related to avoid N+1 queries
-    activities = (
-        Activity.objects.filter(workflow__playbook=playbook)
-        .select_related("workflow")
-        .order_by("workflow__order", "order")
-    )
+    activities = ActivityService.list_activities_for_playbook(playbook.pk, request.user)
 
     context = {
         "playbook": playbook,
@@ -205,19 +192,9 @@ def artifact_detail(request, pk):
     """
     logger.info(f"User {request.user.username} viewing artifact {pk}")
 
-    # Get artifact with related objects
-    artifact = get_object_or_404(
-        Artifact.objects.select_related(
-            "produced_by", "produced_by__workflow", "playbook"
-        ).prefetch_related("inputs__activity", "inputs__activity__workflow"),
-        pk=pk,
-    )
-
-    # Check if user has access
-    if artifact.playbook.source == "owned" and artifact.playbook.author != request.user:
-        logger.warning(
-            f"User {request.user.username} attempted to access artifact {pk} they don't own"
-        )
+    try:
+        artifact = ArtifactService.get_artifact_for_user(pk, request.user)
+    except Exception:
         messages.error(request, "You don't have permission to view this artifact.")
         return redirect("playbook_list")
 
@@ -263,16 +240,9 @@ def artifact_edit(request, pk):
     """
     logger.info(f"User {request.user.username} accessing artifact edit for {pk}")
 
-    # Get artifact with permission check
-    artifact = get_object_or_404(
-        Artifact.objects.select_related("produced_by", "playbook"), pk=pk
-    )
-
-    # Check edit permission
-    if not artifact.playbook.is_owned_by(request.user):
-        logger.warning(
-            f"User {request.user.username} attempted to edit artifact without permission"
-        )
+    try:
+        artifact = ArtifactService.get_artifact_for_user(pk, request.user, write=True)
+    except Exception:
         messages.error(request, "You don't have permission to edit this artifact.")
         return redirect("artifact_detail", pk=pk)
 
@@ -296,11 +266,11 @@ def artifact_edit(request, pk):
         # Handle producer change
         if produced_by_id:
             try:
-                produced_by = Activity.objects.get(
-                    pk=int(produced_by_id), workflow__playbook=artifact.playbook
+                produced_by = ActivityService.get_activity_for_playbook(
+                    int(produced_by_id), artifact.playbook
                 )
                 update_data["produced_by"] = produced_by
-            except (Activity.DoesNotExist, ValueError):
+            except (ValueError, Exception):
                 messages.error(request, "Invalid producer activity selected.")
                 return _render_edit_form(request, artifact, request.POST, {})
 
@@ -335,11 +305,8 @@ def artifact_edit(request, pk):
 
 def _render_edit_form(request, artifact, form_data, errors):
     """Helper to render edit form with context."""
-    # Get all activities in playbook for producer selection
-    activities = (
-        Activity.objects.filter(workflow__playbook=artifact.playbook)
-        .select_related("workflow")
-        .order_by("workflow__order", "order")
+    activities = ActivityService.list_activities_for_playbook(
+        artifact.playbook.pk, request.user
     )
 
     context = {
@@ -392,7 +359,7 @@ def artifact_list(request, playbook_id):
         return redirect("playbook_list")
 
     filters = _parse_list_filters(request.GET)
-    total_count = Artifact.objects.filter(playbook=playbook).count()
+    total_count = ArtifactService.count_artifacts_for_playbook(playbook)
     
     artifacts = ArtifactService.search_artifacts(
         playbook=playbook,
@@ -402,7 +369,7 @@ def artifact_list(request, playbook_id):
         activity_filter=filters['activity_filter'],
     )
 
-    context = _build_list_context(playbook, artifacts, filters, total_count)
+    context = _build_list_context(playbook, request.user, artifacts, filters, total_count)
     
     logger.info(
         f"Artifact list rendered: {artifacts.count()} artifacts "
@@ -416,14 +383,14 @@ def artifact_list(request, playbook_id):
 def _get_playbook_with_permission_check(request, playbook_id):
     """Get playbook and check user permissions."""
     playbook = get_object_or_404(Playbook, pk=playbook_id)
-    
-    if playbook.source == "owned" and playbook.author != request.user:
+
+    if not playbook.can_view(request.user):
         logger.warning(
             f"User {request.user.username} attempted to access artifact list without permission"
         )
         messages.error(request, "You don't have permission to view this playbook.")
         return None
-    
+
     return playbook
 
 
@@ -457,13 +424,9 @@ def _parse_list_filters(get_params):
     }
 
 
-def _build_list_context(playbook, artifacts, filters, total_count):
+def _build_list_context(playbook, user, artifacts, filters, total_count):
     """Build template context for artifact list."""
-    activities = (
-        Activity.objects.filter(workflow__playbook=playbook)
-        .select_related("workflow")
-        .order_by("workflow__order", "order")
-    )
+    activities = ActivityService.list_activities_for_playbook(playbook.pk, user)
 
     return {
         "playbook": playbook,
@@ -516,21 +479,14 @@ def artifact_delete(request, pk):
 
 def _get_artifact_with_permission_check(request, pk):
     """Get artifact with optimized queries and check permissions."""
-    artifact = get_object_or_404(
-        Artifact.objects.select_related("produced_by", "playbook").prefetch_related(
-            "inputs__activity", "inputs__activity__workflow"
-        ),
-        pk=pk,
-    )
-
-    if not artifact.playbook.is_owned_by(request.user):
+    try:
+        return ArtifactService.get_artifact_for_user(pk, request.user, write=True)
+    except Exception:
         logger.warning(
             f"User {request.user.username} attempted to delete artifact without permission"
         )
         messages.error(request, "You don't have permission to delete this artifact.")
         return None
-    
-    return artifact
 
 
 def _handle_artifact_deletion(request, artifact):

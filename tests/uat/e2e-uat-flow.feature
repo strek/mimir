@@ -26,6 +26,7 @@ Feature: Mimir E2E UAT — browser-only flow (registration → GUI CRUDL → rel
     | J5      | UAT-05-00, UAT-05-01                                 | MCP-06 (release), MCP-07 (guard)       |
     | J6 GUI  | UAT-06-00, UAT-06-01-neg, UAT-06-02, UAT-06-06      | MCP-08/08b/08c/09                      |
     | J7      | UAT-07-01, UAT-07-02                                 | MCP-11 (post-finalize inventory)       |
+    | J8      | UAT-08-00 … UAT-08-10 (Teams: browse/create/detail/join/manage/leave/profile) | — |
 
   ==============================================================================
   OPERATOR SCRIPT CONTRACT
@@ -66,6 +67,7 @@ Feature: Mimir E2E UAT — browser-only flow (registration → GUI CRUDL → rel
     <PIP_NEG_PK>          — throwaway PIP for UAT-06-01-neg editor validations
     <PIP_GUI_PK>          — browser PIP RECORD (UAT-06-02)
     <PIP_MCP_PK>          — MCP PIP RECORD from mcp-uat-flow MCP-08 (used in UAT-06-06/07-01/07-02)
+    <TEAM_PK>             — UAT-08-01 RECORD; used in UAT-08-04 … UAT-08-10
 
   SHARED ACTORS: uat_user (browser); admin (Django admin J7). MCP actor in mcp-uat-flow.feature.
 
@@ -481,6 +483,179 @@ Feature: Mimir E2E UAT — browser-only flow (registration → GUI CRUDL → rel
   #   get_pip status accepted) is covered by mcp-uat-flow.feature MCP-11.
   # Run mcp-uat-flow.feature MCP-11 after completing UAT-07-02.
 #############################################################################
+# Journey 8 — Teams: browse → create → detail → join → manage → leave
+#############################################################################
+
+  @manual @uat @act-11
+  Scenario: UAT-08-00 Navigate to Teams from dashboard
+    # STEP — Reach Teams browser
+    # DO: navbar `[data-testid="nav-teams"]` OR dashboard `[data-testid="browse-teams-btn"]`
+    # SEE: URL `/teams/` AND `[data-testid="teams-browse-page"]`
+    # IF DIFFER: UAT-08-00
+
+  @manual @uat @act-11
+  Scenario: UAT-08-01 Create a team RECORD <TEAM_PK>
+    # STEP — Open create form
+    # DO: `[data-testid="create-team-btn"]` → URL `/teams/create/` AND `[data-testid="team-create-form"]`
+    # STEP — Fill and submit
+    # DO: name input `UAT Test Team`; description `A team for UAT testing`; Visibility `Public`; Join Policy `Auto-approve`; Category `Engineering`; `[data-testid="team-create-submit"]`
+    # SEE: redirect `/teams/<pk>/` AND `[data-testid="team-detail-page"]` AND `[data-testid="alert-message"]` text includes `Team 'UAT Test Team' created successfully`
+    # SEE: `[data-testid="team-info-card"]` shows `UAT Test Team`
+    # RECORD `<TEAM_PK>` from URL
+    # IF DIFFER: UAT-08-01
+
+  @manual @uat @act-11 @negatives-split
+  Scenario: UAT-08-02 Create team validation — name required
+    # DO: GET `/teams/create/`; clear name field; submit `[data-testid="team-create-submit"]`
+    # SEE: stays on `/teams/create/` AND inline error `Team name is required.`
+    # IF DIFFER: UAT-08-02
+
+  @manual @uat @act-11
+  Scenario: UAT-08-03 Browse shows new team card with search
+    # DO: GET `/teams/`
+    # SEE: card `[data-testid="team-card-uat-test-team"]` visible
+    # DO: `[data-testid="teams-search-input"]` type `UAT`
+    # SEE: `UAT Test Team` in results; other unrelated teams not shown
+    # IF DIFFER: UAT-08-03
+
+  @manual @uat @act-11
+  Scenario: UAT-08-04 Second user joins team (Auto-approve) and sees leave button
+    # Pre: log in as admin user (different browser session)
+    # DO: GET `/teams/<TEAM_PK>/`
+    # SEE: `[data-testid="team-join-btn"]` visible
+    # DO: click `[data-testid="team-join-btn"]`
+    # SEE: `[data-testid="alert-message"]` includes `joined` AND `UAT Test Team`
+    # SEE: `[data-testid="team-leave-btn"]` appears; `[data-testid="team-join-btn"]` gone
+    # IF DIFFER: UAT-08-04
+
+  @manual @uat @act-11
+  Scenario: UAT-08-05 Team detail Members tab shows both members
+    # Pre: as uat_user (UAT Test Team admin)
+    # DO: GET `/teams/<TEAM_PK>/` → click `[data-testid="team-tab-members"]`
+    # SEE: table shows uat_user row AND admin user row
+    # IF DIFFER: UAT-08-05
+
+  @manual @uat @act-11
+  Scenario: UAT-08-06 Manage page accessible to team admin — all tabs present
+    # Pre: as uat_user
+    # DO: `[data-testid="team-manage-btn"]` → URL `/teams/<TEAM_PK>/manage/`
+    # SEE: `[data-testid="team-manage-page"]` AND tabs `[data-testid="team-tab-members"]` `[data-testid="team-tab-join-requests"]` `[data-testid="team-tab-playbooks"]` `[data-testid="team-settings-tab"]` `[data-testid="team-tab-invite"]`
+    # IF DIFFER: UAT-08-06
+
+  @manual @uat @act-11
+  Scenario: UAT-08-07 Manage Settings — update Join Policy
+    # DO: `[data-testid="team-settings-tab"]` → change Join Policy to `Requires Approval` → `[data-testid="settings-save-btn"]`
+    # SEE: `[data-testid="alert-message"]` includes `Team settings updated`
+    # DO: GET `/teams/<TEAM_PK>/`
+    # SEE: info card shows `Requires Approval`
+    # IF DIFFER: UAT-08-07
+
+  @manual @uat @act-11 @access-control
+  Scenario: UAT-08-08 Non-admin cannot access manage page
+    # Pre: as admin user (member, not admin of UAT Test Team)
+    # DO: GET `/teams/<TEAM_PK>/manage/`
+    # SEE: redirect `/teams/<TEAM_PK>/` AND `[data-testid="alert-message"]` includes `permission`
+    # IF DIFFER: UAT-08-08
+
+  @manual @uat @act-11
+  Scenario: UAT-08-09 Admin user leaves team via Leave button
+    # Pre: as admin user (member of UAT Test Team), re-join if needed via browse
+    # DO: GET `/teams/<TEAM_PK>/` → `[data-testid="team-leave-btn"]` → confirm in modal
+    # SEE: `[data-testid="alert-message"]` includes `left` AND `UAT Test Team`
+    # SEE: `[data-testid="team-join-btn"]` appears (back to non-member state)
+    # IF DIFFER: UAT-08-09
+
+  @manual @uat @act-11 @profile
+  Scenario: UAT-08-10 Profile page shows My Teams section with team row
+    # Pre: as uat_user
+    # DO: GET `/auth/user/profile/`
+    # SEE: `[data-testid="profile-teams-section"]` present
+    # SEE: `[data-testid="profile-teams-table"]` has row `[data-testid="profile-team-row-<TEAM_PK>"]`
+    # SEE: row shows `UAT Test Team`, `Admin` badge, `Public` visibility badge
+    # IF DIFFER: UAT-08-10
+
+  Scenario: UAT-08-11 — Delete team from Danger Zone (cascade deletes playbooks)
+    # GIVEN: User is admin of a team with a linked playbook
+    # ACT: Navigate to team manage panel → Danger Zone → Delete Team
+    # VERIFY: Team and linked playbooks are deleted from DB
+    #
+    # DO: `[data-testid="nav-teams"]` → browse page
+    # DO: Navigate to team detail for test team (create if needed)
+    # DO: On team detail, add a test playbook to team via manage panel
+    # DO: Navigate to manage panel → Danger Zone tab
+    # DO: Click `[data-testid="delete-team-btn"]`
+    # DO: Confirm deletion in modal
+    # SEE: Redirect to `/teams/` browse page
+    # SEE: Deleted team no longer appears in team list
+    # SEE: Linked playbook no longer exists in `/playbooks/` list
+    # IF DIFFER: UAT-08-11
+
+  Scenario: UAT-08-12 — Team playbook appears in /playbooks/ list for member
+    # GIVEN: User is member of a team with shared playbook (not authored by user)
+    # ACT: Navigate to /playbooks/
+    # VERIFY: Team's shared playbook appears in list alongside owned and public playbooks
+    #
+    # DO: Create a second user account (or use existing non-admin user)
+    # DO: Login as team admin, invite second user to team, approve join request
+    # DO: As admin, add a playbook to the team (playbook authored by admin)
+    # DO: Logout, login as second user (team member, not playbook author)
+    # DO: Navigate to `[data-testid="nav-playbooks"]`
+    # SEE: `/playbooks/` page shows team's shared playbook in list
+    # SEE: Playbook has team badge or indicator (design system dependent)
+    # IF DIFFER: UAT-08-12
+
+  Scenario: UAT-08-13 — Bell badge increments on team join request; mark-read clears it
+    # GIVEN: User is team admin with notification bell enabled
+    # ACT: Another user submits join request to team
+    # VERIFY: Bell badge shows unread count; clicking notification marks as read
+    #
+    # DO: Login as team admin
+    # DO: Note current notification bell badge count (or zero)
+    # DO: Create a join request from another user (via direct DB or second browser session)
+    # DO: Reload page or wait for notification
+    # SEE: `[data-testid="notification-badge"]` shows incremented count
+    # DO: Click `[data-testid="notification-bell"]` to open dropdown
+    # SEE: Notification dropdown shows "Join request for [Team Name]"
+    # DO: Click `[data-testid="mark-read-<NOTIFICATION_ID>"]` or mark all read
+    # SEE: Badge count decrements or disappears
+    # IF DIFFER: UAT-08-13
+
+  Scenario: UAT-08-14 — New-user invite: GET activation link → is_active=True, redirected to login
+    # GIVEN: Team admin invites a new email (not yet registered)
+    # ACT: New user clicks activation link from email
+    # VERIFY: User account is activated and redirected to login
+    #
+    # DO: Login as team admin
+    # DO: Navigate to team manage panel → Invitations tab
+    # DO: Enter new email (e.g., `newuser+uat@example.com`) in invite form
+    # DO: Submit invite
+    # SEE: Success message "Invitations sent"
+    # DO: Check test email outbox or logs for activation link
+    # DO: Extract activation link `/auth/user/verify-email/<TOKEN>/`
+    # DO: Open activation link in browser (logout first if needed)
+    # SEE: Success message "Email verified"
+    # SEE: Redirect to login page
+    # DO: Login with new user credentials (email + temporary password if set)
+    # SEE: User is authenticated and active
+    # SEE: User can access team page
+    # IF DIFFER: UAT-08-14
+
+  Scenario: UAT-08-15 — Team member sees workflows/activities/artifacts in global lists
+    # GIVEN: User is member of a team with shared playbook containing WF/activity/artifact
+    # ACT: Navigate to global Workflows, Activities, and Artifacts pages
+    # VERIFY: Team playbook items appear in each global list
+    #
+    # DO: As team admin, create playbook with workflow, activity, and artifact; share with team
+    # DO: Logout; login as team member (not playbook author)
+    # DO: Navigate to `[data-testid="nav-workflows"]` → `/workflows/`
+    # SEE: Team workflow name visible in global workflows list
+    # DO: Navigate to `[data-testid="nav-activities"]` → `/activities/`
+    # SEE: Team activity name visible in global activities list
+    # DO: Navigate to `[data-testid="nav-artifacts"]` → `/artifacts/`
+    # SEE: Team artifact name visible in global artifacts list
+    # IF DIFFER: UAT-08-15
+
+#############################################################################
 # APPENDIX A — MCP 61-tool checklist → see mcp-uat-flow.feature
 #############################################################################
   # All MCP tool coverage (Playbooks/Workflows/Activities/Phases/Skills/Agents/
@@ -499,6 +674,7 @@ Feature: Mimir E2E UAT — browser-only flow (registration → GUI CRUDL → rel
   # | UAT-01-xx | docs/features/act-0-auth/*.feature |
   # | UAT-03-xx | docs/features/act-2-playbooks + act-4 … act-8 |
   # | UAT-06/07 | docs/features/act-9-pips (browser); act-13-mcp → mcp-uat-flow.feature |
+  # | UAT-08-xx | docs/features/act-11-teams/ (browse/create/view/manage) |
 #############################################################################
 # APPENDIX D — Spec vs implementation note + optional branching
 ############################################################################

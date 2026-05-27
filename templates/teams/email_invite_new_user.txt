@@ -1,0 +1,15 @@
+Hi {{ user.get_full_name|default:user.username }},
+
+You've been invited to Mimir and the {{ team.name }} team!
+
+{% if welcome_text %}{{ welcome_text }}
+
+{% endif %}An account has been created for you. Click the link below to activate your account:
+
+{{ base_url }}/auth/user/verify-email/{{ activation_token }}/
+
+Once activated, you can log in and access the team:
+Team: {{ base_url }}/teams/{{ team.pk }}/
+
+Best,
+The Mimir Team

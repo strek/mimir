@@ -1,0 +1,11 @@
+Hi {{ new_admin.get_full_name|default:new_admin.username }},
+
+You are now the admin of the "{{ team.name }}" team on Mimir.
+
+Admin rights were transferred to you by {{ old_admin.get_full_name|default:old_admin.username }}.
+
+Manage the team:
+{{ base_url }}/teams/{{ team.pk }}/manage/
+
+Best,
+The Mimir Team

@@ -157,7 +157,7 @@ async def create_playbook(
 
 async def list_playbooks(status: Literal["draft", "released", "active", "all"] = "all") -> list:
     """
-    List playbooks filtered by status.
+    List playbooks filtered by status (owned + public + team-shared).
     
     :param status: Filter by status or "all". Example: "draft"
     :return: List of playbook dicts
@@ -170,9 +170,14 @@ async def list_playbooks(status: Literal["draft", "released", "active", "all"] =
     status_filter = None if status == "all" else status
     owned = await sync_to_async(PlaybookService.list_playbooks)(user, status=status_filter)
     public_others = await sync_to_async(PlaybookService.list_public_playbooks)(user)
+    team_playbooks = await sync_to_async(PlaybookService.list_team_playbooks_for_user)(user)
+    
+    # Apply status filter to public and team playbooks if needed
     if status_filter:
         public_others = [p for p in public_others if p.status == status_filter]
-    combined = list(owned) + public_others
+        team_playbooks = [p for p in team_playbooks if p.status == status_filter]
+    
+    combined = list(owned) + public_others + team_playbooks
 
     def sort_key(p):
         return (p.updated_at is None, p.updated_at or p.created_at)
@@ -191,7 +196,7 @@ async def list_playbooks(status: Literal["draft", "released", "active", "all"] =
         }
         for p in combined
     ]
-    logger.info(f'MCP Tool: Returning {len(result)} playbooks')
+    logger.info(f'MCP Tool: Returning {len(result)} playbooks (owned + public + team)')
     return result
 
 
@@ -2680,8 +2685,18 @@ def _serialize_pip_change(ch) -> dict:
         "target_name_snapshot": ch.target_name_snapshot or "",
         "content": ch.content or "",
         "parent_workflow_id": ch.parent_workflow_id,
+        "parent_workflow_ref": ch.parent_workflow_ref or "",
         "insert_after_activity_id": ch.insert_after_activity_id,
+        "insert_after_activity_ref": ch.insert_after_activity_ref or "",
+        "phase_ref": ch.phase_ref or "",
+        "produced_by_activity_ref": ch.produced_by_activity_ref or "",
+        "artifact_type": ch.artifact_type or "",
+        "artifact_is_required": bool(ch.artifact_is_required),
         "append_to_playbook_end": bool(ch.append_to_playbook_end),
+        "internal_ref": ch.internal_ref or "",
+        "relationship_type": ch.relationship_type or "",
+        "source_entity_ref": ch.source_entity_ref or "",
+        "target_entity_ref": ch.target_entity_ref or "",
         "galdr_recommendation": ch.galdr_recommendation or "",
         "galdr_reasoning": ch.galdr_reasoning or "",
         "admin_decision": ch.admin_decision or "",
@@ -2812,7 +2827,13 @@ async def add_pip_change(
     content: str = "",
     target_id: Optional[int] = None,
     parent_workflow_id: Optional[int] = None,
+    parent_workflow_ref: str = "",
     insert_after_activity_id: Optional[int] = None,
+    insert_after_activity_ref: str = "",
+    phase_ref: str = "",
+    produced_by_activity_ref: str = "",
+    artifact_type: str = "",
+    artifact_is_required: bool = False,
     append_to_playbook_end: bool = False,
     internal_ref: str = "",
     relationship_type: str = "",
@@ -2822,28 +2843,28 @@ async def add_pip_change(
     """Attach a typed change row to a Draft PIP.
 
     change_type values and required fields:
-    - ADD   : entity_type + name + content required; parent_workflow_id required for Activity.
-              Optionally set internal_ref="#slug" so later LINK changes in the same PIP can
-              reference this not-yet-saved entity before it gets a real database ID.
+    - ADD   : entity_type + name + content required.
+              ADD Activity: parent_workflow_id OR parent_workflow_ref (pk or #slug).
+              ADD Artifact: produced_by_activity_ref required.
+              Optionally set internal_ref="#slug" for later LINK/ref rows in this PIP.
     - ALTER : entity_type + target_id + at least one of name/content required.
-    - DROP  : entity_type + target_id required.
-    - LINK  : relationship_type + source_entity_ref + target_entity_ref required.
-              entity_type must be left empty ("").
-              Refs are either a numeric PK (e.g. "42") or a "#slug" internal_ref pointing to
-              an ADD change in the same PIP (e.g. "#new-skill").
-    - UNLINK: same fields as LINK; removes the relationship instead of creating it.
+              Activity: optional phase_ref (pk or #slug).
+    - DROP  : entity_type + target_id + rationale in content.
+    - LINK  : relationship_type + source_entity_ref + target_entity_ref (entity_type="").
+    - UNLINK: same as LINK.
 
-    entity_type choices (ADD / ALTER / DROP only): Workflow, Activity, Skill, Agent, Rule.
+    entity_type (ADD/ALTER/DROP): Workflow, Activity, Phase, Skill, Agent, Rule, Artifact.
 
-    relationship_type choices (LINK / UNLINK only):
-    - skill_activity    : attach a Skill to an Activity
-    - rule_activity     : attach a Rule to an Activity
-    - agent_activity    : attach an Agent to an Activity
-    - activity_workflow : cross-list an Activity in a secondary Workflow
+    relationship_type (LINK/UNLINK): skill_activity, rule_activity, agent_activity,
+    activity_workflow, artifact_activity.
 
-    internal_ref format: "#<slug>" (e.g. "#standup-skill"). Use it when you ADD a new entity
-    in the same PIP and need to LINK it before the real ID is known. The ref is resolved when
-    the PIP is applied. The slug may only contain letters, digits, hyphens, and underscores.
+    Full subtree recipe (call add_pip_change in order):
+      1. ADD Phase       internal_ref="#phase1"  name="Construction"
+      2. ADD Workflow    internal_ref="#wf1"     name="Performance"
+      3. ADD Activity    internal_ref="#act1"    parent_workflow_ref="#wf1"  phase_ref="#phase1"
+      4. ADD Activity    name="Step 2"           parent_workflow_ref="#wf1"  insert_after_activity_ref="#act1"
+      5. ADD Skill       internal_ref="#sk1"     ...
+      6. LINK            relationship_type="skill_activity"  source_entity_ref="#sk1"  target_entity_ref="#act1"
     """
 
     user = await sync_to_async(get_current_user)()
@@ -2862,7 +2883,13 @@ async def add_pip_change(
                 content=content or "",
                 target_id=target_id,
                 parent_workflow_id=parent_workflow_id,
+                parent_workflow_ref=parent_workflow_ref or "",
                 insert_after_activity_id=insert_after_activity_id,
+                insert_after_activity_ref=insert_after_activity_ref or "",
+                phase_ref=phase_ref or "",
+                produced_by_activity_ref=produced_by_activity_ref or "",
+                artifact_type=artifact_type or "",
+                artifact_is_required=artifact_is_required,
                 append_to_playbook_end=append_to_playbook_end,
                 internal_ref=internal_ref or "",
                 relationship_type=relationship_type or "",
@@ -3022,6 +3049,412 @@ async def _get_draft_playbook(playbook_id: int, user):
     return playbook
 
 
+# ========================================
+# TEAM TOOLS (7)
+# ========================================
+
+
+async def list_teams() -> list:
+    """
+    List all teams visible to the current user.
+
+    Thin wrapper over TeamService.get_teams_visible_to(user).
+
+    :return: List of team dicts with id, name, visibility, join_policy, category, admin_id, member_count
+    :raises: None
+
+    Example:
+        >>> result = await list_teams()
+        >>> result[0]['name']
+        'Platform Engineering'
+        >>> result[0]['member_count']
+        5
+    """
+    logger.info("MCP Tool: list_teams called")
+    user = await sync_to_async(get_current_user)()
+
+    from methodology.services.team_service import TeamService
+
+    service = TeamService()
+    teams = await sync_to_async(service.get_teams_visible_to)(user)
+    result = [
+        {
+            "id": team.id,
+            "name": team.name,
+            "description": team.description or "",
+            "visibility": team.visibility,
+            "join_policy": team.join_policy,
+            "category": team.category,
+            "admin_id": team.admin_id,
+            "member_count": team.memberships.count(),
+            "created_at": team.created_at.isoformat(),
+        }
+        for team in teams
+    ]
+    logger.info(f"MCP Tool: list_teams returned {len(result)} teams")
+    return result
+
+
+async def get_team(team_id: int) -> dict:
+    """
+    Get detailed information about a specific team.
+
+    Thin wrapper over TeamService.get_team_or_404(pk, user).
+
+    :param team_id: Team primary key. Example: 42
+    :return: Team dict with id, name, description, visibility, join_policy, category, admin, members, playbooks
+    :raises ValueError: if team not found or not visible to user
+
+    Example:
+        >>> result = await get_team(team_id=42)
+        >>> result['name']
+        'Platform Engineering'
+        >>> len(result['members'])
+        5
+    """
+    logger.info(f"MCP Tool: get_team called - team_id={team_id}")
+    user = await sync_to_async(get_current_user)()
+
+    from methodology.services.team_service import TeamService
+    from methodology.models import Team
+
+    from django.http import Http404 as _Http404
+
+    service = TeamService()
+    try:
+        team = await sync_to_async(service.get_team_or_404)(team_id, user)
+    except (Team.DoesNotExist, _Http404):
+        raise ValueError(f"Team {team_id} not found or not accessible")
+
+    # Get members
+    memberships = await sync_to_async(list)(team.memberships.select_related("user"))
+    members_data = [
+        {
+            "user_id": m.user_id,
+            "username": m.user.username,
+            "email": m.user.email,
+            "joined_at": m.joined_at.isoformat(),
+        }
+        for m in memberships
+    ]
+
+    # Get playbooks
+    from methodology.models import TeamPlaybook
+
+    team_playbooks = await sync_to_async(list)(
+        TeamPlaybook.objects.filter(team=team).select_related("playbook")
+    )
+    playbooks_data = [
+        {
+            "playbook_id": tp.playbook_id,
+            "playbook_name": tp.playbook.name,
+            "linked_at": tp.created_at.isoformat(),
+        }
+        for tp in team_playbooks
+    ]
+
+    result = {
+        "id": team.id,
+        "name": team.name,
+        "description": team.description or "",
+        "visibility": team.visibility,
+        "join_policy": team.join_policy,
+        "category": team.category,
+        "admin": {
+            "user_id": team.admin_id,
+            "username": team.admin.username,
+        },
+        "member_count": len(members_data),
+        "members": members_data,
+        "playbooks": playbooks_data,
+        "created_at": team.created_at.isoformat(),
+    }
+
+    logger.info(f"MCP Tool: get_team returned team_id={team_id} with {len(members_data)} members")
+    return result
+
+
+async def create_team(
+    name: str,
+    description: str = "",
+    visibility: Literal["Public", "Hidden"] = "Public",
+    join_policy: Literal["Auto-approve", "Requires Approval", "Invite Only"] = "Auto-approve",
+    category: Literal["Engineering", "Design", "Research", "Product", "Private", "Other"] = "Engineering",
+) -> dict:
+    """
+    Create a new team. Caller becomes admin and first member.
+
+    Thin wrapper over TeamService.create_team().
+
+    :param name: Team name (unique). Example: "Platform Engineering"
+    :param description: Optional description. Example: "Core platform team"
+    :param visibility: "Public" (discoverable) or "Hidden" (invite-only). Default "Public"
+    :param join_policy: How new members join. Default "Auto-approve"
+    :param category: Team category. Default "Engineering"
+    :return: Created team dict with id, name, visibility, join_policy, category, admin_id, member_count
+    :raises ValueError: if name is empty or already taken
+
+    Example:
+        >>> result = await create_team(name="Platform Eng", description="Core infra")
+        >>> result['name']
+        'Platform Eng'
+        >>> result['member_count']
+        1
+    """
+    logger.info(f'MCP Tool: create_team called - name="{name}", category={category}')
+    user = await sync_to_async(get_current_user)()
+
+    from methodology.services.team_service import TeamService
+
+    if not name or not name.strip():
+        raise ValueError("Team name cannot be empty")
+
+    service = TeamService()
+    try:
+        team = await sync_to_async(service.create_team)(
+            user=user,
+            name=name,
+            description=description,
+            visibility=visibility,
+            join_policy=join_policy,
+            category=category,
+        )
+    except ValidationError as e:
+        _handle_validation_error(e, "create_team")
+
+    result = {
+        "id": team.id,
+        "name": team.name,
+        "description": team.description or "",
+        "visibility": team.visibility,
+        "join_policy": team.join_policy,
+        "category": team.category,
+        "admin_id": team.admin_id,
+        "member_count": 1,
+        "created_at": team.created_at.isoformat(),
+    }
+    logger.info(f"MCP Tool: Created team id={team.id}")
+    return result
+
+
+async def move_playbook_to_team(playbook_id: int, team_id: int) -> dict:
+    """
+    Add a playbook to a team (requires team admin).
+
+    Thin wrapper over TeamService.add_playbook_to_team().
+
+    :param playbook_id: Playbook primary key. Example: 12
+    :param team_id: Team primary key. Example: 42
+    :return: Dict with success=True, team_id, playbook_id, playbook_name
+    :raises ValueError: if team or playbook not found
+    :raises PermissionError: if user is not team admin
+
+    Example:
+        >>> result = await move_playbook_to_team(playbook_id=12, team_id=42)
+        >>> result['success']
+        True
+        >>> result['playbook_name']
+        'React Development'
+    """
+    logger.info(f"MCP Tool: move_playbook_to_team called - playbook_id={playbook_id}, team_id={team_id}")
+    user = await sync_to_async(get_current_user)()
+
+    from methodology.services.team_service import TeamService
+    from methodology.services.playbook_service import PlaybookService
+    from methodology.models import Team
+
+    try:
+        team = await sync_to_async(Team.objects.get)(pk=team_id)
+    except Team.DoesNotExist:
+        raise ValueError(f"Team {team_id} not found")
+
+    if team.admin_id != user.id:
+        raise PermissionError(f"Only team admin can add playbooks to team {team.name}")
+
+    try:
+        playbook = await sync_to_async(PlaybookService.get_playbook)(playbook_id, user)
+    except:
+        raise ValueError(f"Playbook {playbook_id} not found or not accessible")
+
+    service = TeamService()
+    await sync_to_async(service.add_playbook_to_team)(team, playbook, user)
+
+    result = {
+        "success": True,
+        "team_id": team.id,
+        "team_name": team.name,
+        "playbook_id": playbook.id,
+        "playbook_name": playbook.name,
+    }
+    logger.info(f"MCP Tool: Added playbook {playbook_id} to team {team_id}")
+    return result
+
+
+async def move_playbook_from_team(playbook_id: int, team_id: int) -> dict:
+    """
+    Remove a playbook from a team (requires team admin).
+
+    Thin wrapper over TeamService.remove_playbook_from_team().
+
+    :param playbook_id: Playbook primary key. Example: 12
+    :param team_id: Team primary key. Example: 42
+    :return: Dict with success=True, team_id, playbook_id
+    :raises ValueError: if team or playbook not found
+    :raises PermissionError: if user is not team admin
+
+    Example:
+        >>> result = await move_playbook_from_team(playbook_id=12, team_id=42)
+        >>> result['success']
+        True
+    """
+    logger.info(f"MCP Tool: move_playbook_from_team called - playbook_id={playbook_id}, team_id={team_id}")
+    user = await sync_to_async(get_current_user)()
+
+    from methodology.services.team_service import TeamService
+    from methodology.services.playbook_service import PlaybookService
+    from methodology.models import Team
+
+    try:
+        team = await sync_to_async(Team.objects.get)(pk=team_id)
+    except Team.DoesNotExist:
+        raise ValueError(f"Team {team_id} not found")
+
+    if team.admin_id != user.id:
+        raise PermissionError(f"Only team admin can remove playbooks from team {team.name}")
+
+    try:
+        playbook = await sync_to_async(PlaybookService.get_playbook)(playbook_id, user)
+    except:
+        raise ValueError(f"Playbook {playbook_id} not found or not accessible")
+
+    service = TeamService()
+    await sync_to_async(service.remove_playbook_from_team)(team, playbook, user)
+
+    result = {
+        "success": True,
+        "team_id": team.id,
+        "team_name": team.name,
+        "playbook_id": playbook.id,
+    }
+    logger.info(f"MCP Tool: Removed playbook {playbook_id} from team {team_id}")
+    return result
+
+
+async def invite_to_team(team_id: int, emails: list[str], welcome_text: str = "") -> dict:
+    """
+    Invite users to join a team (requires team admin).
+
+    Thin wrapper over TeamInviteService.send_invites().
+
+    :param team_id: Team primary key. Example: 42
+    :param emails: List of email addresses to invite. Example: ["user@example.com"]
+    :param welcome_text: Optional custom welcome message. Example: "Join our platform team!"
+    :return: Dict with success=True, team_id, invited_count, results (list of per-email status)
+    :raises ValueError: if team not found or emails list empty
+    :raises PermissionError: if user is not team admin
+
+    Example:
+        >>> result = await invite_to_team(team_id=42, emails=["new@example.com"])
+        >>> result['success']
+        True
+        >>> result['invited_count']
+        1
+    """
+    logger.info(f"MCP Tool: invite_to_team called - team_id={team_id}, emails={emails}")
+    user = await sync_to_async(get_current_user)()
+
+    from methodology.services.team_invite_service import TeamInviteService
+    from methodology.models import Team
+
+    try:
+        team = await sync_to_async(Team.objects.get)(pk=team_id)
+    except Team.DoesNotExist:
+        raise ValueError(f"Team {team_id} not found")
+
+    if team.admin_id != user.id:
+        raise PermissionError(f"Only team admin can invite users to team {team.name}")
+
+    if not emails or len(emails) == 0:
+        raise ValueError("Emails list cannot be empty")
+
+    invite_service = TeamInviteService()
+    results = await sync_to_async(invite_service.send_invites)(team, user, emails, welcome_text)
+
+    invited_count = results.get("sent", 0) + results.get("created", 0)
+    result = {
+        "success": True,
+        "team_id": team.id,
+        "team_name": team.name,
+        "invited_count": invited_count,
+        "results": results,
+    }
+    logger.info(f"MCP Tool: Invited {invited_count} users to team {team_id}")
+    return result
+
+
+async def manage_team_invite(
+    team_id: int, request_id: int, action: Literal["approve", "reject"]
+) -> dict:
+    """
+    Approve or reject a join request (requires team admin).
+
+    Thin wrapper over TeamService.approve_join_request() or reject_join_request().
+
+    :param team_id: Team primary key. Example: 42
+    :param request_id: JoinRequest primary key. Example: 123
+    :param action: "approve" or "reject". Example: "approve"
+    :return: Dict with success=True, team_id, request_id, action, user_email
+    :raises ValueError: if team or request not found, or invalid action
+    :raises PermissionError: if user is not team admin
+
+    Example:
+        >>> result = await manage_team_invite(team_id=42, request_id=123, action="approve")
+        >>> result['success']
+        True
+        >>> result['action']
+        'approve'
+    """
+    logger.info(f"MCP Tool: manage_team_invite called - team_id={team_id}, request_id={request_id}, action={action}")
+    user = await sync_to_async(get_current_user)()
+
+    from methodology.services.team_service import TeamService
+    from methodology.models import Team, JoinRequest
+
+    try:
+        team = await sync_to_async(Team.objects.get)(pk=team_id)
+    except Team.DoesNotExist:
+        raise ValueError(f"Team {team_id} not found")
+
+    if team.admin_id != user.id:
+        raise PermissionError(f"Only team admin can manage join requests for team {team.name}")
+
+    try:
+        join_request = await sync_to_async(JoinRequest.objects.select_related("user").get)(
+            pk=request_id, team=team
+        )
+    except JoinRequest.DoesNotExist:
+        raise ValueError(f"Join request {request_id} not found for team {team_id}")
+
+    service = TeamService()
+    if action == "approve":
+        await sync_to_async(service.approve_join_request)(join_request, user)
+    elif action == "reject":
+        await sync_to_async(service.reject_join_request)(join_request, user)
+    else:
+        raise ValueError(f"Invalid action: {action}. Must be 'approve' or 'reject'")
+
+    result = {
+        "success": True,
+        "team_id": team.id,
+        "team_name": team.name,
+        "request_id": request_id,
+        "action": action,
+        "user_email": join_request.user.email,
+    }
+    logger.info(f"MCP Tool: {action}d join request {request_id} for team {team_id}")
+    return result
+
+
 def initialize_mcp():
     """
     Initialize and return the FastMCP instance.
@@ -3116,6 +3549,15 @@ def initialize_mcp():
     mcp.tool()(delete_phase)
     mcp.tool()(reorder_phases)
 
-    logger.info("MCP: All tools registered (50 tools incl. PIPs + rule CRUDLF + report_bug)")
+    # Register team tools (7)
+    mcp.tool()(list_teams)
+    mcp.tool()(get_team)
+    mcp.tool()(create_team)
+    mcp.tool()(move_playbook_to_team)
+    mcp.tool()(move_playbook_from_team)
+    mcp.tool()(invite_to_team)
+    mcp.tool()(manage_team_invite)
+
+    logger.info("MCP: All tools registered (57 tools: 50 previous + 7 team tools)")
     return mcp
 

@@ -1059,7 +1059,13 @@ def add_pip_change(
     content: str = "",
     target_id: Optional[int] = None,
     parent_workflow_id: Optional[int] = None,
+    parent_workflow_ref: str = "",
     insert_after_activity_id: Optional[int] = None,
+    insert_after_activity_ref: str = "",
+    phase_ref: str = "",
+    produced_by_activity_ref: str = "",
+    artifact_type: str = "",
+    artifact_is_required: bool = False,
     append_to_playbook_end: bool = False,
     internal_ref: str = "",
     relationship_type: str = "",
@@ -1070,33 +1076,49 @@ def add_pip_change(
     Add a typed change row to a Draft PIP.
 
     change_type values and required fields:
-    - ADD   : entity_type + name + content required; parent_workflow_id required for Activity.
-              Optionally set internal_ref="#slug" so later LINK changes in the same PIP can
-              reference this not-yet-saved entity before it gets a real database ID.
+    - ADD   : entity_type + name + content required.
+              ADD Activity: parent_workflow_id OR parent_workflow_ref (pk or #slug).
+              ADD Artifact: produced_by_activity_ref required.
+              Optionally set internal_ref="#slug" for later LINK/ref rows in this PIP.
     - ALTER : entity_type + target_id + at least one of name/content required.
-    - DROP  : entity_type + target_id required.
-    - LINK  : relationship_type + source_entity_ref + target_entity_ref required.
-              entity_type must be left empty ("").
-              Refs are either a numeric PK (e.g. "42") or a "#slug" internal_ref pointing to
-              an ADD change in the same PIP (e.g. "#new-skill").
-    - UNLINK: same fields as LINK; removes the relationship instead of creating it.
+              Activity: optional phase_ref (pk or #slug).
+    - DROP  : entity_type + target_id + rationale in content.
+    - LINK  : relationship_type + source_entity_ref + target_entity_ref (entity_type="").
+    - UNLINK: same as LINK.
+
+    entity_type (ADD/ALTER/DROP): Workflow, Activity, Phase, Skill, Agent, Rule, Artifact.
+
+    relationship_type (LINK/UNLINK): skill_activity, rule_activity, agent_activity,
+    activity_workflow, artifact_activity.
+
+    Full subtree recipe (call add_pip_change in order):
+      1. ADD Phase       internal_ref="#phase1"  name="Construction"
+      2. ADD Workflow    internal_ref="#wf1"     name="Performance"
+      3. ADD Activity    internal_ref="#act1"    parent_workflow_ref="#wf1"  phase_ref="#phase1"
+      4. ADD Activity    name="Step 2"           parent_workflow_ref="#wf1"  insert_after_activity_ref="#act1"
+      5. ADD Skill       internal_ref="#sk1"     ...
+      6. LINK            relationship_type="skill_activity"  source_entity_ref="#sk1"  target_entity_ref="#act1"
 
     :param pip_id: PIP ID. Example: 1
     :param change_type: ADD, ALTER, DROP, LINK, or UNLINK
-    :param entity_type: Required for ADD/ALTER/DROP. Choices: Workflow, Activity, Skill, Agent, Rule.
-                        Leave empty ("") for LINK/UNLINK.
+    :param entity_type: Required for ADD/ALTER/DROP. Choices: Workflow, Activity, Phase, Skill,
+                        Agent, Rule, Artifact. Leave empty ("") for LINK/UNLINK.
     :param name: Entity name — required for ADD, optional override for ALTER.
-    :param content: Markdown body — required for ADD Activity/Workflow, optional for ALTER.
+    :param content: Markdown body — required for ADD, optional for ALTER.
     :param target_id: DB primary key of the entity to ALTER or DROP.
-    :param parent_workflow_id: Workflow ID to place a new Activity under (ADD Activity only).
-    :param insert_after_activity_id: Insert after this activity; omit to append to workflow end.
-    :param append_to_playbook_end: If true, append Activity at playbook end regardless of workflow.
-    :param internal_ref: "#slug" label for this ADD row so LINK rows in the same PIP can reference
-                         it before the entity has a real ID. Format: "#<letters-digits-hyphens>".
-    :param relationship_type: Required for LINK/UNLINK. Choices: skill_activity, rule_activity,
-                              agent_activity, activity_workflow.
-    :param source_entity_ref: Source entity — numeric PK string or "#internal_ref".
-    :param target_entity_ref: Target entity — numeric PK string or "#internal_ref".
+    :param parent_workflow_id: Live workflow PK for ADD Activity (mutually exclusive with ref).
+    :param parent_workflow_ref: Pending or live workflow ref for ADD Activity. Example: "#wf1"
+    :param insert_after_activity_id: Live activity PK to insert after.
+    :param insert_after_activity_ref: Pending or live activity ref. Example: "#act1"
+    :param phase_ref: Phase pk or #slug for ADD/ALTER Activity.
+    :param produced_by_activity_ref: Required for ADD Artifact. Example: "#act1"
+    :param artifact_type: Artifact type string for ADD/ALTER Artifact.
+    :param artifact_is_required: Whether artifact is required (ADD/ALTER Artifact).
+    :param append_to_playbook_end: Append Activity at playbook end regardless of workflow.
+    :param internal_ref: "#slug" label for ADD rows. Example: "#new-skill"
+    :param relationship_type: Required for LINK/UNLINK.
+    :param source_entity_ref: Source entity — numeric PK or "#internal_ref".
+    :param target_entity_ref: Target entity — numeric PK or "#internal_ref".
     :return: Dict with change_id
     """
     logger.info(f'HTTP Tool: add_pip_change pip={pip_id} type={change_type} entity={entity_type}')
@@ -1106,13 +1128,24 @@ def add_pip_change(
         "name": name,
         "content": content,
         "append_to_playbook_end": append_to_playbook_end,
+        "artifact_is_required": artifact_is_required,
     }
     if target_id is not None:
         payload["target_id"] = target_id
     if parent_workflow_id is not None:
         payload["parent_workflow_id"] = parent_workflow_id
+    if parent_workflow_ref:
+        payload["parent_workflow_ref"] = parent_workflow_ref
     if insert_after_activity_id is not None:
         payload["insert_after_activity_id"] = insert_after_activity_id
+    if insert_after_activity_ref:
+        payload["insert_after_activity_ref"] = insert_after_activity_ref
+    if phase_ref:
+        payload["phase_ref"] = phase_ref
+    if produced_by_activity_ref:
+        payload["produced_by_activity_ref"] = produced_by_activity_ref
+    if artifact_type:
+        payload["artifact_type"] = artifact_type
     if internal_ref:
         payload["internal_ref"] = internal_ref
     if relationship_type:
@@ -1200,3 +1233,135 @@ def report_bug(
         payload["reporter_email"] = reporter_email.strip()
     r = get_client().post("/api/feedback/report/", json=payload)
     return check_response(r, "report_bug")
+
+
+# ============================================================================
+# TEAM TOOLS (7)
+# ============================================================================
+
+def list_teams() -> list:
+    """
+    List all teams visible to the current user.
+
+    :return: List of team dicts
+    """
+    logger.info("HTTP Tool: list_teams")
+    r = get_client().get("/api/teams/")
+    data = check_response(r, "list_teams")
+    return data.get("results", data) if isinstance(data, dict) else data
+
+
+def get_team(team_id: int) -> dict:
+    """
+    Get detailed information about a specific team.
+
+    :param team_id: Team primary key. Example: 42
+    :return: Team dict with members and playbooks
+    :raises ValueError: if team not found or not visible to user
+    """
+    logger.info(f"HTTP Tool: get_team team_id={team_id}")
+    r = get_client().get(f"/api/teams/{team_id}/")
+    return check_response(r, "get_team")
+
+
+def create_team(
+    name: str,
+    description: str = "",
+    visibility: Literal["Public", "Hidden"] = "Public",
+    join_policy: Literal["Auto-approve", "Requires Approval", "Invite Only"] = "Auto-approve",
+    category: Literal["Engineering", "Design", "Research", "Product", "Private", "Other"] = "Engineering",
+) -> dict:
+    """
+    Create a new team. Caller becomes admin and first member.
+
+    :param name: Team name (unique). Example: "Platform Engineering"
+    :param description: Optional description. Example: "Core platform team"
+    :param visibility: "Public" or "Hidden". Default "Public"
+    :param join_policy: Join policy. Default "Auto-approve"
+    :param category: Team category. Default "Engineering"
+    :return: Created team dict with id, name, visibility, join_policy, category, admin_id, member_count
+    :raises ValueError: if name is empty or already taken
+    """
+    logger.info(f'HTTP Tool: create_team name="{name}"')
+    r = get_client().post("/api/teams/", json={
+        "name": name,
+        "description": description,
+        "visibility": visibility,
+        "join_policy": join_policy,
+        "category": category,
+    })
+    return check_response(r, "create_team")
+
+
+def move_playbook_to_team(playbook_id: int, team_id: int) -> dict:
+    """
+    Add a playbook to a team (requires team admin).
+
+    :param playbook_id: Playbook primary key. Example: 12
+    :param team_id: Team primary key. Example: 42
+    :return: Dict with success=True, team_id, playbook_id, playbook_name
+    :raises ValueError: if team or playbook not found
+    :raises PermissionError: if user is not team admin
+    """
+    logger.info(f"HTTP Tool: move_playbook_to_team playbook_id={playbook_id} team_id={team_id}")
+    r = get_client().post(f"/api/teams/{team_id}/move_playbook_to_team/", json={
+        "playbook_id": playbook_id,
+    })
+    return check_response(r, "move_playbook_to_team")
+
+
+def move_playbook_from_team(playbook_id: int, team_id: int) -> dict:
+    """
+    Remove a playbook from a team (requires team admin).
+
+    :param playbook_id: Playbook primary key. Example: 12
+    :param team_id: Team primary key. Example: 42
+    :return: Dict with success=True, team_id, playbook_id
+    :raises ValueError: if team or playbook not found
+    :raises PermissionError: if user is not team admin
+    """
+    logger.info(f"HTTP Tool: move_playbook_from_team playbook_id={playbook_id} team_id={team_id}")
+    r = get_client().post(f"/api/teams/{team_id}/move_playbook_from_team/", json={
+        "playbook_id": playbook_id,
+    })
+    return check_response(r, "move_playbook_from_team")
+
+
+def invite_to_team(team_id: int, emails: list[str], welcome_text: str = "") -> dict:
+    """
+    Invite users to join a team (requires team admin).
+
+    :param team_id: Team primary key. Example: 42
+    :param emails: List of email addresses to invite. Example: ["user@example.com"]
+    :param welcome_text: Optional custom welcome message. Example: "Join our platform team!"
+    :return: Dict with success=True, team_id, invited_count, results
+    :raises ValueError: if team not found or emails list empty
+    :raises PermissionError: if user is not team admin
+    """
+    logger.info(f"HTTP Tool: invite_to_team team_id={team_id} emails={emails}")
+    r = get_client().post(f"/api/teams/{team_id}/invite/", json={
+        "emails": emails,
+        "welcome_text": welcome_text,
+    })
+    return check_response(r, "invite_to_team")
+
+
+def manage_team_invite(
+    team_id: int, request_id: int, action: Literal["approve", "reject"]
+) -> dict:
+    """
+    Approve or reject a join request (requires team admin).
+
+    :param team_id: Team primary key. Example: 42
+    :param request_id: JoinRequest primary key. Example: 123
+    :param action: "approve" or "reject". Example: "approve"
+    :return: Dict with success=True, team_id, request_id, action, user_email
+    :raises ValueError: if team or request not found, or invalid action
+    :raises PermissionError: if user is not team admin
+    """
+    logger.info(f"HTTP Tool: manage_team_invite team_id={team_id} request_id={request_id} action={action}")
+    r = get_client().post(f"/api/teams/{team_id}/manage_invite/", json={
+        "request_id": request_id,
+        "action": action,
+    })
+    return check_response(r, "manage_team_invite")

@@ -811,3 +811,27 @@ Feature: Mimir MCP UAT — all 63 tools exercised end-to-end in agent mode
     # DO: CallMcpTool server "user-mimir" toolName "get_pip" arguments {"pip_id": <PIP_PROTO_PK>}
     # SEE: `.status` = `accepted`
     # IF DIFFER: MCP-11 FN-05
+
+#############################################################################
+# MCP-15 — Team playbook children readable via MCP list tools
+############################################################################
+
+  @manual @uat @mcp-teams
+  Scenario: MCP-15 Team member lists workflows/activities/artifacts from shared playbook
+    # PRECONDITION: Team admin shared a private playbook (with WF + activity + artifact) with team
+    # PRECONDITION: MCP token belongs to team member (not playbook author)
+    #
+    # STEP TM-01 list_workflows on team playbook
+    # DO: CallMcpTool server "user-mimir" toolName "list_workflows" arguments {"playbook_id": <TEAM_PB_ID>}
+    # SEE: array contains workflow from team playbook (non-empty)
+    # IF DIFFER: MCP-15 TM-01
+    #
+    # STEP TM-02 list_activities on team workflow
+    # DO: CallMcpTool server "user-mimir" toolName "list_activities" arguments {"workflow_id": <TEAM_WF_ID>}
+    # SEE: array contains activity from team playbook
+    # IF DIFFER: MCP-15 TM-02
+    #
+    # STEP TM-03 list_artifacts on team playbook
+    # DO: CallMcpTool server "user-mimir" toolName "list_artifacts" arguments {"playbook_id": <TEAM_PB_ID>}
+    # SEE: array contains artifact from team playbook
+    # IF DIFFER: MCP-15 TM-03

@@ -12,10 +12,40 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 
-from methodology.models import Playbook, Workflow, Activity, ArtifactInput, Rule
+from methodology.models import Activity, Playbook, Workflow
 from methodology.services.activity_service import ActivityService
+from methodology.services.phase_service import PhaseService
+from methodology.services.rule_service import RuleService
+from methodology.services.agent_service import AgentService
+from methodology.services.skill_service import SkillService
+from methodology.services.artifact_service import ArtifactService
 
 logger = logging.getLogger(__name__)
+
+_NAME_ERROR_KEYWORDS = ("name", "empty", "exceed", "already exists")
+_GUIDANCE_ERROR_KEYWORDS = ("guidance",)
+_DEPENDENCY_ERROR_KEYWORDS = ("predecessor", "successor", "phase", "order")
+
+
+def _activity_field_errors(exc: ValidationError) -> dict[str, str]:
+    """Map an activity ValidationError to form field errors for re-render."""
+    message = str(getattr(exc, "message", exc))
+    msg_lower = message.lower()
+    if any(kw in msg_lower for kw in _NAME_ERROR_KEYWORDS):
+        return {"name": message}
+    if any(kw in msg_lower for kw in _GUIDANCE_ERROR_KEYWORDS):
+        return {"guidance": message}
+    for field in _DEPENDENCY_ERROR_KEYWORDS:
+        if field in msg_lower:
+            return {field: message}
+    return {"name": message}
+
+
+# ─── NO ORM IN VIEWS ────────────────────────────────────────────────────────
+# Views are thin controllers. NEVER query the ORM directly here.
+# All data access must go through services in methodology/services/.
+# Both views and MCP tools drink from the same service well.
+# ────────────────────────────────────────────────────────────────────────────
 
 
 # ==================== GLOBAL LIST ====================
@@ -25,7 +55,7 @@ def activity_global_list(request):
     """
     Global activities overview - all activities across all workflows and playbooks.
     
-    Shows activities from all workflows in playbooks owned by the user.
+    Shows activities from all workflows in playbooks accessible to the user (owned + public + team).
     Useful for seeing all tasks and managing across entire methodology.
     
     Template: activities/global_list.html
@@ -38,13 +68,8 @@ def activity_global_list(request):
     :param request: Django request object
     :return: Rendered global list template
     """
-    # Get all activities from user's owned playbooks
-    activities = Activity.objects.filter(
-        workflow__playbook__author=request.user,
-        workflow__playbook__source='owned'
-    ).select_related('workflow', 'workflow__playbook').order_by(
-        'workflow__playbook__name', 'workflow__order', 'order'
-    )
+    # Get all activities via service
+    activities = ActivityService.list_activities_global(request.user)
     
     # Count unique workflows and playbooks
     workflow_count = activities.values('workflow').distinct().count()
@@ -222,15 +247,19 @@ def activity_create(request, playbook_pk, workflow_pk):
         successor = None
         if predecessor_id:
             try:
-                predecessor = Activity.objects.get(pk=int(predecessor_id), workflow=workflow)
-            except (Activity.DoesNotExist, ValueError):
+                predecessor = ActivityService.get_activity_in_workflow_for_owner(
+                    workflow, int(predecessor_id)
+                )
+            except Exception:
                 messages.error(request, 'Invalid predecessor selected.')
                 return _render_create_form(request, playbook, workflow, request.POST, {})
         
         if successor_id:
             try:
-                successor = Activity.objects.get(pk=int(successor_id), workflow=workflow)
-            except (Activity.DoesNotExist, ValueError):
+                successor = ActivityService.get_activity_in_workflow_for_owner(
+                    workflow, int(successor_id)
+                )
+            except (ValidationError, ValueError):
                 messages.error(request, 'Invalid successor selected.')
                 return _render_create_form(request, playbook, workflow, request.POST, {})
         
@@ -256,8 +285,13 @@ def activity_create(request, playbook_pk, workflow_pk):
             
         except ValidationError as e:
             logger.warning(f"Activity creation validation error: {str(e)}")
-            messages.error(request, str(e))
-            return _render_create_form(request, playbook, workflow, request.POST, {})
+            return _render_create_form(
+                request,
+                playbook,
+                workflow,
+                request.POST,
+                _activity_field_errors(e),
+            )
     
     # GET request - show form
     return _render_create_form(request, playbook, workflow, {}, {})
@@ -265,15 +299,13 @@ def activity_create(request, playbook_pk, workflow_pk):
 
 def _render_create_form(request, playbook, workflow, form_data, errors):
     """Helper to render create form with context."""
-    from methodology.models import Phase
-
     # Get available predecessors and successors
     available_predecessors = ActivityService.get_available_predecessors(workflow)
     available_successors = ActivityService.get_available_successors(workflow)
 
-    # Get available phases for this playbook
-    available_phases = Phase.objects.filter(playbook=playbook).order_by('order')
-    available_rules = Rule.objects.filter(playbook=playbook).order_by('title')
+    # Get available phases and rules for this playbook
+    available_phases = PhaseService.list_phases(playbook.pk, request.user)
+    available_rules = RuleService.list_rules_for_playbook(playbook.pk)
     
     # Check if dropdowns should be disabled (no other activities)
     disable_dependencies = workflow.get_activity_count() == 0
@@ -328,11 +360,14 @@ def activity_detail(request, playbook_pk, workflow_pk, activity_pk):
     # Get instances with permission check
     playbook = get_object_or_404(Playbook, pk=playbook_pk)
     workflow = get_object_or_404(Workflow, pk=workflow_pk, playbook=playbook)
-    activity = get_object_or_404(
-        Activity.objects.select_related('predecessor', 'successor').prefetch_related('rules', 'skills'),
-        pk=activity_pk,
-        workflow=workflow
-    )
+    try:
+        activity = ActivityService.get_activity_for_user(
+            activity_pk, request.user, with_full_detail=True
+        )
+    except Exception:
+        raise Http404()
+    if activity.workflow_id != workflow.pk:
+        raise Http404()
 
     if not playbook.can_view(request.user):
         logger.warning(
@@ -344,9 +379,7 @@ def activity_detail(request, playbook_pk, workflow_pk, activity_pk):
 
     
     # Get artifact inputs for this activity
-    artifact_inputs = ArtifactInput.objects.filter(
-        activity=activity
-    ).select_related('artifact', 'artifact__produced_by').order_by('artifact__name')
+    artifact_inputs = ArtifactService.get_activity_inputs(activity)
     logger.info(f"Activity {activity_pk} has {artifact_inputs.count()} artifact inputs")
 
     context = {
@@ -403,11 +436,12 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
     # Get instances with permission check
     playbook = get_object_or_404(Playbook, pk=playbook_pk)
     workflow = get_object_or_404(Workflow, pk=workflow_pk, playbook=playbook)
-    activity = get_object_or_404(
-        Activity.objects.select_related('predecessor', 'successor').prefetch_related('rules', 'skills'),
-        pk=activity_pk,
-        workflow=workflow
-    )
+    try:
+        activity = ActivityService.get_activity_for_user(activity_pk, request.user)
+    except Exception:
+        raise Http404()
+    if activity.workflow_id != workflow.pk:
+        raise Http404()
 
     if not playbook.can_view(request.user):
         logger.warning(
@@ -451,8 +485,10 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
             try:
                 pred_id = int(predecessor_id)
                 if pred_id != activity_pk:  # Don't allow self-reference
-                    predecessor = Activity.objects.get(pk=pred_id, workflow=workflow)
-            except (Activity.DoesNotExist, ValueError):
+                    predecessor = ActivityService.get_activity_in_workflow_for_owner(
+                        workflow, pred_id
+                    )
+            except (ValueError, Exception):
                 messages.error(request, 'Invalid predecessor selected.')
                 return _render_edit_form(request, playbook, workflow, activity, request.POST, {})
         
@@ -460,8 +496,10 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
             try:
                 succ_id = int(successor_id)
                 if succ_id != activity_pk:  # Don't allow self-reference
-                    successor = Activity.objects.get(pk=succ_id, workflow=workflow)
-            except (Activity.DoesNotExist, ValueError):
+                    successor = ActivityService.get_activity_in_workflow_for_owner(
+                        workflow, succ_id
+                    )
+            except (ValueError, Exception):
                 messages.error(request, 'Invalid successor selected.')
                 return _render_edit_form(request, playbook, workflow, activity, request.POST, {})
         
@@ -510,8 +548,14 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
             
         except ValidationError as e:
             logger.warning(f"Activity edit validation error: {str(e)}")
-            messages.error(request, str(e))
-            return _render_edit_form(request, playbook, workflow, activity, request.POST, {})
+            return _render_edit_form(
+                request,
+                playbook,
+                workflow,
+                activity,
+                request.POST,
+                _activity_field_errors(e),
+            )
     
     # GET request - show form with current values
     form_data = {
@@ -523,7 +567,9 @@ def activity_edit(request, playbook_pk, workflow_pk, activity_pk):
         'successor': activity.successor.id if activity.successor else '',
         'agent': activity.agent.id if activity.agent else '',
         'skills': list(activity.skills.values_list('id', flat=True)),
-        'artifact_inputs': list(ArtifactInput.objects.filter(activity=activity).values_list('artifact_id', flat=True)),
+        'artifact_inputs': [
+            ai.artifact_id for ai in ArtifactService.get_activity_inputs(activity)
+        ],
         'rules': list(activity.rules.values_list('id', flat=True)),
 
     }
@@ -535,22 +581,16 @@ def _render_edit_form(request, playbook, workflow, activity, form_data, errors):
     # Get available predecessors and successors (exclude current activity)
     available_predecessors = ActivityService.get_available_predecessors(workflow, exclude_activity_id=activity.id)
 
-    # Get available agents, skills, artifacts, and phases from playbook
-    from methodology.models import Agent, Skill, Artifact, Phase
-    available_agents = Agent.objects.filter(playbook=playbook).order_by('name')
-    available_skills = Skill.objects.filter(playbook=playbook).order_by('title')
-    available_phases = Phase.objects.filter(playbook=playbook).order_by('order')
-    
-    # Exclude artifacts produced by this activity
-    available_artifacts = Artifact.objects.filter(
-        playbook=playbook
-    ).exclude(
-        produced_by=activity
-    ).select_related('produced_by').order_by('produced_by__name', 'name')
+    available_agents = AgentService.list_agents_for_playbook(playbook.pk)
+    available_skills = SkillService.list_skills_for_playbook(playbook_id=playbook.pk)
+    available_phases = PhaseService.list_phases(playbook.pk, request.user)
+    available_artifacts = ArtifactService.list_selectable_input_artifacts(
+        playbook, exclude_activity=activity
+    )
 
     available_successors = ActivityService.get_available_successors(workflow, exclude_activity_id=activity.id)
 
-    available_rules = Rule.objects.filter(playbook=playbook).order_by('title')
+    available_rules = RuleService.list_rules_for_playbook(playbook.pk)
 
     # Check if dropdowns should be disabled (only 1 activity - the current one)
     disable_dependencies = workflow.get_activity_count() <= 1
