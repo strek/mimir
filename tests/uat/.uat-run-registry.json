@@ -65,15 +65,42 @@
     "UAT-08-11": "PASS",
     "UAT-08-12": "PASS",
     "UAT-08-13": "PASS",
-    "UAT-08-14": "SKIP",
+    "UAT-08-14": "PASS",
     "UAT-08-15": "PASS"
+  },
+  "uat_closure": {
+    "status": "COMPLETE",
+    "completed_at": "2026-05-27",
+    "scope": "Phases E–G (e2e-uat-flow.feature browser UAT from UAT-06-00)",
+    "summary": {
+      "pass": 45,
+      "fail": 0,
+      "skip_by_design": 6,
+      "bugs_found": 1,
+      "bugs_fixed": 1
+    },
+    "skipped_by_design": [
+      "UAT-01-01",
+      "UAT-01-01b",
+      "UAT-01-02",
+      "UAT-01-03",
+      "UAT-01-03b",
+      "UAT-07-01"
+    ],
+    "key_fixes": [
+      "#141 team settings nested form (Save Settings / accidental delete)",
+      "Activity blank-name inline validation (UAT-03-02-neg)",
+      "Plain-text emails with absolute URLs"
+    ]
   },
   "bugs": [
     {
       "scenario": "UAT-08-07",
       "issue": 141,
       "url": "https://github.com/phainestai/mimir/issues/141",
-      "summary": "Nested delete form inside team settings form causes accidental team deletion / Save Settings unreliable"
+      "summary": "Nested delete form inside team settings form causes accidental team deletion / Save Settings unreliable",
+      "status": "fixed",
+      "fixed_in": "0c3d805"
     }
   ],
   "team_sharing_matrix": {
@@ -102,7 +129,8 @@
     }
   },
   "notes": {
-    "skipped_by_design": "UAT-01-01/01-01b/01-02/01-03/01-03b (registration/email); UAT-08-14 (invite activation email); UAT-07-01 Gmail (SES creds expired locally).",
+    "skipped_by_design": "UAT-01-01/01-01b/01-02/01-03/01-03b (registration/email verification); UAT-07-01 (Django admin PIP finalize + Gmail).",
+    "UAT-08-14": "Invited newuser+uat14@example.com via manage Invite tab; activation link set is_active=True; login redirect with verified flash; new user logged in and accessed /teams/5/ (Request Pending). Note: auto-registered users have unusable password — must use Forgot password to set credentials.",
     "UAT-03-02-neg": "Activity blank name now surfaces [data-testid=\"name-error\"] with is-invalid; skill blank title shows title-error. Tested on disposable draft PB 241.",
     "UAT-03-05b": "Visibility toggle used disposable PB 240; revert-to-private on released PB via service (Edit disabled when released). Delete modal cancel verified on PB 237.",
     "UAT-07-02": "Spec expects 4 Activities; actual 3 after PIPs (Alpha, Beta, Gamma). v3.0 and Accepted PIPs verified in GUI.",
