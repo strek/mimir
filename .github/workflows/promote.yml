@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       expected_revision:
-        description: 'Expected revision on idle env (e.g. v0.0.41). Leave blank to promote whatever is staged.'
+        description: 'Release tag (v0.0.47) or EB VersionLabel from idle deploy. Leave blank to promote whatever is staged.'
         required: false
         default: ''
 

@@ -3,7 +3,8 @@
 # Run only after reviewing the idle deployment (deploy-idle.sh output).
 #
 # Revision guard:
-#   • If EXPECTED_REVISION is set: idle env's VersionLabel must match — aborts otherwise.
+#   • If EXPECTED_REVISION is set: must match idle /health/ revision (release tag,
+#     e.g. v0.0.47) OR idle EB VersionLabel exactly (e.g. v-v0.0.47-abc-r238).
 #   • If unset: promotes whatever is currently on idle (safe for local "make swap").
 #
 # Required env vars:
@@ -12,7 +13,7 @@
 #   EB_ENV_B    e.g. mimir-idle
 #
 # Optional:
-#   EXPECTED_REVISION   e.g. v0.0.41 — when set, must match idle's VersionLabel
+#   EXPECTED_REVISION   release tag (v0.0.41) or EB VersionLabel — must match idle staging
 #   MIMIR_PROD_URL      default https://mimir.featurefactory.io
 
 set -euo pipefail
@@ -50,27 +51,31 @@ if [ -z "$IDLE_LABEL" ] || [ "$IDLE_LABEL" = "None" ] || [ "$IDLE_LABEL" = "null
 fi
 echo "Idle VersionLabel: $IDLE_LABEL"
 
-# ── 3. Optional revision guard ────────────────────────────────────────────────
-if [ -n "${EXPECTED_REVISION:-}" ]; then
-  if [ "$IDLE_LABEL" != "$EXPECTED_REVISION" ]; then
-    echo "ERROR: EXPECTED_REVISION=$EXPECTED_REVISION does not match idle label ($IDLE_LABEL)."
-    echo "Deploy that revision to idle first, or unset EXPECTED_REVISION to promote whatever is staged."
-    exit 1
-  fi
-  echo "Revision guard passed: $EXPECTED_REVISION matches idle."
-fi
-
-# Read the GIT_REVISION from idle's health endpoint — this is what prod smoke will verify.
+# ── 3. Read idle /health/ revision (MIMIR_GIT_REVISION — same as prod smoke) ─
 IDLE_CNAME=$(aws elasticbeanstalk describe-environments \
   --application-name "$EB_APP" \
   --environment-names "$IDLE_ENV" \
   --query 'Environments[0].CNAME' --output text)
 echo "Reading idle health: http://${IDLE_CNAME}/health/ ..."
 IDLE_HEALTH=$(curl -s --max-time 15 "http://${IDLE_CNAME}/health/")
-EXPECTED_REVISION=$(python3 -c "import json,sys; print(json.loads('${IDLE_HEALTH}').get('revision','unknown'))")
-echo "Idle revision (for prod smoke): $EXPECTED_REVISION"
+IDLE_REVISION=$(python3 -c "import json,sys; print(json.loads(sys.argv[1]).get('revision','unknown'))" "$IDLE_HEALTH")
+echo "Idle /health/ revision: $IDLE_REVISION"
 
-# ── 4. Swap CNAMEs ────────────────────────────────────────────────────────────
+# ── 4. Optional revision guard ────────────────────────────────────────────────
+if [ -n "${EXPECTED_REVISION:-}" ]; then
+  if [ "$EXPECTED_REVISION" = "$IDLE_REVISION" ] || [ "$EXPECTED_REVISION" = "$IDLE_LABEL" ]; then
+    echo "Revision guard passed: $EXPECTED_REVISION matches idle."
+  else
+    echo "ERROR: EXPECTED_REVISION=$EXPECTED_REVISION does not match idle revision ($IDLE_REVISION) or VersionLabel ($IDLE_LABEL)."
+    echo "Deploy that revision to idle first, or unset EXPECTED_REVISION to promote whatever is staged."
+    exit 1
+  fi
+fi
+
+SMOKE_REVISION="$IDLE_REVISION"
+echo "Prod smoke will verify revision: $SMOKE_REVISION"
+
+# ── 5. Swap CNAMEs ────────────────────────────────────────────────────────────
 echo "Swapping $IDLE_ENV (idle) ↔ $LIVE_ENV (live) ..."
 aws elasticbeanstalk swap-environment-cnames \
   --source-environment-name "$IDLE_ENV" \
@@ -78,15 +83,15 @@ aws elasticbeanstalk swap-environment-cnames \
 echo "Swap requested — waiting 90s for DNS TTL propagation (Route53 TTL=60s)..."
 sleep 90
 
-# ── 5. Smoke-test prod URL — poll until revision matches (up to 3 min) ────────
+# ── 6. Smoke-test prod URL — poll until revision matches (up to 3 min) ────────
 PROD_URL="${MIMIR_PROD_URL:-https://mimir.featurefactory.io}"
-echo "Polling ${PROD_URL}/health/ for revision=$EXPECTED_REVISION ..."
+echo "Polling ${PROD_URL}/health/ for revision=$SMOKE_REVISION ..."
 for i in $(seq 1 18); do
   PROD_STATUS=$(curl -o /tmp/prod-health.json -s -w "%{http_code}" \
     --max-time 15 "${PROD_URL}/health/" || echo "000")
   PROD_REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/prod-health.json")).get("revision","unknown"))' 2>/dev/null || echo "unknown")
   echo "  [${i}/18] HTTP=${PROD_STATUS}  revision=${PROD_REVISION}"
-  if [ "$PROD_STATUS" = "200" ] && [ "$PROD_REVISION" = "$EXPECTED_REVISION" ]; then
+  if [ "$PROD_STATUS" = "200" ] && [ "$PROD_REVISION" = "$SMOKE_REVISION" ]; then
     break
   fi
   sleep 10
@@ -99,9 +104,9 @@ if [ "$PROD_STATUS" != "200" ]; then
 fi
 
 PROD_REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/prod-health.json")).get("revision","unknown"))')
-echo "Prod /health/ revision: $PROD_REVISION  (expected: $EXPECTED_REVISION)"
+echo "Prod /health/ revision: $PROD_REVISION  (expected: $SMOKE_REVISION)"
 
-if [ "$PROD_REVISION" != "$EXPECTED_REVISION" ]; then
+if [ "$PROD_REVISION" != "$SMOKE_REVISION" ]; then
   echo "Prod smoke test FAILED — revision mismatch. CNAME may still be propagating."
   exit 1
 fi

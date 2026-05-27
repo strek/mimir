@@ -118,7 +118,7 @@ backup: ## [prod] Dump prod Postgres to S3 — requires S3_BUCKET and DATABASE_U
 #   gh release create vX.Y.Z
 #     → CI: test → build → deploy-idle.sh (dynamically resolves idle env) → staging smoke
 #   make swap   (after human review of idle URL)
-#     → promote-prod.sh: resolves live/idle, SHA guard, CNAME swap, prod smoke
+#     → promote-prod.sh: resolves live/idle, revision guard (/health/ or VersionLabel), swap, smoke
 #
 # Two physical EB envs whose CNAMEs rotate on every swap:
 #   mimir-prod  /  mimir-idle
