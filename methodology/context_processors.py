@@ -32,12 +32,42 @@ def pip_nav(request):
 
 
 def primary_nav_section(request):
-    """Inject primary navigation section context.
+    """Inject primary navigation section context based on request path.
+
+    Maps URL prefixes to nav section identifiers so the active navbar tab
+    can be highlighted without each view setting it manually.
 
     :param request: Django HTTP request.
-    :returns: Empty dict (views set nav_section manually).
+    :returns: Dict with ``nav_section`` key: one of
+        ``"home"``, ``"playbooks"``, ``"workflows"``, ``"activities"``,
+        ``"pips"``, or ``None`` for unmatched paths.
     """
-    return {}
+    path = request.path
+    section = _resolve_nav_section(path)
+    return {"nav_section": section}
+
+
+def _resolve_nav_section(path: str):
+    """Return nav section string for ``path``, or ``None`` if no match.
+
+    Activity paths take priority over playbook/workflow paths so that
+    nested URLs like ``/playbooks/12/workflows/25/activities/129/``
+    highlight the Activities tab.
+
+    :param path: URL path string.
+    :returns: Section identifier or ``None``.
+    """
+    if "/activities/" in path:
+        return "activities"
+    if path.startswith("/dashboard/"):
+        return "home"
+    if path.startswith("/workflows/") or "/workflows/" in path:
+        return "workflows"
+    if path.startswith("/playbooks/"):
+        return "playbooks"
+    if path.startswith("/pips/") or path.startswith("/pip/"):
+        return "pips"
+    return None
 
 
 def notification_count(request):

@@ -41,6 +41,17 @@ class TestTeamEmailNotifications:
         assert self.user.email in msg.to
         assert "Email Test Team" in msg.body
         assert ("joined" in msg.subject.lower() or "Email Test Team" in msg.subject)
+        assert f"http://testserver/teams/{self.team.pk}/" in msg.body
+        assert not getattr(msg, "alternatives", [])
+
+    def test_team_emails_are_plain_text_only(self):
+        membership = self.service.add_member(self.team, self.user)
+        mail.outbox.clear()
+        team_notification_service.send_auto_join_confirmation(membership)
+        msg = mail.outbox[0]
+        assert msg.content_subtype == "plain"
+        assert "<a " not in msg.body
+        assert "<html" not in msg.body.lower()
 
     def test_send_join_request_to_admin(self):
         jr = self.service.create_join_request(self.team, self.user)

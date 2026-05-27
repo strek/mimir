@@ -369,7 +369,7 @@ def artifact_list(request, playbook_id):
         activity_filter=filters['activity_filter'],
     )
 
-    context = _build_list_context(playbook, artifacts, filters, total_count)
+    context = _build_list_context(playbook, request.user, artifacts, filters, total_count)
     
     logger.info(
         f"Artifact list rendered: {artifacts.count()} artifacts "
@@ -424,9 +424,9 @@ def _parse_list_filters(get_params):
     }
 
 
-def _build_list_context(playbook, artifacts, filters, total_count):
+def _build_list_context(playbook, user, artifacts, filters, total_count):
     """Build template context for artifact list."""
-    activities = ActivityService.list_activities_for_playbook(playbook.pk, request.user)
+    activities = ActivityService.list_activities_for_playbook(playbook.pk, user)
 
     return {
         "playbook": playbook,

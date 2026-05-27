@@ -4,8 +4,8 @@ You've been invited to join the {{ team.name }} team on Mimir!
 
 {% if welcome_text %}{{ welcome_text }}
 
-{% endif %}Log in to view the team and accept the invitation:
-/teams/{{ team.pk }}/
+{% endif %}Log in and view the team:
+{{ base_url }}/teams/{{ team.pk }}/
 
 Best,
 The Mimir Team

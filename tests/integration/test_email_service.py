@@ -41,7 +41,18 @@ def test_send_verification_email_contains_token_url(mail_user):
         mail_user, "secret-token-abc", base_url="https://mimir.example"
     )
     body = mail.outbox[0].body
-    assert "/auth/user/verify-email/secret-token-abc/" in body
+    assert "https://mimir.example/auth/user/verify-email/secret-token-abc/" in body
+    assert "<" not in body
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND=_LOCMEM)
+def test_send_welcome_email_is_plain_text_with_login_link(mail_user):
+    EmailService.send_welcome_email(mail_user)
+    msg = mail.outbox[0]
+    assert msg.content_subtype == "plain"
+    assert "http://testserver/auth/user/login/" in msg.body
+    assert "<html" not in msg.body.lower()
 
 
 @pytest.mark.django_db

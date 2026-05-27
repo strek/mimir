@@ -10,10 +10,11 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
-from methodology.models import Playbook
+from methodology.models import Agent, Playbook
 from methodology.services.agent_service import AgentService
 
 logger = logging.getLogger(__name__)
@@ -185,7 +186,9 @@ def agent_detail(request, pk):
     """
     try:
         agent = AgentService.get_agent_for_user(pk, request.user)
-    except Exception:
+    except Agent.DoesNotExist:
+        raise Http404()
+    except (PermissionError, ObjectDoesNotExist):
         messages.error(request, "You don't have permission to view this agent.")
         return redirect('agent_list')
 
@@ -226,7 +229,9 @@ def agent_edit(request, pk):
     """
     try:
         agent = AgentService.get_agent_for_user(pk, request.user, write=True)
-    except Exception:
+    except Agent.DoesNotExist:
+        raise Http404()
+    except (PermissionError, ObjectDoesNotExist):
         messages.error(request, "You don't have permission to edit this agent.")
         return redirect('agent_detail', pk=pk)
 
@@ -322,7 +327,9 @@ def agent_delete(request, pk):
     """
     try:
         agent = AgentService.get_agent_for_user(pk, request.user, write=True)
-    except Exception:
+    except Agent.DoesNotExist:
+        raise Http404()
+    except (PermissionError, ObjectDoesNotExist):
         messages.error(request, "You don't have permission to delete this agent.")
         return redirect('agent_detail', pk=pk)
 

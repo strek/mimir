@@ -34,8 +34,9 @@ class TestMCPTeamFacade:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) >= 1
-        team_names = [t["name"] for t in data]
+        teams = data.get("results", data) if isinstance(data, dict) else data
+        assert len(teams) >= 1
+        team_names = [t["name"] for t in teams]
         assert "Public Facade Team" in team_names
 
     def test_create_team_endpoint(self):
@@ -96,12 +97,12 @@ class TestMCPTeamFacade:
         token, _ = Token.objects.get_or_create(user=admin)
 
         team = Team.objects.create(name="Test Team", admin=admin)
-        TeamMembership.objects.create(team=team, user=admin)
+        TeamMembership.objects.create(team=team, user=admin, role=TeamMembership.ROLE_ADMIN)
 
         playbook = Playbook.objects.create(
             name="Test Playbook",
             author=admin,
-            status="draft",
+            status="released",
         )
 
         client = Client()

@@ -41,6 +41,7 @@ GALDR_EAGER = True
 # Capture notification emails during tests.
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 DEFAULT_FROM_EMAIL = "noreply@test.mimir"
+FRONTEND_URL = "http://testserver"
 
 
 # Database — PostgreSQL for proper concurrent transaction support

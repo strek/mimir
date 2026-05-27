@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 
-from methodology.models import Playbook, Workflow
+from methodology.models import Activity, Playbook, Workflow
 from methodology.services.activity_service import ActivityService
 from methodology.services.phase_service import PhaseService
 from methodology.services.rule_service import RuleService

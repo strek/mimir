@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import logging
 
-from django.conf import settings
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
+
+from accounts.services.email_service import EmailService
 
 from methodology.models import JoinRequest, Team, TeamMembership
 
@@ -211,7 +211,7 @@ def send_invite_new_user(join_request: JoinRequest, activation_token: str, welco
     :param activation_token: Token for account activation.
     :param welcome_text: Optional custom message from the inviting admin.
     """
-    base_url = getattr(settings, "FRONTEND_URL", "https://mimir.featurefactory.io")
+    base_url = EmailService.get_site_base_url()
     _send_team_email(
         subject=f"You've been invited to Mimir and the {join_request.team.name} team",
         template="teams/email_invite_new_user",
@@ -248,10 +248,10 @@ def _send_team_email(
     team_name: str,
     username: str,
 ) -> None:
-    """Send a team event email using paired txt + html templates.
+    """Send a team event email using a plain-text template.
 
     :param subject: Email subject line.
-    :param template: Template path prefix (without .txt/.html extension).
+    :param template: Template path prefix (without .txt extension).
     :param context: Template context dict.
     :param recipient_email: Recipient email address.
     :param action: Action label for log messages.
@@ -274,19 +274,11 @@ def _send_team_email(
         recipient_email,
     )
 
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@mimir.app")
+    context = {**context, "base_url": EmailService.get_site_base_url()}
     body_txt = render_to_string(f"{template}.txt", context)
-    body_html = render_to_string(f"{template}.html", context)
 
     try:
-        send_mail(
-            subject=subject,
-            message=body_txt,
-            from_email=from_email,
-            recipient_list=[recipient_email],
-            html_message=body_html,
-            fail_silently=False,
-        )
+        EmailService.send_text_email(subject, body_txt, [recipient_email])
         logger.info(
             "[teams] email sent | action=%s team=%s recipient=%s",
             action,

@@ -3096,10 +3096,12 @@ async def get_team(team_id: int) -> dict:
     from methodology.services.team_service import TeamService
     from methodology.models import Team
 
+    from django.http import Http404 as _Http404
+
     service = TeamService()
     try:
         team = await sync_to_async(service.get_team_or_404)(team_id, user)
-    except Team.DoesNotExist:
+    except (Team.DoesNotExist, _Http404):
         raise ValueError(f"Team {team_id} not found or not accessible")
 
     # Get members
@@ -3353,16 +3355,18 @@ async def invite_to_team(team_id: int, emails: list[str], welcome_text: str = ""
     if not emails or len(emails) == 0:
         raise ValueError("Emails list cannot be empty")
 
-    results = await sync_to_async(TeamInviteService.send_invites)(team, user, emails, welcome_text)
+    invite_service = TeamInviteService()
+    results = await sync_to_async(invite_service.send_invites)(team, user, emails, welcome_text)
 
+    invited_count = results.get("sent", 0) + results.get("created", 0)
     result = {
         "success": True,
         "team_id": team.id,
         "team_name": team.name,
-        "invited_count": len(results["success"]),
+        "invited_count": invited_count,
         "results": results,
     }
-    logger.info(f"MCP Tool: Invited {len(results['success'])} users to team {team_id}")
+    logger.info(f"MCP Tool: Invited {invited_count} users to team {team_id}")
     return result
 
 

@@ -4,7 +4,8 @@ Great news! Your request to join the "{{ team.name }}" team has been approved.
 
 You are now a member and have access to the team's shared playbooks.
 
-View your team: /teams/{{ team.pk }}/
+View your team:
+{{ base_url }}/teams/{{ team.pk }}/
 
 Best,
 The Mimir Team

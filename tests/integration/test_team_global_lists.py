@@ -7,13 +7,14 @@ appear in their respective global list views for team members.
 
 import pytest
 from django.contrib.auth import get_user_model
-from methodology.models import Playbook, Workflow, Activity, Phase, Artifact, Team, TeamMembership, TeamPlaybook
+from django.urls import reverse
+from methodology.models import Playbook, Workflow, Activity, Phase, Artifact, Skill, Rule, Team, TeamMembership, TeamPlaybook
 from django.test import Client
 
 User = get_user_model()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 class TestTeamGlobalLists:
     """Test that team playbook items appear in global lists for team members."""
 
@@ -346,3 +347,99 @@ class TestTeamGlobalLists:
         workflows = response.context['workflows']
         workflow_ids = [w.id for w in workflows]
         assert workflow.id in workflow_ids, "Public team workflow should appear for all users"
+
+    def test_team_member_can_view_skill_detail(self):
+        """Team members should open skill detail for team-shared playbooks."""
+        admin, _ = User.objects.get_or_create(username="admin", defaults={"email": "admin@test.com"})
+        dp2580, _ = User.objects.get_or_create(username="dp2580", defaults={"email": "dp2580@test.com"})
+
+        playbook = Playbook.objects.create(
+            name="Team Methodology Skills",
+            description="Shared methodology",
+            author=admin,
+            status="released",
+            visibility="private",
+        )
+        skill = Skill.objects.create(
+            playbook=playbook,
+            title="Team Skill",
+            content="Team skill content",
+        )
+
+        team = Team.objects.create(name="Dev Team Skills", visibility=Team.VISIBILITY_HIDDEN, admin=admin)
+        TeamMembership.objects.create(team=team, user=admin, role="admin")
+        TeamMembership.objects.create(team=team, user=dp2580, role="member")
+        TeamPlaybook.objects.create(team=team, playbook=playbook)
+
+        client = Client()
+        client.force_login(dp2580)
+        url = reverse("skill_detail", kwargs={"playbook_pk": playbook.pk, "skill_pk": skill.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert skill.title.encode() in response.content
+
+    def test_team_member_can_view_rule_detail(self):
+        """Team members should open rule detail for team-shared playbooks."""
+        admin, _ = User.objects.get_or_create(username="admin", defaults={"email": "admin@test.com"})
+        dp2580, _ = User.objects.get_or_create(username="dp2580", defaults={"email": "dp2580@test.com"})
+
+        playbook = Playbook.objects.create(
+            name="Team Methodology Rules",
+            description="Shared methodology",
+            author=admin,
+            status="released",
+            visibility="private",
+        )
+        rule = Rule.objects.create(
+            playbook=playbook,
+            title="Team Rule",
+            slug="team-rule",
+            content="Team rule content",
+        )
+
+        team = Team.objects.create(name="Dev Team Rules", visibility=Team.VISIBILITY_HIDDEN, admin=admin)
+        TeamMembership.objects.create(team=team, user=admin, role="admin")
+        TeamMembership.objects.create(team=team, user=dp2580, role="member")
+        TeamPlaybook.objects.create(team=team, playbook=playbook)
+
+        client = Client()
+        client.force_login(dp2580)
+        url = reverse("rule_detail", kwargs={"playbook_pk": playbook.pk, "rule_pk": rule.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert rule.title.encode() in response.content
+
+    def test_non_member_cannot_view_team_skill_detail(self):
+        """Non-members should not access skill detail on private team playbooks."""
+        admin, _ = User.objects.get_or_create(username="admin", defaults={"email": "admin@test.com"})
+        other_user, _ = User.objects.get_or_create(
+            username="other_user_skill",
+            defaults={"email": "other_skill@test.com"},
+        )
+
+        playbook = Playbook.objects.create(
+            name="Team Methodology Skill Private",
+            description="Shared methodology",
+            author=admin,
+            status="released",
+            visibility="private",
+        )
+        skill = Skill.objects.create(
+            playbook=playbook,
+            title="Private Team Skill",
+            content="Private skill content",
+        )
+
+        team = Team.objects.create(name="Dev Team Skill Private", visibility=Team.VISIBILITY_HIDDEN, admin=admin)
+        TeamMembership.objects.create(team=team, user=admin, role="admin")
+        TeamPlaybook.objects.create(team=team, playbook=playbook)
+
+        client = Client()
+        client.force_login(other_user)
+        url = reverse("skill_detail", kwargs={"playbook_pk": playbook.pk, "skill_pk": skill.pk})
+        response = client.get(url)
+
+        assert response.status_code == 302
+        assert response.url == reverse("playbook_list")

@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from methodology.models import Playbook, Phase
 from methodology.services.phase_service import PhaseService
+from methodology.services.playbook_service import PlaybookService
 
 logger = logging.getLogger(__name__)
 

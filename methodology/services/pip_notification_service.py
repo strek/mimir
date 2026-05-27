@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from django.conf import settings
-from django.core.mail import send_mail
+from accounts.services.email_service import EmailService
 from django.template.loader import render_to_string
 
 from methodology.models import PipChange, ProcessImprovementProposal
@@ -61,11 +60,9 @@ def send_decision_email(pip: ProcessImprovementProposal) -> None:
         "verdict": verdict_label,
         "new_version": str(pv.version_number) if pv else "",
         "version_bump": bool(pv),
+        "base_url": EmailService.get_site_base_url(),
     }
     body = render_to_string("pips/email_decision.txt", context)
-    sender = getattr(
-        settings, "DEFAULT_FROM_EMAIL", "noreply@mimir.local"
-    )
     logger.info(
         "Sending PIP decision email pip_id=%s to=%s verdict=%s",
         pip.pk,
@@ -73,7 +70,11 @@ def send_decision_email(pip: ProcessImprovementProposal) -> None:
         verdict_kw,
     )
     try:
-        send_mail(subject, body, sender, [submitter.email], fail_silently=False)
+        EmailService.send_text_email(
+            subject,
+            body,
+            [submitter.email],
+        )
     except Exception:
         logger.exception(
             "Failed to send PIP decision email pip_id=%s to=%s — email skipped",

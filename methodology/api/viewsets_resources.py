@@ -628,14 +628,16 @@ class TeamViewSet(viewsets.ModelViewSet):
         welcome_text = request.data.get('welcome_text', '')
         
         try:
-            results = TeamInviteService.send_invites(team, request.user, emails, welcome_text)
+            invite_service = TeamInviteService()
+            results = invite_service.send_invites(team, request.user, emails, welcome_text)
         except ValidationError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+        invited_count = results.get("sent", 0) + results.get("created", 0)
         return Response({
             "success": True,
             "team_id": team.id,
-            "invited_count": len(results["success"]),
+            "invited_count": invited_count,
             "results": results,
         })
     

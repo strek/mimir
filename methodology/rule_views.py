@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 
 def _get_playbook_or_deny(request, playbook_pk):
     playbook = get_object_or_404(Playbook, pk=playbook_pk)
-    if playbook.source == 'owned' and playbook.author != request.user:
+    if not playbook.can_view(request.user):
         logger.warning(
-            'User %s denied access to playbook %s',
+            'User %s denied access to playbook %s (no view access)',
             request.user.username,
             playbook_pk,
         )

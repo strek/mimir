@@ -127,12 +127,12 @@ class TestMCPTeamTools:
 
         admin = User.objects.create_user(username="admin_mcp5", password="pass", email="admin5@test.com")
         team = Team.objects.create(name="Test Team", admin=admin)
-        TeamMembership.objects.create(team=team, user=admin)
+        TeamMembership.objects.create(team=team, user=admin, role=TeamMembership.ROLE_ADMIN)
 
         playbook = Playbook.objects.create(
             name="Test Playbook",
             author=admin,
-            status="draft",
+            status="released",
         )
 
         set_current_user(admin)
@@ -171,7 +171,7 @@ class TestMCPTeamTools:
 
         admin = User.objects.create_user(username="admin_mcp7", password="pass", email="admin7@test.com")
         team = Team.objects.create(name="Test Team", admin=admin)
-        TeamMembership.objects.create(team=team, user=admin)
+        TeamMembership.objects.create(team=team, user=admin, role=TeamMembership.ROLE_ADMIN)
 
         playbook = Playbook.objects.create(
             name="Test Playbook",
@@ -197,7 +197,7 @@ class TestMCPTeamTools:
 
         admin = User.objects.create_user(username="admin_mcp8", password="pass", email="admin8@test.com")
         team = Team.objects.create(name="Test Team", admin=admin)
-        TeamMembership.objects.create(team=team, user=admin)
+        TeamMembership.objects.create(team=team, user=admin, role=TeamMembership.ROLE_ADMIN)
 
         set_current_user(admin)
         result = asyncio.run(
@@ -250,7 +250,7 @@ class TestMCPTeamTools:
             admin=admin,
             join_policy=Team.JOIN_POLICY_APPROVAL,
         )
-        TeamMembership.objects.create(team=team, user=admin)
+        TeamMembership.objects.create(team=team, user=admin, role=TeamMembership.ROLE_ADMIN)
 
         join_request = JoinRequest.objects.create(
             team=team,
@@ -285,7 +285,7 @@ class TestMCPTeamTools:
             admin=admin,
             join_policy=Team.JOIN_POLICY_APPROVAL,
         )
-        TeamMembership.objects.create(team=team, user=admin)
+        TeamMembership.objects.create(team=team, user=admin, role=TeamMembership.ROLE_ADMIN)
 
         join_request = JoinRequest.objects.create(
             team=team,
