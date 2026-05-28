@@ -55,15 +55,21 @@ fi
 echo "Logging in to ECR and pulling ${IMAGE}"
 aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
 docker pull ${IMAGE}
+ENV_FILE=\$(mktemp)
+docker exec "\$CONTAINER" env | grep -E '^(DATABASE_URL|DJANGO_|MIMIR_|AWS_SES|DEFAULT_FROM|FRONTEND|GITHUB|CSRF_|COOKIE_)=' > "\$ENV_FILE" || true
+{
+  echo "S3_BACKUP_BUCKET=${S3_BACKUP_BUCKET}"
+  echo "MIMIR_GIT_REVISION=${GIT_REVISION}"
+  echo "MIMIR_ENV=prod"
+  echo "DJANGO_SETTINGS_MODULE=mimir.settings.prod"
+} >> "\$ENV_FILE"
 echo "Running pre_deploy_backup in one-off container (network=container:\$CONTAINER)"
 docker run --rm --network "container:\${CONTAINER}" \\
-  -e DATABASE_URL="\$DATABASE_URL" \\
-  -e S3_BACKUP_BUCKET='${S3_BACKUP_BUCKET}' \\
-  -e MIMIR_GIT_REVISION='${GIT_REVISION}' \\
-  -e MIMIR_ENV=prod \\
-  -e DJANGO_SETTINGS_MODULE=mimir.settings.prod \\
+  --env-file "\$ENV_FILE" \\
+  --entrypoint python \\
   ${IMAGE} \\
-  python manage.py pre_deploy_backup
+  manage.py pre_deploy_backup
+rm -f "\$ENV_FILE"
 EOF
 )
 
