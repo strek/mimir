@@ -2111,7 +2111,16 @@ Complete reference for all environment variables consumed by Mimir, grouped by e
 
 ### Production / Elastic Beanstalk (`mimir.settings.prod`)
 
-EB environment properties are set via the AWS Console, `aws elasticbeanstalk update-environment --option-settings`, or CI/CD (`deploy-idle.sh`). They **persist across deployments** — set once, update only when values change.
+EB environment properties **persist across deployments**. Sources:
+
+| Source | What it sets |
+|--------|----------------|
+| CDK `eb_live_platform_settings.json` | Platform settings (VPC, ALB, instance type, non-secret env vars) — exported from live; see [`infra/README.md`](../../infra/README.md) |
+| `infra/.env` (or repo `.env`) at `cdk deploy` | Secrets: `DATABASE_URL`, `DJANGO_SECRET_KEY`, `ANTHROPIC_API_KEY`, `GITHUB_TOKEN` |
+| CI `deploy-idle.sh` | Per-release vars such as `MIMIR_GIT_REVISION` (and optional `GITHUB_TOKEN` from GitHub Secrets) |
+| Console / CLI | Ad-hoc overrides |
+
+Routine **application** deploys do not run CDK; **infrastructure** recreate uses `cdk deploy --all` then the release pipeline.
 
 #### Core Application
 
@@ -2124,7 +2133,7 @@ EB environment properties are set via the AWS Console, `aws elasticbeanstalk upd
 | `DJANGO_ALLOWED_HOSTS` | No | `mimir.featurefactory.io,.elasticbeanstalk.com,…` | Comma-separated |
 | `CSRF_TRUSTED_ORIGINS` | No | `https://mimir.featurefactory.io,…` | Comma-separated https:// origins |
 | `FRONTEND_URL` | No | `https://mimir.featurefactory.io` | Used in email links and redirects |
-| `COOKIE_SECURE` | No | `true` | Set `false` only for EB direct HTTP access during blue/green testing |
+| `COOKIE_SECURE` | No | `false` on EB | `false` on direct EB HTTP URLs; public site may differ if served over HTTPS |
 
 #### Galdr AI Engine
 
@@ -2233,6 +2242,22 @@ make swap
 # → scripts/promote-prod.sh: resolves live/idle, SHA check, CNAME swap, prod smoke
 ```
 
+### Infrastructure (CDK)
+
+Code under [`infra/`](../../infra/). **Operational guide:** [`infra/README.md`](../../infra/README.md).
+
+| Stack | Role |
+|-------|------|
+| `MimirNetwork` | VPC, `mimir-eb` security group, RDS ingress |
+| `MimirSes` | SES configuration set + send policy |
+| `MimirApp` | EB app, `mimir-prod` / `mimir-idle`, `mimir-ci` IAM, alarms |
+| `MimirBackups` | S3 pre-migrate backup bucket |
+| `MimirDns` | Route53 CNAME → `mimir-prod.eba-…` |
+
+**Disaster recovery (new region/account):** copy `infra/.env` from `.env.example` → `cdk deploy --all` → run **build-and-deploy** pipeline → `make swap`. Platform snapshot may need re-export if VPC/subnet IDs change.
+
+**CDK vs pipeline:** `cdk deploy` recreates **infra**; GitHub **build-and-deploy** pushes the **Docker app** to the idle EB env (backup, then `update-environment`).
+
 ### Elastic Beanstalk Deployment
 
 - **Application**: `mimir`
@@ -2241,7 +2266,7 @@ make swap
 - **Deploy target**: whichever env is currently **idle**, resolved dynamically by `scripts/deploy-idle.sh` (checks which env holds `mimir-prod.eba-…` CNAME — that's live; the other is idle)
 - **Deploy mechanism**: docker-compose bundle uploaded to S3, applied via `update-environment`
 - **Version label format**: `v-{branch}-{sha}-r{run_number}`
-- **Staging smoke**: `deploy-idle.sh` hits the idle env's own CNAME at `/health/` and verifies `revision` matches `GIT_REVISION` before declaring success
+- **Staging smoke**: `deploy-idle.sh` hits the idle env's own CNAME over **HTTP** (`http://<idle>.eba-…/health/`) and verifies `revision` matches `GIT_REVISION` before declaring success
 
 The deploy job generates `docker-compose.yml` from `deploy/docker-compose.tmpl.yml` by
 substituting `$IMAGE_WEB` (ECR) with the exact SHA-tagged image built in the preceding job.
@@ -2313,11 +2338,14 @@ gh release create vX.Y.Z
   → new version is live; formerly-live env becomes idle for next release
 ```
 
-**DNS**: `mimir.featurefactory.io` is a Route53 **CNAME** record (TTL 60s) pointing at
-`mimir-prod.eba-8hqkems3.us-east-1.elasticbeanstalk.com` (the `mimir-prod` EB CNAME label).
-HTTPS is terminated at the ALB inside the EB environment, which holds the
-`*.featurefactory.io` wildcard cert (`arn:aws:acm:us-east-1:411113550285:certificate/9d3ca541-…`).
-The record is managed by the `MimirDns` CDK stack (idempotent Lambda UPSERT).
+**DNS and TLS**
+
+| URL | Protocol | Notes |
+|-----|----------|--------|
+| `http://mimir-prod.eba-….elasticbeanstalk.com` (and idle twin) | **HTTP** | Default ALB listener (port 80). Used for EB-native URLs, CI idle smoke, and `COOKIE_SECURE=false`. |
+| `https://mimir.featurefactory.io` | **HTTPS** | Route53 **CNAME** (TTL 60s) → `mimir-prod.eba-8hqkems3.us-east-1.elasticbeanstalk.com`. HTTPS uses the ALB **:443** listener (ACM cert on the environment). No CloudFront in front today. |
+
+`MimirDns` CDK stack UPSERTs the public CNAME (idempotent Lambda). After `make swap`, the same Route53 name still points at the `mimir-prod.eba-…` label; only which physical EB env owns that label changes.
 
 **Why CNAME → EB environment CNAME label (not ALB ARN):**
 `swap-environment-cnames` atomically rotates which physical env holds the `mimir-prod.eba-…` label.
