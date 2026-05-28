@@ -2141,6 +2141,7 @@ EB environment properties are set via the AWS Console, `aws elasticbeanstalk upd
 | `GITHUB_BUG_REPO` | No | `phainestai/mimir` | Target repo; this is the default |
 | `BUG_REPORT_DRY_RUN` | No | — | `1`/`true` to skip GitHub API (staging diagnostics only) |
 | `MIMIR_GIT_REVISION` | No | `v0.0.41` | Set by CI (`deploy-idle.sh`); surfaced in `/health/` and bug report bodies |
+| `S3_BACKUP_BUCKET` | No | `mimir-db-backups-411113550285` | Used by `deploy-idle.sh` / `pre_deploy_backup`; set in GHA `deploy-idle` job (or repo variable) |
 
 > **CI/CD note:** `deploy-idle.sh` sets `MIMIR_GIT_REVISION` on every deploy. It also sets `GITHUB_TOKEN` if the `GH_BUG_REPORT_TOKEN` GitHub Actions secret is present — store it as a repo secret to ensure the token survives future deployments without manual console edits.
 
@@ -2188,8 +2189,8 @@ gh release create vX.Y.Z          (sole trigger)
        ▼
   ┌─────────┐     ┌──────────────────┐     ┌───────────────────────┐
   │  Tests  │────▶│ Build & Push     │────▶│ deploy-idle           │
-  │ pytest  │     │ Docker images    │     │ (resolve idle by CNAME│
-  └─────────┘     └──────────────────┘     │  deploy + smoke test) │
+  │ pytest  │     │ Docker images    │     │ resolve idle → backup │
+  └─────────┘     └──────────────────┘     │ → deploy → smoke      │
                                            └───────────────────────┘
                                                       │ human review
                                                       ▼
@@ -2247,12 +2248,58 @@ substituting `$IMAGE_WEB` (ECR) with the exact SHA-tagged image built in the pre
 The MCP facade (`featurefactory/mimir-mcp`) is a client-side component distributed via Docker Hub;
 it is **not** deployed to EB.
 
+### Database backup before migrate
+
+Backup is **deploy-bound** (orchestrated by `deploy-idle.sh`), not container entrypoint. Both EB
+environments share the same RDS (`huginn-db`). Before `update-environment` rolls out a new image
+(which runs `migrate` in `docker/entrypoint.sh`), CI snapshots the database to S3.
+
+**Trigger:** every release deploy — step 2 in `scripts/deploy-idle.sh`, after resolving the idle env,
+**before** uploading the bundle or calling `update-environment`.
+
+**Executor:** `scripts/run-eb-backup.sh` uses SSM `SendCommand` on the idle env EC2 instance, then
+`docker exec` into the **current** `web` container to run `python manage.py pre_deploy_backup`.
+
+**Order:** `pg_dump` (gzip) → S3, then `dumpdata` (JSON fixture) → S3 → EB deploy → container
+`migrate` → staging smoke. If backup or S3 verification fails, deploy aborts (fail-closed).
+
+**S3 layout** (bucket from CDK `MimirBackups` stack):
+
+```
+s3://{S3_BACKUP_BUCKET}/pre-migrate/{GIT_REVISION}/{timestamp}/mimir.sql.gz
+s3://{S3_BACKUP_BUCKET}/pre-migrate/{GIT_REVISION}/{timestamp}/mimir-fixture.json
+```
+
+Lifecycle rule expires objects under `pre-migrate/` after 90 days. RDS automated backups remain the
+baseline; these artifacts are pre-migration snapshots for bad-migration recovery.
+
+| Component | Role |
+|-----------|------|
+| CDK `MimirBackups` | S3 bucket, `MimirDbBackup` IAM on `aws-elasticbeanstalk-ec2-role` |
+| `manage.py pre_deploy_backup` | `pg_dump` + `dumpdata` + boto3 upload (shared by deploy and `make backup`) |
+| `scripts/run-eb-backup.sh` | SSM remote exec on idle EB host |
+| `scripts/pre-deploy-backup.sh` | Local / Makefile wrapper |
+| `mimir-ci` IAM | SSM `SendCommand` + S3 list (verify keys before deploy) |
+
+**Restore (ops):**
+
+- Full DB: download `mimir.sql.gz`, `gunzip`, `psql "$DATABASE_URL" < mimir.sql`
+- Content-only: `python manage.py loaddata mimir-fixture.json` (not a full DB clone; use after schema matches)
+
+**Manual backup:** `make backup` (requires `DATABASE_URL`, `S3_BACKUP_BUCKET`, optional `MIMIR_GIT_REVISION`).
+
+**Prerequisite:** EB EC2 instances must be SSM-managed (`AmazonSSMManagedInstanceCore` on
+`aws-elasticbeanstalk-ec2-role` — attached by CDK `MimirBackups` stack).
+
+**Not in scope:** backup on every container restart; changes to `docker/entrypoint.sh`.
+
 ### Blue/Green Promotion Workflow
 
 ```
 gh release create vX.Y.Z
   → CI: test → build → deploy-idle.sh
       • resolves idle env (whichever doesn't hold mimir-prod CNAME)
+      • pre-deploy backup via SSM → idle EC2 → docker exec pre_deploy_backup → S3
       • deploys version, waits for Ready
       • smoke tests idle CNAME /health/ — verifies revision
   → human reviews idle URL
@@ -2286,6 +2333,7 @@ always resolves the truly idle env by CNAME inspection, not by name.
 |--------|-------------|
 | `make swap` | Runs `scripts/promote-prod.sh`: resolves live/idle, reads revision from idle `/health/`, swaps CNAMEs, waits 90s for DNS TTL, polls prod for revision match |
 | `make eb-status` | Shows health, CNAME, and version label for both environments |
+| `make backup` | Runs `scripts/pre-deploy-backup.sh` → `pre_deploy_backup` (pg_dump + dumpdata → S3) |
 
 **GitHub workflow for promote (alternative to `make swap`):**
 ```bash

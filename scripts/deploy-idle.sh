@@ -12,6 +12,7 @@
 #   VERSION_LABEL       e.g. v-v0.0.41-abc1234-r42  (unique EB version label)
 #   GIT_REVISION        e.g. v0.0.41  (stored as MIMIR_GIT_REVISION env property on EB)
 #   DEPLOY_BUNDLE_PATH  path to the pre-built deploy-bundle.zip
+#   S3_BACKUP_BUCKET    e.g. mimir-db-backups-411113550285 (pre-migrate snapshots)
 
 set -euo pipefail
 
@@ -47,8 +48,21 @@ echo "Image:     $ECR_REGISTRY/mimir:$IMAGE_SUFFIX"
 
 # Export for callers / GH Actions
 echo "IDLE_ENV=${IDLE_ENV}" >> "${GITHUB_OUTPUT:-/dev/null}" 2>/dev/null || true
+export IDLE_ENV
 
-# ── 2. Upload bundle and create EB application version ───────────────────────
+# ── 2. Pre-deploy DB backup (idle env, before new version rolls out) ─────────
+: "${S3_BACKUP_BUCKET:?S3_BACKUP_BUCKET not set}"
+echo "Pre-deploy backup (SSM on ${IDLE_ENV})..."
+bash scripts/run-eb-backup.sh
+
+echo "Verifying S3 backup prefix for revision ${GIT_REVISION}..."
+if ! aws s3 ls "s3://${S3_BACKUP_BUCKET}/pre-migrate/${GIT_REVISION}/" --recursive | head -5 | grep -q .; then
+  echo "ERROR: No backup objects under s3://${S3_BACKUP_BUCKET}/pre-migrate/${GIT_REVISION}/" >&2
+  exit 1
+fi
+echo "S3 backup verified under pre-migrate/${GIT_REVISION}/"
+
+# ── 3. Upload bundle and create EB application version ───────────────────────
 S3_KEY="mimir/${VERSION_LABEL}/deploy-bundle.zip"
 aws s3 cp "$DEPLOY_BUNDLE_PATH" "s3://${EB_BUCKET}/${S3_KEY}" --quiet
 echo "Uploaded s3://${EB_BUCKET}/${S3_KEY}"
@@ -69,7 +83,7 @@ else
   echo "Version $VERSION_LABEL already exists — reusing."
 fi
 
-# ── 3. Deploy to idle env ─────────────────────────────────────────────────────
+# ── 4. Deploy to idle env ─────────────────────────────────────────────────────
 # Build option-settings array: always set MIMIR_GIT_REVISION; optionally propagate
 # GH_BUG_REPORT_TOKEN (GitHub PAT for the in-app Feedback widget → Issues: write).
 # Setting it here ensures the env var survives across deploys without manual console edits.
@@ -106,7 +120,7 @@ for i in $(seq 1 40); do
   sleep 15
 done
 
-# ── 4. Staging smoke test: hit idle CNAME, verify revision ───────────────────
+# ── 5. Staging smoke test: hit idle CNAME, verify revision ───────────────────
 IDLE_CNAME=$(aws elasticbeanstalk describe-environments \
   --application-name "$EB_APP" \
   --environment-names "$IDLE_ENV" \

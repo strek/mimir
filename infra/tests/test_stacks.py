@@ -8,6 +8,7 @@ import pytest
 from aws_cdk import assertions, aws_ec2 as ec2, aws_route53 as route53
 
 from stacks.app_stack import MimirApp
+from stacks.backups_stack import MimirBackups
 from stacks.dns_stack import MimirDns
 from stacks.network_stack import MimirNetwork
 
@@ -234,6 +235,99 @@ class TestMimirApp:
         template.has_resource_properties(
             "AWS::CloudWatch::Alarm",
             {"AlarmName": "mimir-eb-unhealthy"},
+        )
+
+
+# ── MimirBackups ──────────────────────────────────────────────────────────────
+
+
+class TestMimirBackups:
+    @pytest.fixture
+    def template(self) -> assertions.Template:
+        app = cdk.App()
+        stack = MimirBackups(app, "TestBackups", env=CDK_ENV)
+        return assertions.Template.from_stack(stack)
+
+    def test_backup_bucket_created(self, template):
+        template.has_resource_properties(
+            "AWS::S3::Bucket",
+            {
+                "BucketName": f"mimir-db-backups-{ACCOUNT}",
+                "PublicAccessBlockConfiguration": assertions.Match.object_like({
+                    "BlockPublicAcls": True,
+                    "BlockPublicPolicy": True,
+                }),
+            },
+        )
+
+    def test_backup_bucket_encryption(self, template):
+        template.has_resource_properties(
+            "AWS::S3::Bucket",
+            {
+                "BucketEncryption": assertions.Match.object_like({
+                    "ServerSideEncryptionConfiguration": assertions.Match.any_value(),
+                }),
+            },
+        )
+
+    def test_db_backup_managed_policy(self, template):
+        template.has_resource_properties(
+            "AWS::IAM::ManagedPolicy",
+            {"ManagedPolicyName": "MimirDbBackup"},
+        )
+
+    def test_lifecycle_expire_pre_migrate(self, template):
+        template.has_resource_properties(
+            "AWS::S3::Bucket",
+            {
+                "LifecycleConfiguration": assertions.Match.object_like({
+                    "Rules": assertions.Match.array_with([
+                        assertions.Match.object_like({
+                            "Id": "ExpirePreMigrate",
+                            "Prefix": "pre-migrate/",
+                            "Status": "Enabled",
+                        }),
+                    ]),
+                }),
+            },
+        )
+
+
+class TestMimirAppCiSsm:
+    @pytest.fixture
+    def template(self) -> assertions.Template:
+        app = cdk.App(context=VPC_CONTEXT)
+        net = MimirNetwork(
+            app, "Net",
+            vpc_id=VPC_ID,
+            huginn_rds_sg_id=RDS_SG_ID,
+            env=CDK_ENV,
+        )
+        stack = MimirApp(
+            app, "TestApp",
+            vpc=net.vpc,
+            eb_sg=net.eb_sg,
+            acm_cert_arn=ACM_CERT_ARN,
+            env=CDK_ENV,
+        )
+        return assertions.Template.from_stack(stack)
+
+    def test_ci_policy_includes_ssm_send_command(self, template):
+        template.has_resource_properties(
+            "AWS::IAM::ManagedPolicy",
+            {
+                "ManagedPolicyName": "mimir-ci-policy",
+                "PolicyDocument": assertions.Match.object_like({
+                    "Statement": assertions.Match.array_with([
+                        assertions.Match.object_like({
+                            "Sid": "SSMPreDeployBackup",
+                            "Action": assertions.Match.array_with([
+                                "ssm:SendCommand",
+                            ]),
+                        }),
+                    ]),
+                }),
+            },
         )
 
 

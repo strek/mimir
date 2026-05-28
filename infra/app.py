@@ -1,6 +1,7 @@
 import aws_cdk as cdk
 
 from stacks.app_stack import MimirApp
+from stacks.backups_stack import MimirBackups
 from stacks.dns_stack import MimirDns
 from stacks.network_stack import MimirNetwork
 from stacks.ses_stack import MimirSes
@@ -43,6 +44,12 @@ ses = MimirSes(
     app, "MimirSes",
     env=env,
 )
+
+backups = MimirBackups(
+    app, "MimirBackups",
+    env=env,
+)
+
 # EB needs SES policy before it can send; MimirApp env vars reference the
 # configuration set name produced by MimirSes.
 app_stack.add_dependency(ses)

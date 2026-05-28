@@ -131,6 +131,16 @@ class MimirApp(Stack):
                     ],
                     resources=["*"],
                 ),
+                iam.PolicyStatement(
+                    sid="SSMPreDeployBackup",
+                    actions=[
+                        "ssm:SendCommand",
+                        "ssm:GetCommandInvocation",
+                        "ssm:ListCommandInvocations",
+                        "ssm:DescribeInstanceInformation",
+                    ],
+                    resources=["*"],
+                ),
             ],
         )
         deploy_user.add_managed_policy(deploy_policy)

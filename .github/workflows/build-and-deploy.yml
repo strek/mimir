@@ -194,6 +194,7 @@ jobs:
       EB_ENV_A: mimir-prod
       EB_ENV_B: mimir-idle
       EB_BUCKET: elasticbeanstalk-us-east-1-${{ vars.AWS_ACCOUNT_ID }}
+      S3_BACKUP_BUCKET: ${{ vars.S3_BACKUP_BUCKET || 'mimir-db-backups-411113550285' }}
 
     steps:
       - name: Checkout code
@@ -249,6 +250,7 @@ jobs:
           # GitHub PAT for the in-app Feedback widget (Issues: write on phainestai/mimir).
           # Store as repo secret GH_BUG_REPORT_TOKEN. If absent, the existing EB value is kept.
           GH_BUG_REPORT_TOKEN: ${{ secrets.GH_BUG_REPORT_TOKEN }}
+          S3_BACKUP_BUCKET: ${{ env.S3_BACKUP_BUCKET }}
         run: bash scripts/deploy-idle.sh
 
       - name: Deployment summary

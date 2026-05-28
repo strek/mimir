@@ -16,6 +16,7 @@ ENV PYTHONUNBUFFERED=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor \
     graphviz \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /var/log/supervisor
 

@@ -106,11 +106,8 @@ db-reset: ## [local] Delete mimir.db and re-run migrations (destroys all local d
 	@echo "Database reset. Run 'make demo' to reload demo data."
 
 .PHONY: backup
-backup: ## [prod] Dump prod Postgres to S3 — requires S3_BUCKET and DATABASE_URL env vars
-	@[ -n "$$S3_BUCKET" ] || (echo "S3_BUCKET not set"; exit 1)
-	@[ -n "$$DATABASE_URL" ] || (echo "DATABASE_URL not set"; exit 1)
-	pg_dump "$$DATABASE_URL" | aws s3 cp - s3://$$S3_BUCKET/mimir-$(shell date +%Y%m%d-%H%M%S).sql
-	@echo "Backup uploaded to s3://$$S3_BUCKET"
+backup: ## [prod] pg_dump + dumpdata to S3 — requires S3_BACKUP_BUCKET and DATABASE_URL
+	@bash scripts/pre-deploy-backup.sh
 
 ##@ Deploy (AWS EB)
 
