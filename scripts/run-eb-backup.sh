@@ -48,12 +48,17 @@ if [ -z "\$CONTAINER" ]; then
 fi
 echo "Loading EB environment variables from get-config"
 ENV_FILE=\$(mktemp)
-if [ -x /opt/elasticbeanstalk/bin/get-config ]; then
-  /opt/elasticbeanstalk/bin/get-config environment > "\$ENV_FILE"
-else
+if [ ! -x /opt/elasticbeanstalk/bin/get-config ]; then
   echo "ERROR: /opt/elasticbeanstalk/bin/get-config not found on EB host" >&2
   exit 1
 fi
+/opt/elasticbeanstalk/bin/get-config environment | python3 -c '
+import json, sys
+for key, value in json.load(sys.stdin).items():
+    if value is None:
+        continue
+    print(f"{key}={value}")
+' > "\$ENV_FILE"
 {
   echo "S3_BACKUP_BUCKET=${S3_BACKUP_BUCKET}"
   echo "MIMIR_GIT_REVISION=${GIT_REVISION}"
