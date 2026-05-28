@@ -89,6 +89,15 @@ class MimirBackups(Stack):
                     ],
                     resources=[f"{bucket_arn}/pre-migrate/*"],
                 ),
+                iam.PolicyStatement(
+                    sid="DescribeEbEnvForBackup",
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "elasticbeanstalk:DescribeConfigurationSettings",
+                        "elasticbeanstalk:DescribeEnvironments",
+                    ],
+                    resources=["*"],
+                ),
             ],
         )
 

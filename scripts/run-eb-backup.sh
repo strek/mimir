@@ -48,13 +48,17 @@ if [ -z "\$CONTAINER" ]; then
 fi
 echo "Loading EB environment variables for ${IDLE_ENV}"
 ENV_FILE=\$(mktemp)
+EB_ENV_RAW=\$(mktemp)
 aws elasticbeanstalk describe-configuration-settings \
   --application-name ${EB_APP} \
   --environment-name ${IDLE_ENV} \
   --query "ConfigurationSettings[0].OptionSettings[?Namespace=='aws:elasticbeanstalk:application:environment'].[OptionName,Value]" \
-  --output text | while IFS=$'\t' read -r name value; do
-  [ -n "\$name" ] && printf '%s=%s\n' "\$name" "\$value"
-done > "\$ENV_FILE"
+  --output text > "\$EB_ENV_RAW"
+: > "\$ENV_FILE"
+while IFS=\$'\t' read -r name value; do
+  [ -n "\$name" ] && printf '%s=%s\n' "\$name" "\$value" >> "\$ENV_FILE"
+done < "\$EB_ENV_RAW"
+rm -f "\$EB_ENV_RAW"
 {
   echo "S3_BACKUP_BUCKET=${S3_BACKUP_BUCKET}"
   echo "MIMIR_GIT_REVISION=${GIT_REVISION}"
