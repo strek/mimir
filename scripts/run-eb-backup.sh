@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# run-eb-backup.sh — SSM SendCommand on idle EB EC2: docker exec pre_deploy_backup.
+# run-eb-backup.sh — SSM SendCommand on idle EB EC2: backup via one-off container.
+#
+# Uses the newly built ECR image (not the running container) so pre_deploy_backup
+# is available on first deploy of this feature.
 #
 # Required env:
-#   EB_APP, IDLE_ENV, GIT_REVISION, S3_BACKUP_BUCKET
+#   EB_APP, IDLE_ENV, GIT_REVISION, S3_BACKUP_BUCKET, ECR_REGISTRY, IMAGE_SUFFIX
+#   AWS_REGION (optional, default us-east-1)
 
 set -euo pipefail
 
@@ -10,8 +14,13 @@ set -euo pipefail
 : "${IDLE_ENV:?IDLE_ENV not set}"
 : "${GIT_REVISION:?GIT_REVISION not set}"
 : "${S3_BACKUP_BUCKET:?S3_BACKUP_BUCKET not set}"
+: "${ECR_REGISTRY:?ECR_REGISTRY not set}"
+: "${IMAGE_SUFFIX:?IMAGE_SUFFIX not set}"
 
-echo "Pre-deploy backup on ${IDLE_ENV} (revision=${GIT_REVISION})..."
+AWS_REGION="${AWS_REGION:-us-east-1}"
+IMAGE="${ECR_REGISTRY}/mimir:${IMAGE_SUFFIX}"
+
+echo "Pre-deploy backup on ${IDLE_ENV} (revision=${GIT_REVISION}, image=${IMAGE})..."
 
 INSTANCE_IDS=$(aws elasticbeanstalk describe-environment-resources \
   --environment-name "$IDLE_ENV" \
@@ -37,11 +46,23 @@ if [ -z "\$CONTAINER" ]; then
   docker ps -a >&2 || true
   exit 1
 fi
-echo "Using container: \$CONTAINER"
-docker exec \\
+echo "Reading DATABASE_URL from running container \$CONTAINER"
+DATABASE_URL=\$(docker exec "\$CONTAINER" printenv DATABASE_URL)
+if [ -z "\$DATABASE_URL" ]; then
+  echo "ERROR: DATABASE_URL not set in running container" >&2
+  exit 1
+fi
+echo "Logging in to ECR and pulling ${IMAGE}"
+aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+docker pull ${IMAGE}
+echo "Running pre_deploy_backup in one-off container (network=container:\$CONTAINER)"
+docker run --rm --network "container:\${CONTAINER}" \\
+  -e DATABASE_URL="\$DATABASE_URL" \\
   -e S3_BACKUP_BUCKET='${S3_BACKUP_BUCKET}' \\
   -e MIMIR_GIT_REVISION='${GIT_REVISION}' \\
-  "\$CONTAINER" \\
+  -e MIMIR_ENV=prod \\
+  -e DJANGO_SETTINGS_MODULE=mimir.settings.prod \\
+  ${IMAGE} \\
   python manage.py pre_deploy_backup
 EOF
 )

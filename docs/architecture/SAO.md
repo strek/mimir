@@ -2257,8 +2257,9 @@ environments share the same RDS (`huginn-db`). Before `update-environment` rolls
 **Trigger:** every release deploy — step 2 in `scripts/deploy-idle.sh`, after resolving the idle env,
 **before** uploading the bundle or calling `update-environment`.
 
-**Executor:** `scripts/run-eb-backup.sh` uses SSM `SendCommand` on the idle env EC2 instance, then
-`docker exec` into the **current** `web` container to run `python manage.py pre_deploy_backup`.
+**Executor:** `scripts/run-eb-backup.sh` uses SSM `SendCommand` on the idle env EC2 instance: reads
+`DATABASE_URL` from the running `web` container, pulls the **new** ECR image from the current build,
+then runs `python manage.py pre_deploy_backup` in a one-off container on the same Docker network.
 
 **Order:** `pg_dump` (gzip) → S3, then `dumpdata` (JSON fixture) → S3 → EB deploy → container
 `migrate` → staging smoke. If backup or S3 verification fails, deploy aborts (fail-closed).
