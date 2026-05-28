@@ -46,23 +46,32 @@ if [ -z "\$CONTAINER" ]; then
   docker ps -a >&2 || true
   exit 1
 fi
-echo "Reading DATABASE_URL from running container \$CONTAINER"
-DATABASE_URL=\$(docker exec "\$CONTAINER" printenv DATABASE_URL)
-if [ -z "\$DATABASE_URL" ]; then
-  echo "ERROR: DATABASE_URL not set in running container" >&2
-  exit 1
-fi
-echo "Logging in to ECR and pulling ${IMAGE}"
-aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
-docker pull ${IMAGE}
+echo "Loading EB environment variables for ${IDLE_ENV}"
 ENV_FILE=\$(mktemp)
-docker exec "\$CONTAINER" env | grep -E '^(DATABASE_URL|DJANGO_|MIMIR_|AWS_SES|DEFAULT_FROM|FRONTEND|GITHUB|CSRF_|COOKIE_)=' > "\$ENV_FILE" || true
+aws elasticbeanstalk describe-configuration-settings \
+  --application-name ${EB_APP} \
+  --environment-name ${IDLE_ENV} \
+  --query "ConfigurationSettings[0].OptionSettings[?Namespace=='aws:elasticbeanstalk:application:environment'].[OptionName,Value]" \
+  --output text | while IFS=$'\t' read -r name value; do
+  [ -n "\$name" ] && printf '%s=%s\n' "\$name" "\$value"
+done > "\$ENV_FILE"
 {
   echo "S3_BACKUP_BUCKET=${S3_BACKUP_BUCKET}"
   echo "MIMIR_GIT_REVISION=${GIT_REVISION}"
   echo "MIMIR_ENV=prod"
   echo "DJANGO_SETTINGS_MODULE=mimir.settings.prod"
 } >> "\$ENV_FILE"
+if ! grep -q '^DATABASE_URL=' "\$ENV_FILE"; then
+  echo "ERROR: DATABASE_URL missing from EB environment settings" >&2
+  exit 1
+fi
+if ! grep -q '^DJANGO_SECRET_KEY=' "\$ENV_FILE"; then
+  echo "ERROR: DJANGO_SECRET_KEY missing from EB environment settings" >&2
+  exit 1
+fi
+echo "Logging in to ECR and pulling ${IMAGE}"
+aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+docker pull ${IMAGE}
 echo "Running pre_deploy_backup in one-off container (network=container:\$CONTAINER)"
 docker run --rm --network "container:\${CONTAINER}" \\
   --env-file "\$ENV_FILE" \\
