@@ -141,6 +141,14 @@ class MimirApp(Stack):
                     ],
                     resources=["*"],
                 ),
+                iam.PolicyStatement(
+                    sid="S3BackupBucket",
+                    actions=["s3:ListBucket", "s3:GetObject"],
+                    resources=[
+                        "arn:aws:s3:::mimir-db-backups-*",
+                        "arn:aws:s3:::mimir-db-backups-*/*",
+                    ],
+                ),
             ],
         )
         deploy_user.add_managed_policy(deploy_policy)
